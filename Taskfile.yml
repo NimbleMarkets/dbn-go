@@ -1,0 +1,41 @@
+version: '3'
+
+tasks:
+  default:
+    desc: 'Default task is "test"'
+    deps:
+      - test
+
+  list:
+    desc: 'Lists available tasks'
+    cmds:
+      - task --list-all
+
+  test:
+    desc: 'Test all'
+    deps:
+      - go-test
+
+###############################################################################
+
+  go-tidy:
+    desc: 'Tidy all'
+    cmds:
+      - go mod tidy
+
+  go-update:
+    desc: 'Update Go dependencies'
+    cmds:
+      - go get -u ./...
+
+  clean:
+    desc: 'Clean'
+    cmds:
+      - rm -f bin/dbn-json-test
+
+  go-test:
+    desc: 'Test Go'
+    cmds:
+      - go test
+
+###############################################################################

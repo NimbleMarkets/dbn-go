@@ -1,0 +1,1 @@
+{"version":2,"dataset":"GLBX.MDP3","schema":"ohlcv-1s","start":"1609160400000000000","end":"1609200000000000000","limit":"2","stype_in":"raw_symbol","stype_out":"instrument_id","ts_out":false,"symbol_cstr_len":71,"symbols":["ESH1"],"partial":[],"not_found":[],"mappings":[{"raw_symbol":"ESH1","intervals":[{"start_date":20201228,"end_date":20201229,"symbol":"5482"}]}]}
