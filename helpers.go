@@ -8,10 +8,10 @@ import (
 )
 
 // / The denominator of fixed prices in DBN.
-const FIXED_PRICE_SCALE int64 = 1000000000
+const FIXED_PRICE_SCALE float64 = 1000000000.0
 
 func Fixed9ToFloat64(fixed int64) float64 {
-	return float64(fixed / FIXED_PRICE_SCALE)
+	return float64(fixed) / FIXED_PRICE_SCALE
 }
 
 // TrimNullBytes removes trailing nulls from a byte slice and returns a string.
