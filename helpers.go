@@ -19,10 +19,18 @@ func TrimNullBytes(b []byte) string {
 	return string(bytes.TrimRight(b, "\x00"))
 }
 
+// TimestampToSecNanos converts a DBN timestamp to seconds and nanoseconds.
 func TimestampToSecNanos(dbnTimestamp uint64) (int64, int64) {
 	secs := int64(dbnTimestamp / 1e9)
 	nano := int64(dbnTimestamp) - int64(secs*1e9)
 	return secs, nano
+}
+
+// TimestampToTime converts a DBN timestamp to time.Time
+func TimestampToTime(dbnTimestamp uint64) time.Time {
+	secs := int64(dbnTimestamp / 1e9)
+	nano := int64(dbnTimestamp) - int64(secs*1e9)
+	return time.Unix(secs, nano)
 }
 
 // TimeToYMD returns the YYYYMMDD for the time.Time in that Time's location.
