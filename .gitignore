@@ -1,0 +1,5 @@
+# dbn-go .gitignore
+
+.task
+.DS_Store
+bin/
