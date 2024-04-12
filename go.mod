@@ -1,6 +1,6 @@
 module github.com/NimbleMarkets/dbn-go
 
-go 1.18
+go 1.20
 
 require (
 	github.com/onsi/ginkgo/v2 v2.17.1
