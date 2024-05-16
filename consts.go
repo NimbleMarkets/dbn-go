@@ -6,6 +6,11 @@
 
 package dbn
 
+import (
+	"fmt"
+	"strings"
+)
+
 // Side
 type Side uint8
 
@@ -117,6 +122,30 @@ const (
 	SType_Cms SType = 6
 )
 
+// Returns the string representation of the SType, or empty string if unknown.
+func (s SType) String() string {
+	switch s {
+	case SType_InstrumentId:
+		return "instrument_id"
+	case SType_RawSymbol:
+		return "raw_symbol"
+	case SType_Smart:
+		return "smart"
+	case SType_Continuous:
+		return "continuous"
+	case SType_Parent:
+		return "parent"
+	case SType_Nasdaq:
+		return "nasdaq"
+	case SType_Cms:
+		return "cms"
+	default:
+		return ""
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 type RType uint8
 
 const (
@@ -141,6 +170,8 @@ const (
 	RType_Mbo             RType = 0xA0 // Denotes a market by order record.
 	RType_Unknown         RType = 0xFF // Golang-only: Unknown or invalid record type
 )
+
+///////////////////////////////////////////////////////////////////////////////
 
 type Schema uint16
 
@@ -179,26 +210,121 @@ const (
 	Schema_OhlcvEod Schema = 13
 )
 
+// Returns the string representation of the Schema, or empty string if unknown.
+func (s Schema) String() string {
+	switch s {
+	case Schema_Mixed:
+		return "mixed"
+	case Schema_Mbo:
+		return "mbo"
+	case Schema_Mbp1:
+		return "mbp-1"
+	case Schema_Mbp10:
+		return "mbp-10"
+	case Schema_Tbbo:
+		return "tbbo"
+	case Schema_Trades:
+		return "trades"
+	case Schema_Ohlcv1S:
+		return "ohlcv-1s"
+	case Schema_Ohlcv1M:
+		return "ohlcv-1m"
+	case Schema_Ohlcv1H:
+		return "ohlcv-1h"
+	case Schema_Ohlcv1D:
+		return "ohlcv-1d"
+	case Schema_Definition:
+		return "definition"
+	case Schema_Statistics:
+		return "statistics"
+	case Schema_Status:
+		return "status"
+	case Schema_Imbalance:
+		return "imbalance"
+	case Schema_OhlcvEod:
+		return "ohlcv-eod"
+	default:
+		return ""
+	}
+}
+
+// SchemaFromString converts a string to a Schema.
+func SchemaFromString(str string) (Schema, error) {
+	str = strings.ToLower(str)
+	switch str {
+	case "mixed":
+		return Schema_Mixed, nil
+	case "mbo":
+		return Schema_Mbo, nil
+	case "mbp-1":
+		return Schema_Mbp1, nil
+	case "mbp-10":
+		return Schema_Mbp10, nil
+	case "tbbo":
+		return Schema_Tbbo, nil
+	case "trades":
+		return Schema_Trades, nil
+	case "ohlcv-1s":
+		return Schema_Ohlcv1S, nil
+	case "ohlcv-1m":
+		return Schema_Ohlcv1M, nil
+	case "ohlcv-1h":
+		return Schema_Ohlcv1H, nil
+	case "ohlcv-1d":
+		return Schema_Ohlcv1D, nil
+	case "definition":
+		return Schema_Definition, nil
+	case "statistics":
+		return Schema_Statistics, nil
+	case "status":
+		return Schema_Status, nil
+	case "imbalance":
+		return Schema_Imbalance, nil
+	case "ohlcv-eod":
+		return Schema_OhlcvEod, nil
+	default:
+		return Schema_Mixed, fmt.Errorf("unknown schema: %s", str)
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 // / Encoding A data encoding format.
 type Encoding uint8
 
 const (
 	/// Databento Binary Encoding.
-	Dbn Encoding = 0
+	Encoding_Dbn Encoding = 0
 	/// Comma-separated values.
-	Csv Encoding = 1
+	Encoding_Csv Encoding = 1
 	/// JavaScript object notation.
-	Json Encoding = 2
+	Encoding_Json Encoding = 2
 )
+
+// Returns the string representation of the Encoding, or empty string if unknown.
+func (e Encoding) String() string {
+	switch e {
+	case Encoding_Dbn:
+		return "dbn"
+	case Encoding_Csv:
+		return "csv"
+	case Encoding_Json:
+		return "json"
+	default:
+		return ""
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////
 
 // / A compression format or none if uncompressed.
 type Compression uint8
 
 const (
 	/// Uncompressed.
-	None Compression = 0
+	Compress_None Compression = 0
 	/// Zstandard compressed.
-	ZStd Compression = 1
+	Compress_ZStd Compression = 1
 )
 
 // / Constants for the bit flag record fields.

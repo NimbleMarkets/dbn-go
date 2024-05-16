@@ -10,6 +10,8 @@
 
 This repository contains Golang bindings to [Databento's](https://databento.com) file format [Databento Binary Encoding (DBN)](https://databento.com/docs/knowledge-base/new-users/dbn-encoding).
 
+Support for the [Databento Historical API](https://databento.com/docs/api-reference-historical) is in-progress.  See [`/hist`](./hist) for details.
+
 
 ## Open Collaboration
 
@@ -23,7 +25,7 @@ We welcome contributions and feedback.  Please adhere to our [Code of Conduct](.
 
 Released under the [Apache License, version 2.0](https://www.apache.org/licenses/LICENSE-2.0), see [LICENSE.txt](./LICENSE.txt).
 
-Portions adapted from [`databento/dbn`](https://github.com/databento/dbn) under the same Apache license.
+Portions adapted from [`databento/dbn`](https://github.com/databento/dbn) [`databendo/databento-rs`](https://github.com/databento/databento-rs) under the same Apache license.
 
 Copyright (c) 2024 [Neomantra Corp](https://www.neomantra.com).   
 
