@@ -26,3 +26,5 @@ jobs:
 
     - name: Test
       run: go test -v ./...
+      env:
+        DATABENTO_API_KEY: ${{ secrets.DATABENTO_API_KEY }}
