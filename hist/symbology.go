@@ -4,6 +4,7 @@ package dbn_hist
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"strings"
 
@@ -60,12 +61,18 @@ func SymbologyResolve(apiKey string, params ResolveParams) (*Resolution, error) 
 
 	csvSymbols := strings.Join(params.Symbols, ",")
 	formData := url.Values{
-		"dataset":    {params.Dataset},
-		"symbols":    {csvSymbols},
-		"stype_in":   {params.StypeIn.String()},
-		"stype_out":  {params.StypeOut.String()},
-		"start_date": {params.DateRange.Start.Format("2006-01-02")},
-		"end_date":   {params.DateRange.End.Format("2006-01-02")},
+		"dataset":   {params.Dataset},
+		"symbols":   {csvSymbols},
+		"stype_in":  {params.StypeIn.String()},
+		"stype_out": {params.StypeOut.String()},
+	}
+	if params.DateRange.Start.IsZero() {
+		return nil, fmt.Errorf("DateRange.Start is required")
+	} else {
+		formData.Add("start_date", params.DateRange.Start.Format("2006-01-02"))
+	}
+	if !params.DateRange.End.IsZero() {
+		formData.Add("end_date", params.DateRange.End.Format("2006-01-02"))
 	}
 
 	body, err := databentoPostFormRequest(apiUrl, apiKey, formData)
