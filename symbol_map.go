@@ -5,9 +5,115 @@
 package dbn
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 )
+
+type tsSymbolKey struct {
+	Date uint32 // YMD date
+	ID   uint32
+}
+
+// TsSymbolMap is a timeseries symbol map. Generally useful for working with historical data
+// and is commonly built from a Metadata object.
+type TsSymbolMap struct {
+	symbolMap map[tsSymbolKey]string
+}
+
+func NewTsSymbolMap() *TsSymbolMap {
+	return &TsSymbolMap{
+		symbolMap: make(map[tsSymbolKey]string),
+	}
+}
+
+// IsEmpty returns true if there are no mappings.
+func (tsm *TsSymbolMap) IsEmpty() bool {
+	return len(tsm.symbolMap) == 0
+}
+
+// Len returns the number of symbol mappings in the map.
+func (tsm *TsSymbolMap) Len() int {
+	return len(tsm.symbolMap)
+}
+
+// Get returns the symbol mapping for the given date and instrument ID.
+// Returns empty string if no mapping exists.
+func (tsm *TsSymbolMap) Get(dt time.Time, instrID uint32) string {
+	ymd := TimeToYMD(dt)
+	key := tsSymbolKey{Date: ymd, ID: instrID}
+	symbol, ok := tsm.symbolMap[key]
+	if !ok {
+		return ""
+	}
+	return symbol
+}
+
+// FillFromMetadata fills the TsSymbolMap with mappings from `metadata`.
+func (tsm *TsSymbolMap) FillFromMetadata(metadata *Metadata) error {
+	// clear existing mappings
+	tsm.symbolMap = make(map[tsSymbolKey]string)
+
+	// handle inverse mappings distinctly
+	invMapping, err := metadata.IsInverseMapping()
+	if err != nil {
+		return err
+	}
+	if invMapping {
+		for _, mapping := range metadata.Mappings {
+			// instrID comes from mapping, NOT interval
+			instrID, err := strconv.Atoi(mapping.RawSymbol)
+			if err != nil {
+				return err // really?
+			}
+			for _, interval := range mapping.Intervals {
+				// handle old symbology format
+				if interval.Symbol == "" {
+					continue
+				}
+				tsm.Insert(uint32(instrID), interval.StartDate, interval.EndDate, interval.Symbol)
+			}
+		}
+	} else {
+		for _, mapping := range metadata.Mappings {
+			for _, interval := range mapping.Intervals {
+				// handle old symbology format
+				if interval.Symbol == "" {
+					continue
+				}
+				// instrID comes from interval, NOT mapping
+				instrID, err := strconv.Atoi(interval.Symbol)
+				if err != nil {
+					return err // really?
+				}
+				tsm.Insert(uint32(instrID), interval.StartDate, interval.EndDate, mapping.RawSymbol)
+			}
+		}
+	}
+
+	return nil
+}
+
+// Insert adds mappings for a date range.
+// dates are YYYYMMDD ints
+func (tsm *TsSymbolMap) Insert(instrID uint32, startDate uint32, endDate uint32, ticker string) error {
+	// convert dates to time.Time
+	startTime := YMDToTime(int(startDate), time.UTC)
+	endTime := YMDToTime(int(endDate), time.UTC)
+	if startTime.After(endTime) {
+		return fmt.Errorf("startDate is after endDate")
+	}
+
+	// Iterate calendar days from startDate to endDate
+	for d := startTime; d.Before(endTime) || d.Equal(endTime); d = d.AddDate(0, 0, 1) {
+		ymd := TimeToYMD(d)
+		key := tsSymbolKey{Date: ymd, ID: instrID}
+		tsm.symbolMap[key] = ticker
+	}
+	return nil
+}
+
+//////////////////////////////////////////////////////////////////////////////
 
 // PitSymbolMap is a point-in-time symbol map. Useful for working with live symbology or a
 // historical request over a single day or other situations where the symbol
@@ -61,8 +167,12 @@ func (p *PitSymbolMap) FillFromMetadata(metadata *Metadata, timestamp uint64) er
 	if timestamp < metadata.Start || timestamp >= metadata.End {
 		return ErrDateOutsideQueryRange
 	}
-	is_inverse := metadata.IsInverseMapping()
 	ymd := TimeToYMD(time.Unix(0, int64(timestamp)))
+
+	isInverse, err := metadata.IsInverseMapping()
+	if err != nil {
+		return err
+	}
 
 	p.mapping = make(map[uint32]string, len(metadata.Mappings))
 	p.mappingInv = make(map[string]uint32, len(metadata.Mappings))
@@ -76,13 +186,19 @@ func (p *PitSymbolMap) FillFromMetadata(metadata *Metadata, timestamp uint64) er
 			if len(interval.Symbol) == 0 {
 				continue
 			}
-			atoi, err := strconv.Atoi(interval.Symbol)
-			if err != nil {
-				return ErrMalformedRecord
-			}
-			p.mapping[uint32(atoi)] = mapping.RawSymbol
-			if is_inverse {
-				p.mappingInv[mapping.RawSymbol] = uint32(atoi)
+
+			if isInverse {
+				instrID, err := strconv.Atoi(mapping.RawSymbol)
+				if err != nil {
+					return err
+				}
+				p.mapping[uint32(instrID)] = interval.Symbol
+			} else {
+				instrID, err := strconv.Atoi(interval.Symbol)
+				if err != nil {
+					return err
+				}
+				p.mapping[uint32(instrID)] = mapping.RawSymbol
 			}
 		}
 	}

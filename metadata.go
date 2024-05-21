@@ -5,6 +5,7 @@ package dbn
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 )
 
@@ -51,15 +52,89 @@ type SymbolMapping struct {
 
 // The resolved symbol for a date range.
 type MappingInterval struct {
-	StartDate uint32 /// The UTC start date of interval (inclusive).
-	EndDate   uint32 /// The UTC end date of interval (exclusive).
-	Symbol    string /// The resolved symbol for this interval.
+	StartDate uint32 // The UTC start date of interval (inclusive), as YYYYMMDD
+	EndDate   uint32 // The UTC end date of interval (exclusive), as YYYYMMDD.
+	Symbol    string // The resolved symbol for this interval.
 }
 
-// IsInverseMapping returns true if either StypeIn or StypeOut is an InstrumentId.
-// This means it is capable of bidirectional mapping between symbols and instrument IDs.
-func (m *Metadata) IsInverseMapping() bool {
-	return m.StypeIn == SType_InstrumentId || m.StypeOut == SType_InstrumentId
+// IsInverseMapping returns true if the map goes from InstrumentId to some other type.
+// Returns an error if neither of the STypes are InstrumentId.
+func (m *Metadata) IsInverseMapping() (bool, error) {
+	if m.StypeIn == SType_InstrumentId {
+		return true, nil
+	}
+	if m.StypeOut == SType_InstrumentId {
+		return false, nil
+	}
+	return false, fmt.Errorf("can only create symbol maps from metadata where either StypeOut or StypeIn is SType_InstrumentId")
+}
+
+// Write writes out a Metadata v2 to a DBN stream over an io.Writer.
+// Returns any error.
+func (m *Metadata) Write(writer io.Writer) error {
+	// Calculate total size of the metadata
+	cstrLen := int(MetadataV2_SymbolCstrLen)
+	metaLength := MetadataHeaderV2_Size
+	metaLength += (4 + len(m.SchemaDefinition)) // schemaDef len + schemaDef bytes
+	metaLength += (4 + len(m.Symbols)*cstrLen)
+	metaLength += (4 + len(m.Partial)*cstrLen)
+	metaLength += (4 + len(m.NotFound)*cstrLen)
+	metaLength += (4 + len(m.Mappings)*(cstrLen+4)) // mappings len + mappings rawSymbol + mappings intervalLen
+	numIntervals := 0
+	for _, mapping := range m.Mappings {
+		numIntervals += len(mapping.Intervals)
+	}
+	metaLength += (numIntervals * (4 + 4 + cstrLen)) // start + end + symbol
+
+	// Write the MetadataPrefix
+	if err := binary.Write(writer, binary.LittleEndian, MetadataPrefix{
+		VersionRaw: [4]byte{'D', 'B', 'N', 2},
+		Length:     uint32(metaLength),
+	}); err != nil {
+		return err
+	}
+
+	// Write metadata header
+	m2 := MetadataHeaderV2{
+		Schema:        m.Schema,
+		Start:         m.Start,
+		End:           m.End,
+		Limit:         m.Limit,
+		StypeIn:       m.StypeIn,
+		StypeOut:      m.StypeOut,
+		TsOut:         m.TsOut,
+		SymbolCstrLen: uint16(cstrLen),
+	}
+	copy(m2.DatasetRaw[:], m.Dataset)
+	if err := binary.Write(writer, binary.LittleEndian, m2); err != nil {
+		return err
+	}
+
+	// Write schema definition
+	if err := binary.Write(writer, binary.LittleEndian, uint32(len(m.SchemaDefinition))); err != nil {
+		return err
+	}
+	if err := binary.Write(writer, binary.LittleEndian, m.SchemaDefinition); err != nil {
+		return err
+	}
+
+	// Write string arrays
+	if err := writeStringArray(writer, uint16(cstrLen), m.Symbols); err != nil {
+		return err
+	}
+	if err := writeStringArray(writer, uint16(cstrLen), m.Partial); err != nil {
+		return err
+	}
+	if err := writeStringArray(writer, uint16(cstrLen), m.NotFound); err != nil {
+		return err
+	}
+
+	// Write mappings
+	if err := writeSymbolMapping(writer, uint16(cstrLen), m.Mappings); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -160,7 +235,7 @@ func ReadMetadata(r io.Reader) (*Metadata, error) {
 	// Dispatch to the version's decoder
 	switch versionNum := mp.VersionRaw[3]; versionNum {
 	case HeaderVersion1:
-		return makeMetadataV1(b, mp)
+		return readMetadataV1(b, mp)
 	case HeaderVersion2:
 		return readMetadataV2(b, mp)
 	default:
@@ -170,7 +245,7 @@ func ReadMetadata(r io.Reader) (*Metadata, error) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-func makeMetadataV1(b []byte, mp MetadataPrefix) (*Metadata, error) {
+func readMetadataV1(b []byte, mp MetadataPrefix) (*Metadata, error) {
 	// Read the MetadataHeader which is a fixed length
 	var mhv1 MetadataHeaderV1
 	if err := mhv1.FillFixed_Raw(b); err != nil {
@@ -342,6 +417,62 @@ func decodeToSymbolMapping(r io.Reader, cstrLength uint16, mappings *[]SymbolMap
 		}
 		// append to dest array
 		*mappings = append(*mappings, mapping)
+	}
+	return nil
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+func fill[T any](slice []T, val T) {
+	for i := range slice {
+		slice[i] = val
+	}
+}
+
+func writeStringArray(w io.Writer, cstrLength uint16, strs []string) error {
+	if err := binary.Write(w, binary.LittleEndian, uint32(len(strs))); err != nil {
+		return err
+	}
+
+	cstr := make([]byte, cstrLength) // reused
+	for _, symbol := range strs {
+		fill(cstr, 0)
+		copy(cstr, symbol)
+		if err := binary.Write(w, binary.LittleEndian, cstr); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writeSymbolMapping(w io.Writer, cstrLength uint16, mappings []SymbolMapping) error {
+	if err := binary.Write(w, binary.LittleEndian, uint32(len(mappings))); err != nil {
+		return err
+	}
+
+	cstr := make([]byte, cstrLength) // reused
+	for _, mapping := range mappings {
+		fill(cstr, 0)
+		copy(cstr, mapping.RawSymbol)
+		if err := binary.Write(w, binary.LittleEndian, cstr); err != nil {
+			return err
+		}
+		if err := binary.Write(w, binary.LittleEndian, uint32(len(mapping.Intervals))); err != nil {
+			return err
+		}
+		for _, interval := range mapping.Intervals {
+			if err := binary.Write(w, binary.LittleEndian, interval.StartDate); err != nil {
+				return err
+			}
+			if err := binary.Write(w, binary.LittleEndian, interval.EndDate); err != nil {
+				return err
+			}
+			fill(cstr, 0)
+			copy(cstr, interval.Symbol)
+			if err := binary.Write(w, binary.LittleEndian, cstr); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

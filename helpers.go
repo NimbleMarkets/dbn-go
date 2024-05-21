@@ -43,3 +43,20 @@ func TimeToYMD(t time.Time) uint32 {
 		return uint32(10000*t.Year() + 100*int(t.Month()) + t.Day())
 	}
 }
+
+// YMDtoTime returns the Time corresponding to the YYYYMMDD in the specified location, without validating the argument.`
+// A value of 0 returns a Zero Time, independent of location.
+// A nil location implies local time.
+// https://github.com/neomantra/ymdflag/blob/main/ymdflag.go#L34
+func YMDToTime(yyyymmdd int, loc *time.Location) time.Time {
+	if yyyymmdd == 0 {
+		return time.Time{}
+	}
+	var year int = yyyymmdd / 10000
+	var month int = (yyyymmdd % 10000) / 100
+	var day int = yyyymmdd % 100
+	if loc == nil {
+		loc = time.Local
+	}
+	return time.Date(year, time.Month(month), day, 0, 0, 0, 0, loc)
+}

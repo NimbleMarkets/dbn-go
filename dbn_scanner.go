@@ -47,6 +47,30 @@ func (s *DbnScanner) Metadata() (*Metadata, error) {
 	return s.metadata, err
 }
 
+// Error returns the last error from Next().  May be io.EOF.
+func (s *DbnScanner) Error() error {
+	return s.lastError
+}
+
+// GetLastHeader returns the RHeader of the last record read, or an error
+func (s *DbnScanner) GetLastHeader() (RHeader, error) {
+	var rheader RHeader
+	err := FillRHeader_Raw(s.lastRecord[0:RHeader_Size], &rheader)
+	return rheader, err
+}
+
+// GetLastRecord returns the raw bytes of the last record read
+func (s *DbnScanner) GetLastRecord() []byte {
+	return s.lastRecord
+}
+
+// GetLastSize returns the size of the last record read
+func (s *DbnScanner) GetLastSize() int {
+	return s.lastSize
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
 // readMetadata is an internal method to read metadata from the stream.
 func (s *DbnScanner) readMetadata() error {
 	if s.metadata != nil {
@@ -99,11 +123,6 @@ func (s *DbnScanner) Next() bool {
 	s.lastError = nil
 	s.lastSize = mustRead
 	return true
-}
-
-// Error returns the last error from Next().  May be io.EOF.
-func (s *DbnScanner) Error() error {
-	return s.lastError
 }
 
 // Parses the Scanner's current record as a `Record`.

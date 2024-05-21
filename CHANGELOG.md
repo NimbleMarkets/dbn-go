@@ -7,3 +7,10 @@
 ## v0.0.6 (2024-05-16)
 
  * Add initial Hist API
+
+## v0.0.7 (2024-05-21)
+
+*  Add more getters for DbnScanner
+ * Add TsSymbolMap for historical symbology
+ * Add Metadata.Write and YMDToTime
+ * Fix broken IsInverseMapping
