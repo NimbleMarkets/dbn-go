@@ -4,6 +4,7 @@ package dbn
 
 import (
 	"bytes"
+	"strings"
 	"time"
 )
 
@@ -59,4 +60,12 @@ func YMDToTime(yyyymmdd int, loc *time.Location) time.Time {
 		loc = time.Local
 	}
 	return time.Date(year, time.Month(month), day, 0, 0, 0, 0, loc)
+}
+
+// DatasetToHostname returns the dataset string into the hostname formnat.
+// This is the dataset in lowercase with . replaced with -.
+func DatasetToHostname(dataset string) string {
+	str := strings.ToLower(dataset)
+	str = strings.ReplaceAll(str, ".", "-")
+	return str
 }

@@ -12,6 +12,8 @@ This repository contains Golang bindings to [Databento's](https://databento.com)
 
 Support for the [Databento Historical API](https://databento.com/docs/api-reference-historical) is in-progress.  See [`/hist`](./hist) for details.
 
+Support for the [Databento Live API](https://databento.com/docs/api-reference-live) is in-progress. See  [`/live`](./live) for details.
+
 
 ## Open Collaboration
 

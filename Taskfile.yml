@@ -2,19 +2,30 @@ version: '3'
 
 tasks:
   default:
-    desc: 'Default task is "test"'
+    desc: 'Default task is to "test" and "build"'
     deps:
       - test
+      - build
 
   list:
     desc: 'Lists available tasks'
     cmds:
       - task --list-all
 
+  build:
+    desc: 'Build all'
+    deps:
+      - go-build
+
   test:
     desc: 'Test all'
     deps:
       - go-test
+
+  clean:
+    desc: 'Clean'
+    cmds:
+      - rm -f bin/dbn-go-live
 
 ###############################################################################
 
@@ -28,14 +39,18 @@ tasks:
     cmds:
       - go get -u ./...
 
-  clean:
-    desc: 'Clean'
+  go-build:
+    desc: 'Build Go binaries'
+    deps: [go-tidy]
     cmds:
-      - rm -f bin/dbn-json-test
+      - go build -o bin/dbn-go-live cmd/dbn-go-live/*.go
+    generates:
+      - bin/dbn-go-live
 
   go-test:
     desc: 'Test Go'
+    deps: [go-tidy]
     cmds:
-      - go test
+      - go test ./...
 
 ###############################################################################

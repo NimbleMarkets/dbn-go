@@ -152,8 +152,10 @@ func (p *PitSymbolMap) Get(instrumentID uint32) string {
 
 // OnSymbolMappingMsg handles updating the mappings (if required) for a SymbolMappingMsg record.
 func (p *PitSymbolMap) OnSymbolMappingMsg(symbolMapping *SymbolMappingMsg) error {
-	// TODO
-	return ErrMalformedRecord
+	// Apply from the header's instrumentID to its stype_out
+	p.mapping[symbolMapping.Header.InstrumentID] = symbolMapping.StypeOutSymbol
+	p.mappingInv[symbolMapping.StypeOutSymbol] = symbolMapping.Header.InstrumentID
+	return nil
 }
 
 // Fills the PitSymbolMap with mappings from `metadata` for `date`, clearing any original contents
@@ -204,57 +206,3 @@ func (p *PitSymbolMap) FillFromMetadata(metadata *Metadata, timestamp uint64) er
 	}
 	return nil
 }
-
-/*
-
-/// Handles updating the mappings (if required) for a generic record.
-///
-/// # Errors
-/// This function returns an error when `record` contains a [`SymbolMappingMsg`] but
-/// it contains invalid UTF-8.
-pub fn on_record(&mut self, record: RecordRef) -> crate::Result<()> {
-	if matches!(record.rtype(), Ok(RType::SymbolMapping)) {
-		// >= to allow WithTsOut
-		if record.record_size() >= std::mem::size_of::<SymbolMappingMsg>() {
-			// Safety: checked rtype and length
-			self.on_symbol_mapping(unsafe { record.get_unchecked::<SymbolMappingMsg>() })
-		} else {
-			// Use get here to get still perform length checks
-			self.on_symbol_mapping(record.get::<compat::SymbolMappingMsgV1>().unwrap())
-		}
-	} else {
-		Ok(())
-	}
-}
-
-/// Handles updating the mappings for a symbol mapping record.
-///
-/// # Errors
-/// This function returns an error when `symbol_mapping` contains invalid UTF-8.
-pub fn on_symbol_mapping<S: compat::SymbolMappingRec>(
-	&mut self,
-	symbol_mapping: &S,
-) -> crate::Result<()> {
-	let stype_out_symbol = symbol_mapping.stype_out_symbol()?;
-	self.0.insert(
-		symbol_mapping.header().instrument_id,
-		stype_out_symbol.to_owned(),
-	);
-	Ok(())
-}
-
-/// Returns a reference to the mapping for the given instrument ID.
-pub fn get(&self, instrument_id: u32) -> Option<&String> {
-	self.0.get(&instrument_id)
-}
-
-/// Returns a reference to the inner map.
-pub fn inner(&self) -> &HashMap<u32, String> {
-	&self.0
-}
-
-/// Returns a mutable reference to the inner map.
-pub fn inner_mut(&mut self) -> &mut HashMap<u32, String> {
-	&mut self.0
-}
-}*/

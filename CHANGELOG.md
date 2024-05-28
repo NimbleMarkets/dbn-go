@@ -10,7 +10,11 @@
 
 ## v0.0.7 (2024-05-21)
 
-*  Add more getters for DbnScanner
+ * Add more getters for DbnScanner
  * Add TsSymbolMap for historical symbology
  * Add Metadata.Write and YMDToTime
  * Fix broken IsInverseMapping
+
+## v0.0.8 (2024-05-28)
+ 
+ * Add initial Live API support
