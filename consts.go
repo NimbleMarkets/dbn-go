@@ -171,6 +171,49 @@ const (
 	RType_Unknown         RType = 0xFF // Golang-only: Unknown or invalid record type
 )
 
+// Returns the string representation of the RType, or empty string if unknown.
+func (s RType) String() string {
+	switch s {
+	case RType_Mbp0:
+		return "mbp0"
+	case RType_Mbp1:
+		return "mbp1"
+	case RType_Mbp10:
+		return "mbp10"
+	case RType_OhlcvDeprecated:
+		return "ohlcvdeprecated"
+	case RType_Ohlcv1S:
+		return "ohlcv1s"
+	case RType_Ohlcv1M:
+		return "ohlcv1m"
+	case RType_Ohlcv1H:
+		return "ohlcv1h"
+	case RType_Ohlcv1D:
+		return "ohlcv1d"
+	case RType_OhlcvEod:
+		return "ohlcveod"
+	case RType_Status:
+		return "status"
+	case RType_InstrumentDef:
+		return "instrument_def"
+	case RType_Imbalance:
+		return "imbalance"
+	case RType_Error:
+		return "error"
+	case RType_SymbolMapping:
+		return "symbol_mapping"
+	case RType_System:
+		return "system"
+	case RType_Statistics:
+		return "statistics"
+	case RType_Mbo:
+		return "mbo"
+	case RType_Unknown:
+		return "unknown"
+	}
+	return ""
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 type Schema uint16
@@ -566,9 +609,9 @@ type VersionUpgradePolicy uint8
 
 const (
 	/// Decode data from previous versions as-is.
-	AsIs VersionUpgradePolicy = 0
+	VersionUpgradePolicy_AsIs VersionUpgradePolicy = 0
 	/// Decode data from previous versions converting it to the latest version. This
 	/// breaks zero-copy decoding for structs that need updating, but makes usage
 	/// simpler.
-	Upgrade VersionUpgradePolicy = 1
+	VersionUpgradePolicy_Upgrade VersionUpgradePolicy = 1
 )
