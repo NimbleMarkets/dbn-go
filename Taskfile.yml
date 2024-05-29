@@ -27,6 +27,13 @@ tasks:
     cmds:
       - rm -f bin/dbn-go-live
 
+  docker-build:
+    desc: 'Docker build'
+    deps:
+      - go-tidy
+    cmds:
+      - docker build .
+
 ###############################################################################
 
   go-tidy:
@@ -52,5 +59,11 @@ tasks:
     deps: [go-tidy]
     cmds:
       - go test ./...
+
+  go-test-no-api:
+    desc: 'Test Go, but no API calls'
+    deps: [go-tidy]
+    cmds:
+      - go test && go test ./live
 
 ###############################################################################

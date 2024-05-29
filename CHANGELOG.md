@@ -4,6 +4,7 @@
  
  * Add initial Live API support
  * Add Mpb1, Mbp10, Mbo, Error, SymbolMapping, System, Statistics
+ * Add Dockerfile
  * Minor interface tweaks and bug fixes
 
 ## v0.0.7 (2024-05-21)

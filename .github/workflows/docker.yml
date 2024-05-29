@@ -1,0 +1,72 @@
+# See https://github.com/pabloromeo/docker-dogecoin/blob/master/.github/workflows/main.yml
+
+name: Docker Builds
+
+# Controls when the workflow will run
+on:
+  workflow_dispatch:
+  push:
+    branches:
+    - 'main'
+    - 'v*.*.*'
+    tags:
+    - 'v*.*.*'
+  pull_request:
+    branches:
+    - 'main'
+    - 'v*.*.*'
+
+permissions: 
+  contents: read
+  packages: write
+
+jobs:
+  build-dbn-go:
+
+    runs-on: ubuntu-latest
+    steps:
+    # Get the repositery's code
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    # https://github.com/docker/setup-qemu-action
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+
+    # https://github.com/docker/setup-buildx-action
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to GHCR
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Docker meta
+      id: meta_dbn_go
+      uses: docker/metadata-action@v5
+      with:
+        # list of Docker images to use as base name for tags
+        images: |
+          ghcr.io/NimbleMarkets/dbn-go
+        # generate Docker tags based on the following events/attributes
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=sha
+ 
+    - name: Build and push
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm/v7
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ steps.meta_dbn_go.outputs.tags }}
+        labels: ${{ steps.meta_dbn_go.outputs.labels }}
