@@ -581,15 +581,20 @@ type SymbolMappingMsg struct {
 }
 
 // Minimum size of SymbolMappingMsg, the size with 0-length c-strings
-// We add 2*SymbolCstrLength to it to get actual size
-const SymbolMappingMsg_MinSize = RHeader_Size + 10
+// We add 2*SymbolCstrLength to it to get actual size.
+const SymbolMappingMsg_MinSize = RHeader_Size + 16
 
 func (*SymbolMappingMsg) RType() RType {
 	return RType_SymbolMapping
 }
 
 func (*SymbolMappingMsg) RSize(cstrLength uint16) uint16 {
-	return SymbolMappingMsg_MinSize * 2 * cstrLength
+	if cstrLength == MetadataV1_SymbolCstrLen {
+		// V1 message doesn't have StypeIn and StypeOut fields
+		return SymbolMappingMsg_MinSize + (2 * cstrLength)
+	} else {
+		return SymbolMappingMsg_MinSize + (2 * cstrLength) + 2
+	}
 }
 
 func (r *SymbolMappingMsg) Fill_Raw(b []byte, cstrLength uint16) error {
@@ -602,12 +607,23 @@ func (r *SymbolMappingMsg) Fill_Raw(b []byte, cstrLength uint16) error {
 		return err
 	}
 	body := b[RHeader_Size:] // slice of just the body
-	r.StypeIn = SType(body[0])
-	r.StypeInSymbol = TrimNullBytes(body[1 : 1+cstrLength])
-	pos := 1 + cstrLength
-	r.StypeOut = SType(body[pos])
-	r.StypeOutSymbol = TrimNullBytes(body[pos+1 : pos+1+cstrLength])
-	pos = pos + 1 + cstrLength
+	pos := uint16(0)
+	if cstrLength == MetadataV1_SymbolCstrLen {
+		r.StypeIn = SType_RawSymbol // DBN1 doesn't have this field
+	} else {
+		r.StypeIn = SType(body[pos])
+		pos += 1
+	}
+	r.StypeInSymbol = TrimNullBytes(body[pos : pos+cstrLength])
+	pos += cstrLength
+	if cstrLength == MetadataV1_SymbolCstrLen {
+		r.StypeIn = SType_RawSymbol // DBN1 doesn't have this field
+	} else {
+		r.StypeIn = SType(body[pos])
+		pos += 1
+	}
+	r.StypeOutSymbol = TrimNullBytes(body[pos : pos+cstrLength])
+	pos += +cstrLength
 	r.StartTs = binary.LittleEndian.Uint64(body[pos : pos+8])
 	r.EndTs = binary.LittleEndian.Uint64(body[pos+8 : pos+16])
 	return nil

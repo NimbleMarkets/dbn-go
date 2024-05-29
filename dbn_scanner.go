@@ -111,13 +111,13 @@ func (s *DbnScanner) Next() bool {
 	mustRead := 4 * int(recordLen)
 
 	// Read the header and record
-	// 1: because we already got the first byte
-	// :mustRead+1 because we need to read the full record, so specify one beyond last
+	// 1: because we already got the first size byte
+	// :mustRead because we only want a subset of the buffer (the full record size)
 	numRead, err := io.ReadFull(s.buffReader, s.lastRecord[1:mustRead])
 	if err != nil {
 		// we didn't read the full amount by num
 		s.lastError = err
-		s.lastSize = numRead
+		s.lastSize = numRead + 1 // +1 for size byte
 		return false
 	}
 	s.lastError = nil
@@ -224,7 +224,7 @@ func (s *DbnScanner) Visit(visitor Visitor) error {
 	// SymbolMapping
 	case RType_SymbolMapping:
 		record := SymbolMappingMsg{}
-		if err := record.Fill_Raw(s.lastRecord[:], s.metadata.SymbolCstrLen); err != nil {
+		if err := record.Fill_Raw(s.lastRecord[:s.lastSize], s.metadata.SymbolCstrLen); err != nil {
 			return err // TODO: OnError()
 		} else {
 			return visitor.OnSymbolMappingMsg(&record)

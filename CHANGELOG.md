@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.0.9 (2024-05-29)
+
+ * Fix DBN v1 compatibility issues for writing Metadata and reading SymbolMappingMsg
+
 ## v0.0.8 (2024-05-28)
  
  * Add initial Live API support

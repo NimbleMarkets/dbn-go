@@ -69,9 +69,82 @@ func (m *Metadata) IsInverseMapping() (bool, error) {
 	return false, fmt.Errorf("can only create symbol maps from metadata where either StypeOut or StypeIn is SType_InstrumentId")
 }
 
-// Write writes out a Metadata v2 to a DBN stream over an io.Writer.
+// Write writes out a Metadata to a DBN stream over an io.Writer.
 // Returns any error.
 func (m *Metadata) Write(writer io.Writer) error {
+	if m.VersionNum == HeaderVersion1 {
+		return m.writeV1(writer)
+	} else {
+		return m.writeV2(writer)
+	}
+}
+
+func (m *Metadata) writeV1(writer io.Writer) error {
+	// Calculate total size of the metadata
+	cstrLen := int(MetadataV1_SymbolCstrLen)
+	metaLength := MetadataHeaderV1_Size
+	metaLength += (4 + len(m.SchemaDefinition)) // schemaDef len + schemaDef bytes
+	metaLength += (4 + len(m.Symbols)*cstrLen)
+	metaLength += (4 + len(m.Partial)*cstrLen)
+	metaLength += (4 + len(m.NotFound)*cstrLen)
+	metaLength += (4 + len(m.Mappings)*(cstrLen+4)) // mappings len + mappings rawSymbol + mappings intervalLen
+	numIntervals := 0
+	for _, mapping := range m.Mappings {
+		numIntervals += len(mapping.Intervals)
+	}
+	metaLength += (numIntervals * (4 + 4 + cstrLen)) // start + end + symbol
+
+	// Write the MetadataPrefix
+	if err := binary.Write(writer, binary.LittleEndian, MetadataPrefix{
+		VersionRaw: [4]byte{'D', 'B', 'N', 1},
+		Length:     uint32(metaLength),
+	}); err != nil {
+		return err
+	}
+
+	// Write metadata header
+	m1 := MetadataHeaderV1{
+		Schema:   m.Schema,
+		Start:    m.Start,
+		End:      m.End,
+		Limit:    m.Limit,
+		StypeIn:  m.StypeIn,
+		StypeOut: m.StypeOut,
+		TsOut:    m.TsOut,
+	}
+	copy(m1.DatasetRaw[:], m.Dataset)
+	if err := binary.Write(writer, binary.LittleEndian, m1); err != nil {
+		return err
+	}
+
+	// Write schema definition
+	if err := binary.Write(writer, binary.LittleEndian, uint32(len(m.SchemaDefinition))); err != nil {
+		return err
+	}
+	if err := binary.Write(writer, binary.LittleEndian, m.SchemaDefinition); err != nil {
+		return err
+	}
+
+	// Write string arrays
+	if err := writeStringArray(writer, uint16(cstrLen), m.Symbols); err != nil {
+		return err
+	}
+	if err := writeStringArray(writer, uint16(cstrLen), m.Partial); err != nil {
+		return err
+	}
+	if err := writeStringArray(writer, uint16(cstrLen), m.NotFound); err != nil {
+		return err
+	}
+
+	// Write mappings
+	if err := writeSymbolMapping(writer, uint16(cstrLen), m.Mappings); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *Metadata) writeV2(writer io.Writer) error {
 	// Calculate total size of the metadata
 	cstrLen := int(MetadataV2_SymbolCstrLen)
 	metaLength := MetadataHeaderV2_Size
