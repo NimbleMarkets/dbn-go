@@ -1,12 +1,10 @@
 # CHANGELOG
 
-## v0.0.1 (2024-04-10)
-
- * Initial version
+## v0.0.8 (2024-05-28)
  
-## v0.0.6 (2024-05-16)
-
- * Add initial Hist API
+ * Add initial Live API support
+ * Add Mpb1, Mbp10, Mbo, Error, SymbolMapping, System, Statistics
+ * Minor interface tweaks and bug fixes
 
 ## v0.0.7 (2024-05-21)
 
@@ -15,6 +13,10 @@
  * Add Metadata.Write and YMDToTime
  * Fix broken IsInverseMapping
 
-## v0.0.8 (2024-05-28)
- 
- * Add initial Live API support
+## v0.0.6 (2024-05-16)
+
+ * Add initial Hist API
+
+## v0.0.1 (2024-04-10)
+
+ * Initial version

@@ -15,13 +15,23 @@ var _ = Describe("Struct", func() {
 	Context("correctness", func() {
 		It("struct consts should be correct", func() {
 			Expect(unsafe.Sizeof(dbn.RHeader{})).To(Equal(uintptr(dbn.RHeader_Size)))
+			Expect(unsafe.Sizeof(dbn.BidAskPair{})).To(Equal(uintptr(dbn.BidAskPair_Size)))
 			Expect(unsafe.Sizeof(dbn.Mbp0{})).To(Equal(uintptr(dbn.Mbp0_Size)))
+			Expect(unsafe.Sizeof(dbn.Mbp1Msg{})).To(Equal(uintptr(dbn.Mbp1Msg_Size)))
+			Expect(unsafe.Sizeof(dbn.Mbp10Msg{})).To(Equal(uintptr(dbn.Mbp10Msg_Size)))
 			Expect(unsafe.Sizeof(dbn.Ohlcv{})).To(Equal(uintptr(dbn.Ohlcv_Size)))
 			Expect(unsafe.Sizeof(dbn.Imbalance{})).To(Equal(uintptr(dbn.Imbalance_Size)))
+			Expect(unsafe.Sizeof(dbn.ErrorMsg{})).To(Equal(uintptr(dbn.ErrorMsg_Size)))
+			Expect(unsafe.Sizeof(dbn.SystemMsg{})).To(Equal(uintptr(dbn.SystemMsg_Size)))
+			Expect(unsafe.Sizeof(dbn.StatMsg{})).To(Equal(uintptr(dbn.StatMsg_Size)))
 			Expect(int((&dbn.RHeader{}).RSize())).To(Equal(dbn.RHeader_Size))
 			Expect(int((&dbn.Mbp0{}).RSize())).To(Equal(dbn.Mbp0_Size))
+			Expect(int((&dbn.Mbp1Msg{}).RSize())).To(Equal(dbn.Mbp1Msg_Size))
+			Expect(int((&dbn.Mbp10Msg{}).RSize())).To(Equal(dbn.Mbp10Msg_Size))
 			Expect(int((&dbn.Ohlcv{}).RSize())).To(Equal(dbn.Ohlcv_Size))
 			Expect(int((&dbn.Imbalance{}).RSize())).To(Equal(dbn.Imbalance_Size))
+			Expect(int((&dbn.ErrorMsg{}).RSize())).To(Equal(dbn.ErrorMsg_Size))
+			Expect(int((&dbn.StatMsg{}).RSize())).To(Equal(dbn.StatMsg_Size))
 		})
 	})
 

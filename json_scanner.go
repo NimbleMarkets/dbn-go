@@ -75,7 +75,7 @@ func (s *JsonScanner) parseWithHeader() (*fastjson.Value, *RHeader, error) {
 	}
 
 	var header RHeader
-	err = FillRHeader_Json(val.Get("hd"), &header)
+	err = header.Fill_Json(val.Get("hd"))
 	if err != nil {
 		return nil, nil, err
 	}

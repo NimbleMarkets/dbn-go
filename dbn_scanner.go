@@ -55,7 +55,7 @@ func (s *DbnScanner) Error() error {
 // GetLastHeader returns the RHeader of the last record read, or an error
 func (s *DbnScanner) GetLastHeader() (RHeader, error) {
 	var rheader RHeader
-	err := FillRHeader_Raw(s.lastRecord[0:RHeader_Size], &rheader)
+	err := rheader.Fill_Raw(s.lastRecord[0:RHeader_Size])
 	return rheader, err
 }
 
@@ -165,12 +165,37 @@ func (s *DbnScanner) Visit(visitor Visitor) error {
 
 	// Dispatch based on RType Make sure it's the right record type
 	switch rtype := RType(s.lastRecord[1]); rtype {
-	case RType_Mbp0: // Trade
+	// Trade
+	case RType_Mbp0:
 		record := Mbp0{}
 		if err := record.Fill_Raw(s.lastRecord[:Mbp0_Size]); err != nil {
 			return err // TODO: OnError()
 		} else {
 			return visitor.OnMbp0(&record)
+		}
+	// Market-by-price, 1 depth
+	case RType_Mbp1:
+		record := Mbp1Msg{}
+		if err := record.Fill_Raw(s.lastRecord[:Mbp1Msg_Size]); err != nil {
+			return err // TODO: OnError()
+		} else {
+			return visitor.OnMbp1(&record)
+		}
+	// Market-by-price, 10 depth
+	case RType_Mbp10:
+		record := Mbp10Msg{}
+		if err := record.Fill_Raw(s.lastRecord[:Mbp10Msg_Size]); err != nil {
+			return err // TODO: OnError()
+		} else {
+			return visitor.OnMbp10(&record)
+		}
+	// Market-by-Order
+	case RType_Mbo:
+		record := MboMsg{}
+		if err := record.Fill_Raw(s.lastRecord[:MboMsg_Size]); err != nil {
+			return err // TODO: OnError()
+		} else {
+			return visitor.OnMbo(&record)
 		}
 	// Candlestick schemas
 	case RType_Ohlcv1S, RType_Ohlcv1M, RType_Ohlcv1H, RType_Ohlcv1D, RType_OhlcvEod, RType_OhlcvDeprecated:
@@ -188,19 +213,44 @@ func (s *DbnScanner) Visit(visitor Visitor) error {
 		} else {
 			return visitor.OnImbalance(&record)
 		}
+	// Error
+	case RType_Error:
+		record := ErrorMsg{}
+		if err := record.Fill_Raw(s.lastRecord[:ErrorMsg_Size]); err != nil {
+			return err // TODO: OnError()
+		} else {
+			return visitor.OnErrorMsg(&record)
+		}
+	// SymbolMapping
+	case RType_SymbolMapping:
+		record := SymbolMappingMsg{}
+		if err := record.Fill_Raw(s.lastRecord[:], s.metadata.SymbolCstrLen); err != nil {
+			return err // TODO: OnError()
+		} else {
+			return visitor.OnSymbolMappingMsg(&record)
+		}
+	// System
+	case RType_System:
+		record := SystemMsg{}
+		if err := record.Fill_Raw(s.lastRecord[:SystemMsg_Size]); err != nil {
+			return err // TODO: OnError()
+		} else {
+			return visitor.OnSystemMsg(&record)
+		}
+	// Statistics
+	case RType_Statistics:
+		record := StatMsg{}
+		if err := record.Fill_Raw(s.lastRecord[:StatMsg_Size]); err != nil {
+			return err // TODO: OnError()
+		} else {
+			return visitor.OnStatMsg(&record)
+		}
 
 	default:
 		return ErrUnknownRType
 	}
-	// RType_Mbp1
-	// RType_Mbp10
 	// RType_Status
 	// RType_InstrumentDef
-	// RType_Error
-	// RType_SymbolMapping
-	// RType_System
-	// RType_Statistics
-	// RType_Mbo
 }
 
 /////////////////////////////////////////////////////////////////////////////
