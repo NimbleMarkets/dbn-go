@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v0.0.10 (2024-05-30)
+
+ * Live intraday replay fixes
+ * `dbn-go-live` now support `--start <iso8601>`
+ * Add `dbn-go-hist` for some historical queries
+
 ## v0.0.9 (2024-05-29)
 
  * Fix DBN v1 compatibility issues for writing Metadata and reading SymbolMappingMsg

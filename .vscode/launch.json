@@ -5,6 +5,19 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "dbn-go-hist",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/dbn-go-hist/main.go",
+            "env": {
+                "DATABENTO_API_KEY": "<key>"
+            },
+            "args": [
+                "datasets",
+            ]
+        },
+        {
             "name": "dbn-go-live",
             "type": "go",
             "request": "launch",
@@ -16,8 +29,8 @@
             "args": [
                 "-v",
                 "-d", "DBEQ.BASIC",
-                "-s", "ohlcv-1s",
-                "-o", "${workspaceFolder}/foo.dbn",
+                "-s", "ohlcv-1m",
+                "-o", "${workspaceFolder}/foo.launch.dbn",
                 "MSFT"
             ]
         }
