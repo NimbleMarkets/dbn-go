@@ -11,10 +11,12 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"time"
 
 	dbn "github.com/NimbleMarkets/dbn-go"
 	dbn_live "github.com/NimbleMarkets/dbn-go/live"
 	"github.com/klauspost/compress/zstd"
+	"github.com/relvacode/iso8601"
 	"github.com/spf13/pflag"
 )
 
@@ -26,32 +28,44 @@ type Config struct {
 	Dataset     string
 	Schema      string
 	Symbols     []string
-	//StartTime   time.Time
+	StartTime   time.Time
+	Verbose     bool
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
 func main() {
 	var config Config
-	var showHelp, verbose bool
+	var startTimeArg string
+	var showHelp bool
 
 	pflag.StringVarP(&config.Dataset, "dataset", "d", "", "Dataset to subscribe to ")
 	pflag.StringVarP(&config.Schema, "schema", "s", "", "Schema to subscribe to")
 	pflag.StringVarP(&config.ApiKey, "key", "k", "", "Databento API key (or set 'DATABENTO_API_KEY' envvar)")
 	pflag.StringVarP(&config.OutFilename, "out", "o", "", "Output filename for DBN stream ('-' for stdout)")
-	pflag.BoolVarP(&verbose, "verbose", "v", false, "Verbose logging")
+	pflag.StringVarP(&startTimeArg, "start", "t", "", "Start time to request as ISO 8601 format (default: now)")
+	pflag.BoolVarP(&config.Verbose, "verbose", "v", false, "Verbose logging")
 	pflag.BoolVarP(&showHelp, "help", "h", false, "Show help")
 	pflag.Parse()
 
 	config.Symbols = pflag.Args()
 
 	if showHelp {
-		fmt.Fprintf(os.Stdout, "usage: %s -d <dataset> -s <schema> symbol1 symbol2 ...\n\n", os.Args[0])
+		fmt.Fprintf(os.Stdout, "usage: %s -d <dataset> -s <schema> [opts] symbol1 symbol2 ...\n\n", os.Args[0])
 		pflag.PrintDefaults()
 		os.Exit(0)
 	}
 
-	if verbose {
+	if startTimeArg != "" {
+		var err error
+		config.StartTime, err = iso8601.ParseString(startTimeArg)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to parse --start as ISO 8601 time: %s\n", err.Error())
+			os.Exit(1)
+		}
+	}
+
+	if config.Verbose {
 		opts := &slog.HandlerOptions{Level: slog.LevelDebug}
 		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, opts)))
 	}
@@ -100,6 +114,7 @@ func run(config Config) error {
 		Dataset:              config.Dataset,
 		SendTsOut:            false,
 		VersionUpgradePolicy: dbn.VersionUpgradePolicy_AsIs,
+		Verbose:              config.Verbose,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create LiveClient: %w", err)
@@ -113,11 +128,11 @@ func run(config Config) error {
 
 	// Subscribe
 	subRequest := dbn_live.SubscriptionRequestMsg{
-		Schema:  config.Schema,
-		StypeIn: dbn.SType_RawSymbol,
-		Symbols: config.Symbols,
-		//Start:    time.Time{},
-		//Snapshot: false,
+		Schema:   config.Schema,
+		StypeIn:  dbn.SType_RawSymbol,
+		Symbols:  config.Symbols,
+		Start:    config.StartTime,
+		Snapshot: false,
 	}
 	if err = client.Subscribe(subRequest); err != nil {
 		return fmt.Errorf("failed to subscribe LiveClient: %w", err)

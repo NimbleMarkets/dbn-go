@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"strings"
 
 	"github.com/NimbleMarkets/dbn-go"
 )
@@ -65,6 +66,7 @@ type LiveConfig struct {
 	Dataset              string
 	SendTsOut            bool
 	VersionUpgradePolicy dbn.VersionUpgradePolicy
+	Verbose              bool
 }
 
 func (c *LiveConfig) SetKeyFromEnv() error {
@@ -162,7 +164,7 @@ func (c *LiveClient) GetDbnScanner() *dbn.DbnScanner {
 // Returns an error if any.
 // A single client instance supports multiple
 // subscriptions. Note there is no unsubscribe method. Subscriptions end
-// when the client disconnects in its destructor.
+// when the client disconnects with Stop or the LiveClient instance is garbage collected.
 func (c *LiveClient) Subscribe(sub SubscriptionRequestMsg) error {
 	if len(sub.Symbols) == 0 {
 		return errors.New("subscribe request must contain at least one symbol")
@@ -172,6 +174,14 @@ func (c *LiveClient) Subscribe(sub SubscriptionRequestMsg) error {
 		return fmt.Errorf("failed to send subscribe request: %v", err)
 	} else if n != len(requestBytes) {
 		return fmt.Errorf("failed to send subscribe request: wanted %d sent %d", len(requestBytes), n)
+	}
+	if c.config.Verbose {
+		symbols := strings.Join(sub.Symbols, ",")
+		slog.Debug("[LiveClient.Subscribe]",
+			"schema", sub.Schema, "start", sub.Start,
+			"stype_in", sub.StypeIn.String(),
+			"symbols", symbols,
+		)
 	}
 
 	return nil
@@ -189,6 +199,7 @@ func (c *LiveClient) Start() (*dbn.DbnScanner, error) {
 	} else if n != len(startBytes) {
 		return nil, fmt.Errorf("failed to send start: wanted %d sent %d", len(startBytes), n)
 	}
+	slog.Debug("[LiveClient.Start] sent start_session")
 
 	// Create a DbnScanner and ensure we get the metadata
 	c.dbnScanner = dbn.NewDbnScanner(c.conn)
@@ -196,6 +207,7 @@ func (c *LiveClient) Start() (*dbn.DbnScanner, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get metadata: %v", err)
 	}
+	slog.Debug("[LiveClient.Start] read metadata susccessfully")
 	return c.dbnScanner, nil
 }
 

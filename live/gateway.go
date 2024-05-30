@@ -126,7 +126,7 @@ func (m *SubscriptionRequestMsg) Encode() []byte {
 	b := fmt.Appendf(nil, "schema=%s|stype_in=%s", m.Schema, m.StypeIn.String())
 
 	if !m.Start.IsZero() {
-		b = fmt.Appendf(b, "|time=%d", m.Start.UnixNano())
+		b = fmt.Appendf(b, "|start=%d", m.Start.UnixNano())
 	}
 	if m.Snapshot {
 		b = append(b, "|snapshot=1"...)
