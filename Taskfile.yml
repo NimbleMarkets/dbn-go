@@ -81,6 +81,8 @@ tasks:
     deps: [go-tidy]
     sources:
       - ./*.go
+      - live/*.go
+      - hist/*.go
       - cmd/dbn-go-hist/*.go
       - cmd/dbn-go-live/*.go
     cmds:
