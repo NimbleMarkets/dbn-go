@@ -8,7 +8,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"strings"
 	"time"
@@ -63,11 +62,6 @@ func main() {
 			fmt.Fprintf(os.Stderr, "failed to parse --start as ISO 8601 time: %s\n", err.Error())
 			os.Exit(1)
 		}
-	}
-
-	if config.Verbose {
-		opts := &slog.HandlerOptions{Level: slog.LevelDebug}
-		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, opts)))
 	}
 
 	if config.ApiKey == "" {

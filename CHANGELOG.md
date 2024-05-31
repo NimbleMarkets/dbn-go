@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.0.11 (unreleased)
+
+ * Add custom slog Logger to `LiveClient` and cleanup logging
+
 ## v0.0.10 (2024-05-30)
 
  * Live intraday replay fixes

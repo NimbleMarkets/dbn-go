@@ -62,6 +62,7 @@ type ErrorMsgV2 struct {
 ///////////////////////////////////////////////////////////////////////////////
 
 type LiveConfig struct {
+	Logger               *slog.Logger
 	ApiKey               string
 	Dataset              string
 	SendTsOut            bool
@@ -102,6 +103,8 @@ type LiveClient struct {
 	gateway string
 	port    uint16
 
+	logger *slog.Logger
+
 	conn       net.Conn
 	bufReader  *bufio.Reader
 	dbnScanner *dbn.DbnScanner
@@ -121,6 +124,11 @@ func NewLiveClient(config LiveConfig) (*LiveClient, error) {
 		config:  config,
 		gateway: dbn.DatasetToHostname(config.Dataset) + LIVE_HOST_SUFFIX,
 		port:    LIVE_API_PORT,
+		logger:  config.Logger,
+	}
+
+	if c.logger == nil {
+		c.logger = slog.Default()
 	}
 
 	// Connect to server
@@ -131,6 +139,9 @@ func NewLiveClient(config LiveConfig) (*LiveClient, error) {
 		c.conn = conn
 	}
 	c.bufReader = bufio.NewReaderSize(c.conn, MAX_STR_LENGTH)
+	if c.config.Verbose {
+		c.logger.Info("[LiveClient.NewLiveClient] connected", "dataset", config.Dataset, "hostport", hostPort)
+	}
 	return c, nil
 }
 
@@ -177,11 +188,12 @@ func (c *LiveClient) Subscribe(sub SubscriptionRequestMsg) error {
 	}
 	if c.config.Verbose {
 		symbols := strings.Join(sub.Symbols, ",")
-		slog.Debug("[LiveClient.Subscribe]",
-			"schema", sub.Schema, "start", sub.Start,
-			"stype_in", sub.StypeIn.String(),
-			"symbols", symbols,
-		)
+		if c.config.Verbose {
+			c.logger.Info("[LiveClient.Subscribe]",
+				"schema", sub.Schema, "start", sub.Start,
+				"stype_in", sub.StypeIn.String(), "symbols", symbols,
+			)
+		}
 	}
 
 	return nil
@@ -199,7 +211,9 @@ func (c *LiveClient) Start() (*dbn.DbnScanner, error) {
 	} else if n != len(startBytes) {
 		return nil, fmt.Errorf("failed to send start: wanted %d sent %d", len(startBytes), n)
 	}
-	slog.Debug("[LiveClient.Start] sent start_session")
+	if c.config.Verbose {
+		c.logger.Info("[LiveClient.Start] sent start_session")
+	}
 
 	// Create a DbnScanner and ensure we get the metadata
 	c.dbnScanner = dbn.NewDbnScanner(c.conn)
@@ -207,16 +221,32 @@ func (c *LiveClient) Start() (*dbn.DbnScanner, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get metadata: %v", err)
 	}
-	slog.Debug("[LiveClient.Start] read metadata susccessfully")
+	if c.config.Verbose {
+		c.logger.Info("[LiveClient.Start] read metadata susccessfully")
+	}
 	return c.dbnScanner, nil
 }
 
 // Stops the session with the gateway. Once stopped, the session cannot be restarted.
-func (c *LiveClient) Stop() {
+func (c *LiveClient) Stop() error {
 	if c.conn != nil {
-		c.conn.Close()
+		err := c.conn.Close()
 		c.conn = nil
+		if err != nil {
+			if c.config.Verbose {
+				c.logger.Error("[LiveClient.Stop] error closing connection", "error", err.Error())
+			}
+			return err
+		} else {
+			if c.config.Verbose {
+				c.logger.Info("[LiveClient.Stop] closed connection")
+			}
+		}
 	}
+	if c.config.Verbose {
+		c.logger.Info("[LiveClient.Stop] stopped")
+	}
+	return nil
 }
 
 // Authenticate performs read/write with the server to authenticate.
@@ -251,7 +281,9 @@ func (c *LiveClient) Authenticate(apiKey string) (string, error) {
 		return "", err
 	}
 	c.sessionID = sessionID
-	slog.Debug("[LiveClient.Authenticate] Successfully authenticated", "session_id", sessionID)
+	if c.config.Verbose {
+		c.logger.Info("[LiveClient.Authenticate] Successfully authenticated", "session_id", sessionID)
+	}
 	return sessionID, nil
 }
 
@@ -267,7 +299,9 @@ func (c *LiveClient) decodeChallenge() (string, error) {
 		return "", errors.New("failed to parse greeting")
 	}
 	c.lsgVersion = greeting.LsgVersion
-	slog.Debug("[LiveClient.decodeChallenge]", "version", greeting.LsgVersion)
+	if c.config.Verbose {
+		c.logger.Info("[LiveClient.decodeChallenge]", "version", greeting.LsgVersion)
+	}
 
 	// next is challenge request
 	line, err = c.bufReader.ReadBytes('\n')
@@ -278,7 +312,9 @@ func (c *LiveClient) decodeChallenge() (string, error) {
 	if challenge == nil {
 		return "", errors.New("failed to parse challenge")
 	}
-	slog.Debug("[LiveClient.decodeChallenge]", "cram", challenge.Cram)
+	if c.config.Verbose {
+		c.logger.Info("[LiveClient.decodeChallenge]", "cram", challenge.Cram)
+	}
 
 	return challenge.Cram, nil
 }
@@ -293,7 +329,10 @@ func (c *LiveClient) decodeAuthResponse() (string, error) {
 		return "", errors.New("failed to parse AuthResponse")
 	}
 
-	slog.Debug("[LiveClient.decodeAuthResponse", "success", resp.Success, "error", resp.Error, "session_id", resp.SessionID)
+	if c.config.Verbose {
+		c.logger.Info("[LiveClient.decodeAuthResponse", "success", resp.Success, "error", resp.Error, "session_id", resp.SessionID)
+	}
+
 	if resp.Success == "0" {
 		return "", fmt.Errorf("failed to authenticate: error: %s", resp.Error)
 	}
