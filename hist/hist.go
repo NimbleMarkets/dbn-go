@@ -54,9 +54,18 @@ func databentoGetRequest(urlStr string, apiKey string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
+	badStatusCode := (resp.StatusCode != http.StatusOK)
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		if badStatusCode {
+			return nil, fmt.Errorf("HTTP %d %s %s %w", resp.StatusCode, resp.Status, string(body), err)
+		}
 		return nil, err
+	}
+
+	if badStatusCode {
+		return nil, fmt.Errorf("HTTP %d %s %s", resp.StatusCode, resp.Status, string(body))
 	}
 
 	return body, nil

@@ -359,7 +359,7 @@ func GetRecordCount(apiKey string, metaParams MetadataQueryParams) (int, error) 
 
 // Calls the Metadata API to get the billable size of a GetRange query.
 // Returns the billable size or an error if any.
-func GetBillableSize(apiKey string, metaParams MetadataQueryParams) (float64, error) {
+func GetBillableSize(apiKey string, metaParams MetadataQueryParams) (int, error) {
 	apiUrl := "https://hist.databento.com/v0/metadata.get_billable_size"
 	baseUrl, err := url.Parse(apiUrl)
 	if err != nil {
@@ -378,12 +378,12 @@ func GetBillableSize(apiKey string, metaParams MetadataQueryParams) (float64, er
 		return 0, fmt.Errorf("failed get request: %w", err)
 	}
 
-	// convert from float
-	cost, err := strconv.ParseFloat(string(body), 64)
+	// convert from text int
+	billableSize, err := strconv.Atoi(string(body))
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse response: %w", err)
 	}
-	return cost, nil
+	return billableSize, nil
 }
 
 // Calls the Metadata API to get the cost estimate of a GetRange query.
