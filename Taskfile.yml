@@ -64,6 +64,13 @@ tasks:
     cmds:
       - go build -o bin/dbn-go-hist cmd/dbn-go-hist/*.go
 
+  test-dbn-go-hist:
+    desc: 'Test dbn-go-hist'
+    deps: [build-dbn-go-hist]
+    cmds:
+      - DBN_GO_HIST=./bin/dbn-go-hist ./tests/exercise_dbn-go-hist.sh > /dev/null
+      - echo $?
+
   build-dbn-go-live:
     desc: 'Build dbn-go-live'
     deps: [go-tidy]

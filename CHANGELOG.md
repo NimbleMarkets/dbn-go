@@ -2,6 +2,7 @@
 
 ## v0.0.11 (unreleased)
 
+* Expand `dbn-go-hist` tool and add `tests/exercise_dbn-go-hist.sh` example.
 * Add the rest of the Historical Metadata API
 * Add custom slog Logger to `LiveClient` and cleanup logging
  
