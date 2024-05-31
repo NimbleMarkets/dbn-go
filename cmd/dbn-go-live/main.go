@@ -161,6 +161,7 @@ func run(config Config) error {
 	}
 	if err := dbnScanner.Error(); err != nil && err != io.EOF {
 		fmt.Fprintf(os.Stderr, "scanner err: %s\n", err.Error())
+		return err
 	}
 	return nil
 }
