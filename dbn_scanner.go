@@ -167,8 +167,8 @@ func (s *DbnScanner) Visit(visitor Visitor) error {
 	switch rtype := RType(s.lastRecord[1]); rtype {
 	// Trade
 	case RType_Mbp0:
-		record := Mbp0{}
-		if err := record.Fill_Raw(s.lastRecord[:Mbp0_Size]); err != nil {
+		record := Mbp0Msg{}
+		if err := record.Fill_Raw(s.lastRecord[:Mbp0Msg_Size]); err != nil {
 			return err // TODO: OnError()
 		} else {
 			return visitor.OnMbp0(&record)
@@ -199,16 +199,16 @@ func (s *DbnScanner) Visit(visitor Visitor) error {
 		}
 	// Candlestick schemas
 	case RType_Ohlcv1S, RType_Ohlcv1M, RType_Ohlcv1H, RType_Ohlcv1D, RType_OhlcvEod, RType_OhlcvDeprecated:
-		record := Ohlcv{}
-		if err := record.Fill_Raw(s.lastRecord[:Ohlcv_Size]); err != nil {
+		record := OhlcvMsg{}
+		if err := record.Fill_Raw(s.lastRecord[:OhlcvMsg_Size]); err != nil {
 			return err // TODO: OnError()
 		} else {
 			return visitor.OnOhlcv(&record)
 		}
 	// Imbalance
 	case RType_Imbalance:
-		record := Imbalance{}
-		if err := record.Fill_Raw(s.lastRecord[:Imbalance_Size]); err != nil {
+		record := ImbalanceMsg{}
+		if err := record.Fill_Raw(s.lastRecord[:ImbalanceMsg_Size]); err != nil {
 			return err // TODO: OnError()
 		} else {
 			return visitor.OnImbalance(&record)
@@ -261,7 +261,7 @@ func (s *DbnScanner) Visit(visitor Visitor) error {
 // Example:
 //
 //	fileReader, err := os.Open(dbnFilename)
-//	records, metadata, err := dbn.ReadDBNToSlice[dbn.Mbp0](fileReader)
+//	records, metadata, err := dbn.ReadDBNToSlice[dbn.Mbp0Msg](fileReader)
 func ReadDBNToSlice[R Record, RP RecordPtr[R]](reader io.Reader) ([]R, *Metadata, error) {
 	records := make([]R, 0)
 	scanner := NewDbnScanner(reader)

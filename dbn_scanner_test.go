@@ -22,7 +22,7 @@ var _ = Describe("DbnScanner", func() {
 			Expect(err).To(BeNil())
 			defer file.Close()
 
-			records, metadata, err := dbn.ReadDBNToSlice[dbn.Ohlcv](file)
+			records, metadata, err := dbn.ReadDBNToSlice[dbn.OhlcvMsg](file)
 			Expect(err).To(BeNil())
 			Expect(metadata).ToNot(BeNil())
 			Expect(len(records)).To(Equal(2))
@@ -35,7 +35,7 @@ var _ = Describe("DbnScanner", func() {
 			Expect(err).To(BeNil())
 			defer file.Close()
 
-			records, metadata, err := dbn.ReadDBNToSlice[dbn.Ohlcv](file)
+			records, metadata, err := dbn.ReadDBNToSlice[dbn.OhlcvMsg](file)
 			Expect(err).To(BeNil())
 			Expect(metadata).ToNot(BeNil())
 			Expect(len(records)).To(Equal(2))

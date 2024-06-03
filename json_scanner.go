@@ -85,7 +85,7 @@ func (s *JsonScanner) parseWithHeader() (*fastjson.Value, *RHeader, error) {
 func dispatchJsonVisitor(val *fastjson.Value, header *RHeader, visitor Visitor) error {
 	switch header.RType {
 	case RType_Mbp0: // Trade
-		record := Mbp0{}
+		record := Mbp0Msg{}
 		if err := record.Fill_Json(val, header); err != nil {
 			return err // TODO: OnError()
 		} else {
@@ -93,7 +93,7 @@ func dispatchJsonVisitor(val *fastjson.Value, header *RHeader, visitor Visitor) 
 		}
 	// Candlestick schemas
 	case RType_Ohlcv1S, RType_Ohlcv1M, RType_Ohlcv1H, RType_Ohlcv1D, RType_OhlcvEod, RType_OhlcvDeprecated:
-		record := Ohlcv{}
+		record := OhlcvMsg{}
 		if err := record.Fill_Json(val, header); err != nil {
 			return err // TODO: OnError()
 		} else {
@@ -101,7 +101,7 @@ func dispatchJsonVisitor(val *fastjson.Value, header *RHeader, visitor Visitor) 
 		}
 	// Imbalance
 	case RType_Imbalance:
-		record := Imbalance{}
+		record := ImbalanceMsg{}
 		if err := record.Fill_Json(val, header); err != nil {
 			return err // TODO: OnError()
 		} else {
@@ -130,7 +130,7 @@ func dispatchJsonVisitor(val *fastjson.Value, header *RHeader, visitor Visitor) 
 // Example:
 //
 //	fileReader, err := os.Open(dbnFilename)
-//	records, err := dbn.ReadJsonToSlice[dbn.Mbp0](fileReader)
+//	records, err := dbn.ReadJsonToSlice[dbn.Mbp0Msg](fileReader)
 func ReadJsonToSlice[R Record, RP RecordPtr[R]](reader io.Reader) ([]R, error) {
 	records := make([]R, 0)
 	scanner := NewJsonScanner(reader)

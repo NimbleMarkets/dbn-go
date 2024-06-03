@@ -149,9 +149,9 @@ func (p *BidAskPair) Fill_Json(val *fastjson.Value) error {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// DataBento Normalized Mbp0 (Market-by-order)
+// DataBento Normalized Mbp0 message (Market-by-order)
 // {"ts_recv":"1704186000404085841","hd":{"ts_event":"1704186000403918695","rtype":0,"publisher_id":2,"instrument_id":15144},"action":"T","side":"B","depth":0,"price":"476370000000","size":40,"flags":130,"ts_in_delta":167146,"sequence":277449,"symbol":"SPY"}
-type Mbp0 struct {
+type Mbp0Msg struct {
 	Header    RHeader `json:"hd" csv:"hd"`                   // The record header.
 	TsRecv    uint64  `json:"ts_recv" csv:"ts_recv"`         // The capture-server-received timestamp expressed as the number of nanoseconds since the UNIX epoch.
 	Price     int64   `json:"price" csv:"price"`             // The order price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
@@ -164,19 +164,19 @@ type Mbp0 struct {
 	Sequence  uint32  `json:"sequence" csv:"sequence"`       // The message sequence number assigned at the venue.
 }
 
-const Mbp0_Size = RHeader_Size + 32
+const Mbp0Msg_Size = RHeader_Size + 32
 
-func (*Mbp0) RType() RType {
+func (*Mbp0Msg) RType() RType {
 	return RType_Mbp0
 }
 
-func (*Mbp0) RSize() uint16 {
-	return Mbp0_Size
+func (*Mbp0Msg) RSize() uint16 {
+	return Mbp0Msg_Size
 }
 
-func (r *Mbp0) Fill_Raw(b []byte) error {
-	if len(b) < Mbp0_Size {
-		return unexpectedBytesError(len(b), Mbp0_Size)
+func (r *Mbp0Msg) Fill_Raw(b []byte) error {
+	if len(b) < Mbp0Msg_Size {
+		return unexpectedBytesError(len(b), Mbp0Msg_Size)
 	}
 	err := r.Header.Fill_Raw(b[0:RHeader_Size])
 	if err != nil {
@@ -195,7 +195,7 @@ func (r *Mbp0) Fill_Raw(b []byte) error {
 	return nil
 }
 
-func (r *Mbp0) Fill_Json(val *fastjson.Value, header *RHeader) error {
+func (r *Mbp0Msg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 	r.Header = *header
 	r.TsRecv = fastjson_GetUint64FromString(val, "ts_recv")
 	r.Price = fastjson_GetInt64FromString(val, "price")
@@ -238,8 +238,8 @@ func (*MboMsg) RSize() uint16 {
 }
 
 func (r *MboMsg) Fill_Raw(b []byte) error {
-	if len(b) < Ohlcv_Size {
-		return unexpectedBytesError(len(b), Ohlcv_Size)
+	if len(b) < MboMsg_Size {
+		return unexpectedBytesError(len(b), MboMsg_Size)
 	}
 	err := r.Header.Fill_Raw(b[0:RHeader_Size])
 	if err != nil {
@@ -303,8 +303,8 @@ func (*Mbp1Msg) RSize() uint16 {
 }
 
 func (r *Mbp1Msg) Fill_Raw(b []byte) error {
-	if len(b) < Ohlcv_Size {
-		return unexpectedBytesError(len(b), Ohlcv_Size)
+	if len(b) < Mbp1Msg_Size {
+		return unexpectedBytesError(len(b), Mbp1Msg_Size)
 	}
 	err := r.Header.Fill_Raw(b[0:RHeader_Size])
 	if err != nil {
@@ -420,7 +420,7 @@ func (r *Mbp10Msg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 
 // DataBento Normalized Ohlcv Message (OHLC candlestick, bar)
 // {"hd":{"ts_event":"1702987922000000000","rtype":32,"publisher_id":40,"instrument_id":15144},"open":"472600000000","high":"472600000000","low":"472600000000","close":"472600000000","volume":"300"}
-type Ohlcv struct {
+type OhlcvMsg struct {
 	Header RHeader `json:"hd" csv:"hd"`         // The record header.
 	Open   int64   `json:"open" csv:"open"`     // The open price for the bar.
 	High   int64   `json:"high" csv:"high"`     // The high price for the bar.
@@ -429,20 +429,20 @@ type Ohlcv struct {
 	Volume uint64  `json:"volume" csv:"volume"` // The total volume traded during the aggregation period.
 }
 
-const Ohlcv_Size = RHeader_Size + 40
+const OhlcvMsg_Size = RHeader_Size + 40
 
-func (*Ohlcv) RType() RType {
+func (*OhlcvMsg) RType() RType {
 	// RType was nil, return a generic Candle RTtype
 	return RType_OhlcvEod
 }
 
-func (*Ohlcv) RSize() uint16 {
-	return Ohlcv_Size
+func (*OhlcvMsg) RSize() uint16 {
+	return OhlcvMsg_Size
 }
 
-func (r *Ohlcv) Fill_Raw(b []byte) error {
-	if len(b) < Ohlcv_Size {
-		return unexpectedBytesError(len(b), Ohlcv_Size)
+func (r *OhlcvMsg) Fill_Raw(b []byte) error {
+	if len(b) < OhlcvMsg_Size {
+		return unexpectedBytesError(len(b), OhlcvMsg_Size)
 	}
 	err := r.Header.Fill_Raw(b[0:RHeader_Size])
 	if err != nil {
@@ -457,7 +457,7 @@ func (r *Ohlcv) Fill_Raw(b []byte) error {
 	return nil
 }
 
-func (r *Ohlcv) Fill_Json(val *fastjson.Value, header *RHeader) error {
+func (r *OhlcvMsg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 	r.Header = *header
 	r.Open = fastjson_GetInt64FromString(val, "open")
 	r.High = fastjson_GetInt64FromString(val, "high")
@@ -471,7 +471,7 @@ func (r *Ohlcv) Fill_Json(val *fastjson.Value, header *RHeader) error {
 
 // DataBento Normalized Imbalance Message
 // {"ts_recv":"1711027500000942123","hd":{"ts_event":"1711027500000776211","rtype":20,"publisher_id":2,"instrument_id":17598},"ref_price":"0","auction_time":"0","cont_book_clr_price":"0","auct_interest_clr_price":"0","ssr_filling_price":"0","ind_match_price":"0","upper_collar":"0","lower_collar":"0","paired_qty":0,"total_imbalance_qty":0,"market_imbalance_qty":0,"unpaired_qty":0,"auction_type":"O","side":"N","auction_status":0,"freeze_status":0,"num_extensions":0,"unpaired_side":"N","significant_imbalance":"~"}
-type Imbalance struct {
+type ImbalanceMsg struct {
 	Header               RHeader `json:"hd" csv:"hd"`                                          // The record header.
 	TsRecv               uint64  `json:"ts_recv" csv:"ts_recv"`                                // The capture-server-received timestamp expressed as the number of nanoseconds since the UNIX epoch.
 	RefPrice             int64   `json:"ref_price" csv:"ref_price"`                            // The price at which the imbalance shares are calculated, where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
@@ -496,19 +496,19 @@ type Imbalance struct {
 	Reserved             uint8   `json:"reserved" csv:"reserved"`                              // Filler for alignment.
 }
 
-const Imbalance_Size = RHeader_Size + 96
+const ImbalanceMsg_Size = RHeader_Size + 96
 
-func (*Imbalance) RType() RType {
+func (*ImbalanceMsg) RType() RType {
 	return RType_Imbalance
 }
 
-func (*Imbalance) RSize() uint16 {
-	return Imbalance_Size
+func (*ImbalanceMsg) RSize() uint16 {
+	return ImbalanceMsg_Size
 }
 
-func (r *Imbalance) Fill_Raw(b []byte) error {
-	if len(b) < Imbalance_Size {
-		return unexpectedBytesError(len(b), Imbalance_Size)
+func (r *ImbalanceMsg) Fill_Raw(b []byte) error {
+	if len(b) < ImbalanceMsg_Size {
+		return unexpectedBytesError(len(b), ImbalanceMsg_Size)
 	}
 	err := r.Header.Fill_Raw(b[0:RHeader_Size])
 	if err != nil {
@@ -539,7 +539,7 @@ func (r *Imbalance) Fill_Raw(b []byte) error {
 	return nil
 }
 
-func (r *Imbalance) Fill_Json(val *fastjson.Value, header *RHeader) error {
+func (r *ImbalanceMsg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 	r.Header = *header
 	r.TsRecv = fastjson_GetUint64FromString(val, "ts_recv")
 	r.RefPrice = fastjson_GetInt64FromString(val, "ref_price")

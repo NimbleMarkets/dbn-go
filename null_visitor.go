@@ -7,7 +7,7 @@ package dbn
 type NullVisitor struct {
 }
 
-func (v *NullVisitor) OnMbp0(record *Mbp0) error {
+func (v *NullVisitor) OnMbp0(record *Mbp0Msg) error {
 	return nil
 }
 
@@ -23,11 +23,11 @@ func (v *NullVisitor) OnMbo(record *MboMsg) error {
 	return nil
 }
 
-func (v *NullVisitor) OnOhlcv(record *Ohlcv) error {
+func (v *NullVisitor) OnOhlcv(record *OhlcvMsg) error {
 	return nil
 }
 
-func (v *NullVisitor) OnImbalance(record *Imbalance) error {
+func (v *NullVisitor) OnImbalance(record *ImbalanceMsg) error {
 	return nil
 }
 

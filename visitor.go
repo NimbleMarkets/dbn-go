@@ -3,13 +3,13 @@
 package dbn
 
 type Visitor interface {
-	OnMbp0(record *Mbp0) error
+	OnMbp0(record *Mbp0Msg) error
 	OnMbp1(record *Mbp1Msg) error
 	OnMbp10(record *Mbp10Msg) error
 	OnMbo(record *MboMsg) error
 
-	OnOhlcv(record *Ohlcv) error
-	OnImbalance(record *Imbalance) error
+	OnOhlcv(record *OhlcvMsg) error
+	OnImbalance(record *ImbalanceMsg) error
 	OnStatMsg(record *StatMsg) error
 
 	OnErrorMsg(record *ErrorMsg) error

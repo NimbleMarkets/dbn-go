@@ -22,7 +22,7 @@ var _ = Describe("JsonScanner", func() {
 			Expect(err).To(BeNil())
 			defer file.Close()
 
-			records, err := dbn.ReadJsonToSlice[dbn.Ohlcv](file)
+			records, err := dbn.ReadJsonToSlice[dbn.OhlcvMsg](file)
 			Expect(err).To(BeNil())
 			Expect(len(records)).To(Equal(2))
 
