@@ -205,6 +205,14 @@ func (s *DbnScanner) Visit(visitor Visitor) error {
 		} else {
 			return visitor.OnOhlcv(&record)
 		}
+	// CBBO schemas
+	case RType_Cbbo, RType_Cbbo1S, RType_Cbbo1M, RType_Tcbbo:
+		record := CbboMsg{}
+		if err := record.Fill_Raw(s.lastRecord[:CbboMsg_Size]); err != nil {
+			return err // TODO: OnError()
+		} else {
+			return visitor.OnCbbo(&record)
+		}
 	// Imbalance
 	case RType_Imbalance:
 		record := ImbalanceMsg{}

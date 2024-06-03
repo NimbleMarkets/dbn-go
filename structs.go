@@ -149,6 +149,44 @@ func (p *BidAskPair) Fill_Json(val *fastjson.Value) error {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+// A price level consolidated from multiple venues.
+type ConsolidatedBidAskPair struct {
+	BidPx     int64  `json:"bid_px" csv:"bid_px"`         // The bid price.
+	AskPx     int64  `json:"ask_px" csv:"ask_px"`         // The ask price.
+	BidSz     uint32 `json:"bid_sz" csv:"bid_sz"`         // The bid size.
+	AskSz     uint32 `json:"ask_sz" csv:"ask_sz"`         // The ask size.
+	BidPb     uint16 `json:"bid_pb" csv:"bid_pb"`         // The bid publisher ID assigned by Databento, which denotes the dataset and venue.
+	Reserved1 uint16 `json:"_reserved1" csv:"_reserved1"` // Reserved for later usage
+	AskPb     uint16 `json:"ask_pb" csv:"ask_pb"`         // The ask publisher ID assigned by Databento, which denotes the dataset and venue.
+	Reserved2 uint16 `json:"_reserved2" csv:"_reserved2"` // Reserved for later usage
+}
+
+const ConsolidatedBidAskPair_Size = 32
+
+func (p *ConsolidatedBidAskPair) Fill_Raw(b []byte) error {
+	p.BidPx = int64(binary.LittleEndian.Uint64(b[0:8]))
+	p.AskPx = int64(binary.LittleEndian.Uint64(b[8:16]))
+	p.BidSz = binary.LittleEndian.Uint32(b[16:20])
+	p.AskSz = binary.LittleEndian.Uint32(b[20:24])
+	p.BidPb = binary.LittleEndian.Uint16(b[24:26])
+	// Reserved1 26:28
+	p.AskPb = binary.LittleEndian.Uint16(b[28:30])
+	// Reserved2 30:32
+	return nil
+}
+
+func (p *ConsolidatedBidAskPair) Fill_Json(val *fastjson.Value) error {
+	p.BidPx = fastjson_GetInt64FromString(val, "bid_px")
+	p.AskPx = fastjson_GetInt64FromString(val, "ask_px")
+	p.BidSz = uint32(val.GetUint("bid_sz"))
+	p.AskSz = uint32(val.GetUint("ask_sz"))
+	p.BidPb = uint16(val.GetUint("bid_pb"))
+	p.AskPb = uint16(val.GetUint("ask_pb"))
+	return nil
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 // DataBento Normalized Mbp0 message (Market-by-order)
 // {"ts_recv":"1704186000404085841","hd":{"ts_event":"1704186000403918695","rtype":0,"publisher_id":2,"instrument_id":15144},"action":"T","side":"B","depth":0,"price":"476370000000","size":40,"flags":130,"ts_in_delta":167146,"sequence":277449,"symbol":"SPY"}
 type Mbp0Msg struct {
@@ -332,6 +370,71 @@ func (r *Mbp1Msg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 	r.Side = byte(val.GetUint("side"))
 	r.Flags = uint8(val.GetUint("flags"))
 	r.Depth = uint8(val.GetUint("depth"))
+	r.TsRecv = fastjson_GetUint64FromString(val, "ts_recv")
+	r.TsInDelta = int32(val.GetUint("ts_in_delta"))
+	r.Sequence = uint32(val.GetUint("sequence"))
+	levelsArr := val.GetArray("levels")
+	if len(levelsArr) == 0 {
+		return errors.New("levels array is empty")
+	}
+	r.Level.Fill_Json(levelsArr[0])
+	return nil
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+type CbboMsg struct {
+	Header    RHeader                `json:"hd" csv:"hd"`                         // The record header.
+	Price     int64                  `json:"price" csv:"price"`                   // The order price expressed as a signed integer where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+	Size      uint32                 `json:"size" csv:"size"`                     // The order quantity.
+	Action    byte                   `json:"action" csv:"action"`                 // The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or **T**rade.
+	Side      byte                   `json:"side" csv:"side"`                     // The side that initiates the event. Can be **A**sk for a sell order (or sell  aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or  **N**one where no side is specified by the original source.
+	Flags     uint8                  `json:"flags" csv:"flags"`                   // A bit field indicating event end, message characteristics, and data quality. See [`enums::flags`](crate::enums::flags) for possible values.
+	Reserved  byte                   `json:"_reserved,omitempty" csv:"_reserved"` // Reserved for future usage.
+	TsRecv    uint64                 `json:"ts_recv" csv:"ts_recv"`               // The capture-server-received timestamp expressed as number of nanoseconds since the UNIX epoch.
+	TsInDelta int32                  `json:"ts_in_delta" csv:"ts_in_delta"`       // The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
+	Sequence  uint32                 `json:"sequence" csv:"sequence"`             // The message sequence number assigned at the venue.
+	Level     ConsolidatedBidAskPair `json:"levels" csv:"levels"`                 // The top of the order book.
+}
+
+const CbboMsg_Size = RHeader_Size + 32 + ConsolidatedBidAskPair_Size
+
+func (*CbboMsg) RType() RType {
+	return RType_Cbbo // TODO
+}
+
+func (*CbboMsg) RSize() uint16 {
+	return CbboMsg_Size
+}
+
+func (r *CbboMsg) Fill_Raw(b []byte) error {
+	if len(b) < CbboMsg_Size {
+		return unexpectedBytesError(len(b), CbboMsg_Size)
+	}
+	err := r.Header.Fill_Raw(b[0:RHeader_Size])
+	if err != nil {
+		return err
+	}
+	body := b[RHeader_Size:] // slice of just the body
+	r.Price = int64(binary.LittleEndian.Uint64(body[0:8]))
+	r.Size = binary.LittleEndian.Uint32(body[8:12])
+	r.Action = body[12]
+	r.Side = body[13]
+	r.Flags = body[14]
+	r.TsRecv = binary.LittleEndian.Uint64(body[16:24])
+	r.TsInDelta = int32(binary.LittleEndian.Uint32(body[24:28]))
+	r.Sequence = binary.LittleEndian.Uint32(body[28:32])
+	r.Level.Fill_Raw(body[32 : 32+ConsolidatedBidAskPair_Size])
+	return nil
+}
+
+func (r *CbboMsg) Fill_Json(val *fastjson.Value, header *RHeader) error {
+	r.Header = *header
+	r.Price = fastjson_GetInt64FromString(val, "price")
+	r.Size = uint32(val.GetUint("size"))
+	r.Action = byte(val.GetUint("action"))
+	r.Side = byte(val.GetUint("side"))
+	r.Flags = uint8(val.GetUint("flags"))
 	r.TsRecv = fastjson_GetUint64FromString(val, "ts_recv")
 	r.TsInDelta = int32(val.GetUint("ts_in_delta"))
 	r.Sequence = uint32(val.GetUint("sequence"))
