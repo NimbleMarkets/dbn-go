@@ -84,12 +84,37 @@ func (s *JsonScanner) parseWithHeader() (*fastjson.Value, *RHeader, error) {
 
 func dispatchJsonVisitor(val *fastjson.Value, header *RHeader, visitor Visitor) error {
 	switch header.RType {
-	case RType_Mbp0: // Trade
+	// Trade
+	case RType_Mbp0:
 		record := Mbp0Msg{}
 		if err := record.Fill_Json(val, header); err != nil {
 			return err // TODO: OnError()
 		} else {
 			return visitor.OnMbp0(&record)
+		}
+	// Mbp1
+	case RType_Mbp1:
+		record := Mbp1Msg{}
+		if err := record.Fill_Json(val, header); err != nil {
+			return err // TODO: OnError()
+		} else {
+			return visitor.OnMbp1(&record)
+		}
+	// Mbp10
+	case RType_Mbp10:
+		record := Mbp10Msg{}
+		if err := record.Fill_Json(val, header); err != nil {
+			return err // TODO: OnError()
+		} else {
+			return visitor.OnMbp10(&record)
+		}
+	// Mbo
+	case RType_Mbo:
+		record := MboMsg{}
+		if err := record.Fill_Json(val, header); err != nil {
+			return err // TODO: OnError()
+		} else {
+			return visitor.OnMbo(&record)
 		}
 	// Candlestick schemas
 	case RType_Ohlcv1S, RType_Ohlcv1M, RType_Ohlcv1H, RType_Ohlcv1D, RType_OhlcvEod, RType_OhlcvDeprecated:
@@ -99,6 +124,14 @@ func dispatchJsonVisitor(val *fastjson.Value, header *RHeader, visitor Visitor) 
 		} else {
 			return visitor.OnOhlcv(&record)
 		}
+	// CBBO schemas
+	case RType_Cbbo, RType_Cbbo1S, RType_Cbbo1M, RType_Tcbbo:
+		record := CbboMsg{}
+		if err := record.Fill_Json(val, header); err != nil {
+			return err // TODO: OnError()
+		} else {
+			return visitor.OnCbbo(&record)
+		}
 	// Imbalance
 	case RType_Imbalance:
 		record := ImbalanceMsg{}
@@ -107,19 +140,44 @@ func dispatchJsonVisitor(val *fastjson.Value, header *RHeader, visitor Visitor) 
 		} else {
 			return visitor.OnImbalance(&record)
 		}
-
+	// Statistics
+	case RType_Statistics:
+		record := StatMsg{}
+		if err := record.Fill_Json(val, header); err != nil {
+			return err // TODO: OnError()
+		} else {
+			return visitor.OnStatMsg(&record)
+		}
+	// SymbolMapping
+	case RType_SymbolMapping:
+		record := SymbolMappingMsg{}
+		if err := record.Fill_Json(val, header); err != nil {
+			return err // TODO: OnError()
+		} else {
+			return visitor.OnSymbolMappingMsg(&record)
+		}
+	// System
+	case RType_System:
+		record := SystemMsg{}
+		if err := record.Fill_Json(val, header); err != nil {
+			return err // TODO: OnError()
+		} else {
+			return visitor.OnSystemMsg(&record)
+		}
+	// Error
+	case RType_Error:
+		record := ErrorMsg{}
+		if err := record.Fill_Json(val, header); err != nil {
+			return err // TODO: OnError()
+		} else {
+			return visitor.OnErrorMsg(&record)
+		}
+	// Unknown
 	default:
 		return ErrUnknownRType
 	}
-	// RType_Mbp1
-	// RType_Mbp10
 	// RType_Status
 	// RType_InstrumentDef
-	// RType_Error
-	// RType_SymbolMapping
-	// RType_System
-	// RType_Statistics
-	// RType_Mbo
 }
 
 ///////////////////////////////////////////////////////////////////////////////

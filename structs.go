@@ -16,9 +16,7 @@
 // know them as uint64.
 //
 // TODO
-//   * tbbo
-//   * trades
-//   * definition
+//   * instrument definition
 //   * status
 //
 
