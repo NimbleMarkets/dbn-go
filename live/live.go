@@ -65,6 +65,7 @@ type LiveConfig struct {
 	Logger               *slog.Logger
 	ApiKey               string
 	Dataset              string
+	Encoding             dbn.Encoding // nil mean Encoding_Dbn
 	SendTsOut            bool
 	VersionUpgradePolicy dbn.VersionUpgradePolicy
 	Verbose              bool
@@ -264,7 +265,7 @@ func (c *LiveClient) Authenticate(apiKey string) (string, error) {
 	request := AuthenticationRequestMsg{
 		Auth:     auth,
 		Dataset:  c.config.Dataset,
-		Encoding: dbn.Encoding_Dbn,
+		Encoding: c.config.Encoding,
 		TsOut:    c.config.SendTsOut,
 		Client:   "Go " + DATABENTO_VERSION,
 	}

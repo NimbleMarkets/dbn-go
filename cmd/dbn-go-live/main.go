@@ -25,7 +25,9 @@ type Config struct {
 	OutFilename string
 	ApiKey      string
 	Dataset     string
-	Schema      string
+	STypeIn     dbn.SType
+	Encoding    dbn.Encoding
+	Schemas     []string
 	Symbols     []string
 	StartTime   time.Time
 	Verbose     bool
@@ -34,14 +36,17 @@ type Config struct {
 ///////////////////////////////////////////////////////////////////////////////
 
 func main() {
+	var err error
 	var config Config
-	var startTimeArg string
+	var encodingArg, startTimeArg, stypeInArg string
 	var showHelp bool
 
 	pflag.StringVarP(&config.Dataset, "dataset", "d", "", "Dataset to subscribe to ")
-	pflag.StringVarP(&config.Schema, "schema", "s", "", "Schema to subscribe to")
+	pflag.StringArrayVarP(&config.Schemas, "schema", "s", []string{}, "Schema to subscribe to (multiple allowed)")
 	pflag.StringVarP(&config.ApiKey, "key", "k", "", "Databento API key (or set 'DATABENTO_API_KEY' envvar)")
 	pflag.StringVarP(&config.OutFilename, "out", "o", "", "Output filename for DBN stream ('-' for stdout)")
+	pflag.StringVarP(&stypeInArg, "stype", "i", "raw", "SType of the symbols")
+	pflag.StringVarP(&encodingArg, "encoding", "e", "dbn", "Encoding of the output")
 	pflag.StringVarP(&startTimeArg, "start", "t", "", "Start time to request as ISO 8601 format (default: now)")
 	pflag.BoolVarP(&config.Verbose, "verbose", "v", false, "Verbose logging")
 	pflag.BoolVarP(&showHelp, "help", "h", false, "Show help")
@@ -56,7 +61,6 @@ func main() {
 	}
 
 	if startTimeArg != "" {
-		var err error
 		config.StartTime, err = iso8601.ParseString(startTimeArg)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "failed to parse --start as ISO 8601 time: %s\n", err.Error())
@@ -69,13 +73,29 @@ func main() {
 		requireValOrExit(config.ApiKey, "missing DataBento API key, use --key or set DATABENTO_API_KEY envvar\n")
 	}
 
+	if len(config.Schemas) == 0 {
+		fmt.Fprintf(os.Stderr, "requires at least --schema argument\n")
+		os.Exit(1)
+	}
+
 	if len(config.Symbols) == 0 {
 		fmt.Fprintf(os.Stderr, "requires at least one symbol argument\n")
 		os.Exit(1)
 	}
 
+	config.Encoding, err = dbn.EncodingFromString(encodingArg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "argument --encoding '%s' is unknown\n", encodingArg)
+		os.Exit(1)
+	}
+
+	config.STypeIn, err = dbn.STypeFromString(stypeInArg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "argument --stype '%s' is unknown\n", stypeInArg)
+		os.Exit(1)
+	}
+
 	requireValOrExit(config.Dataset, "missing required --dataset")
-	requireValOrExit(config.Schema, "missing required --schema")
 	requireValOrExit(config.OutFilename, "missing required --out")
 
 	if err := run(config); err != nil {
@@ -121,15 +141,17 @@ func run(config Config) error {
 	}
 
 	// Subscribe
-	subRequest := dbn_live.SubscriptionRequestMsg{
-		Schema:   config.Schema,
-		StypeIn:  dbn.SType_RawSymbol,
-		Symbols:  config.Symbols,
-		Start:    config.StartTime,
-		Snapshot: false,
-	}
-	if err = client.Subscribe(subRequest); err != nil {
-		return fmt.Errorf("failed to subscribe LiveClient: %w", err)
+	for _, schema := range config.Schemas {
+		subRequest := dbn_live.SubscriptionRequestMsg{
+			Schema:   schema,
+			StypeIn:  config.STypeIn,
+			Symbols:  config.Symbols,
+			Start:    config.StartTime,
+			Snapshot: false,
+		}
+		if err = client.Subscribe(subRequest); err != nil {
+			return fmt.Errorf("failed to subscribe LiveClient: %w", err)
+		}
 	}
 
 	// Start session

@@ -1,8 +1,9 @@
 # CHANGELOG
 
-## v0.0.11 (unreleased)
+## v0.0.11 (2024-06-03)
 
 * Expand `dbn-go-hist` tool and add `tests/exercise_dbn-go-hist.sh` example.
+* `dbn-go-live` supports multiple schemas and more args
 * Add the rest of the Historical Metadata API
 * Add custom slog Logger to `LiveClient` and cleanup logging
 * Updated for DBN `0.18.0` API changes
