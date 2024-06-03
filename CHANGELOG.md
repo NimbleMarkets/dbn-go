@@ -5,7 +5,8 @@
 * Expand `dbn-go-hist` tool and add `tests/exercise_dbn-go-hist.sh` example.
 * Add the rest of the Historical Metadata API
 * Add custom slog Logger to `LiveClient` and cleanup logging
- 
+* Updated for DBN `0.18.0` API changes
+
 ## v0.0.10 (2024-05-30)
 
  * Live intraday replay fixes

@@ -65,6 +65,18 @@ const (
 	InstrumentClass_FxSpot InstrumentClass = 'X'
 )
 
+func (i InstrumentClass) IsOption() bool {
+	return i == InstrumentClass_Call || i == InstrumentClass_Put || i == InstrumentClass_OptionSpread
+}
+
+func (i InstrumentClass) IsFuture() bool {
+	return i == InstrumentClass_Future || i == InstrumentClass_FutureSpread
+}
+
+func (i InstrumentClass) IsSpread() bool {
+	return i == InstrumentClass_FutureSpread || i == InstrumentClass_OptionSpread || i == InstrumentClass_MixedSpread
+}
+
 // MatchAlgorithm
 type MatchAlgorithm uint8
 
@@ -144,6 +156,30 @@ func (s SType) String() string {
 	}
 }
 
+// STypeFromString converts a string to an SType.
+// Returns an error if the string is unknown.
+func STypeFromString(str string) (SType, error) {
+	str = strings.ToLower(str)
+	switch str {
+	case "instrument_id", "id", "instr":
+		return SType_InstrumentId, nil
+	case "raw_symbol", "raw":
+		return SType_RawSymbol, nil
+	case "smart":
+		return SType_Smart, nil
+	case "continuous":
+		return SType_Continuous, nil
+	case "parent":
+		return SType_Parent, nil
+	case "nasdaq":
+		return SType_Nasdaq, nil
+	case "cms":
+		return SType_Cms, nil
+	default:
+		return SType_InstrumentId, fmt.Errorf("unknown stype: %s", str)
+	}
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 type RType uint8
@@ -168,6 +204,12 @@ const (
 	RType_System          RType = 0x17 // Denotes a non-error message from the gateway. Also used for heartbeats.
 	RType_Statistics      RType = 0x18 // Denotes a statistics record from the publisher (not calculated by Databento).
 	RType_Mbo             RType = 0xA0 // Denotes a market by order record.
+	RType_Cbbo            RType = 0xB1 /// Denotes a consolidated best bid and offer record.
+	RType_Cbbo1S          RType = 0xC0 /// Denotes a consolidated best bid and offer record subsampled on a one-second interval.
+	RType_Cbbo1M          RType = 0xC1 /// Denotes a consolidated best bid and offer record subsampled on a one-minute interval.
+	RType_Tcbbo           RType = 0xC2 /// Denotes a consolidated best bid and offer trade record containing the consolidated BBO before the trade.
+	RType_Bbo1S           RType = 0xC3 /// Denotes a best bid and offer record subsampled on a one-second interval.
+	RType_Bbo1M           RType = 0xC4 /// Denotes a best bid and offer record subsampled on a one-minute interval.
 	RType_Unknown         RType = 0xFF // Golang-only: Unknown or invalid record type
 )
 
@@ -175,39 +217,51 @@ const (
 func (s RType) String() string {
 	switch s {
 	case RType_Mbp0:
-		return "mbp0"
+		return "mbp-0"
 	case RType_Mbp1:
-		return "mbp1"
+		return "mbp-1"
 	case RType_Mbp10:
-		return "mbp10"
+		return "mbp-10"
 	case RType_OhlcvDeprecated:
-		return "ohlcvdeprecated"
+		return "ohlcv-deprecated"
 	case RType_Ohlcv1S:
-		return "ohlcv1s"
+		return "ohlcv-1s"
 	case RType_Ohlcv1M:
-		return "ohlcv1m"
+		return "ohlcv-1m"
 	case RType_Ohlcv1H:
-		return "ohlcv1h"
+		return "ohlcv-1h"
 	case RType_Ohlcv1D:
-		return "ohlcv1d"
+		return "ohlcv-1d"
 	case RType_OhlcvEod:
-		return "ohlcveod"
+		return "ohlcv-eod"
 	case RType_Status:
 		return "status"
 	case RType_InstrumentDef:
-		return "instrument_def"
+		return "instrument-def"
 	case RType_Imbalance:
 		return "imbalance"
 	case RType_Error:
 		return "error"
 	case RType_SymbolMapping:
-		return "symbol_mapping"
+		return "symbol-mapping"
 	case RType_System:
 		return "system"
 	case RType_Statistics:
 		return "statistics"
 	case RType_Mbo:
 		return "mbo"
+	case RType_Cbbo:
+		return "cbbo"
+	case RType_Cbbo1S:
+		return "cbbo-1s"
+	case RType_Cbbo1M:
+		return "cbbo-1m"
+	case RType_Tcbbo:
+		return "tcbbo"
+	case RType_Bbo1S:
+		return "bbo-1s"
+	case RType_Bbo1M:
+		return "bbo-1m"
 	case RType_Unknown:
 		return "unknown"
 	}
@@ -227,8 +281,7 @@ const (
 	Schema_Mbp1 Schema = 1
 	/// Market by price with a book depth of 10.
 	Schema_Mbp10 Schema = 2
-	/// All trade events with the best bid and offer (BBO) immediately **before** the
-	/// effect of the trade.
+	/// All trade events with the best bid and offer (BBO) immediately **before** the effect of the trade.
 	Schema_Tbbo Schema = 3
 	/// All trade events.
 	Schema_Trades Schema = 4
@@ -248,9 +301,20 @@ const (
 	Schema_Status Schema = 11
 	/// Auction imbalance events.
 	Schema_Imbalance Schema = 12
-	/// Open, high, low, close, and volume at a daily cadence based on the end of the
-	/// trading session.
+	/// Open, high, low, close, and volume at a daily cadence based on the end of the trading session.
 	Schema_OhlcvEod Schema = 13
+	/// Consolidated best bid and offer.
+	Schema_Cbbo Schema = 14
+	/// Consolidated best bid and offer subsampled at one-second intervals, in addition to trades.
+	Schema_Cbbo1S Schema = 15
+	/// Consolidated best bid and offer subsampled at one-minute intervals, in addition to trades.
+	Schema_Cbbo1M Schema = 16
+	/// All trade events with the consolidated best bid and offer (CBBO) immediately **before** the effect of the trade.6
+	Schema_Tcbbo Schema = 17
+	/// Best bid and offer subsampled at one-second intervals, in addition to trades.
+	Schema_Bbo1S Schema = 18
+	/// Best bid and offer subsampled at one-minute intervals, in addition to trades.
+	Schema_Bbo1M Schema = 19
 )
 
 // Returns the string representation of the Schema, or empty string if unknown.
@@ -286,12 +350,25 @@ func (s Schema) String() string {
 		return "imbalance"
 	case Schema_OhlcvEod:
 		return "ohlcv-eod"
+	case Schema_Cbbo:
+		return "cbbo"
+	case Schema_Cbbo1S:
+		return "cbbo-1s"
+	case Schema_Cbbo1M:
+		return "cbbo-1m"
+	case Schema_Tcbbo:
+		return "tcbbo"
+	case Schema_Bbo1S:
+		return "bbo-1s"
+	case Schema_Bbo1M:
+		return "bbo-1m"
 	default:
 		return ""
 	}
 }
 
 // SchemaFromString converts a string to a Schema.
+// Returns an error if the string is unknown.
 func SchemaFromString(str string) (Schema, error) {
 	str = strings.ToLower(str)
 	switch str {
@@ -325,6 +402,18 @@ func SchemaFromString(str string) (Schema, error) {
 		return Schema_Imbalance, nil
 	case "ohlcv-eod":
 		return Schema_OhlcvEod, nil
+	case "cbbo":
+		return Schema_Cbbo, nil
+	case "cbbo-1s":
+		return Schema_Cbbo1S, nil
+	case "cbbo-1m":
+		return Schema_Cbbo1M, nil
+	case "tcbbo":
+		return Schema_Tcbbo, nil
+	case "bbo-1s":
+		return Schema_Bbo1S, nil
+	case "bbo-1m":
+		return Schema_Bbo1M, nil
 	default:
 		return Schema_Mixed, fmt.Errorf("unknown schema: %s", str)
 	}
@@ -355,6 +444,22 @@ func (e Encoding) String() string {
 		return "json"
 	default:
 		return ""
+	}
+}
+
+// EncodingFromString converts a string to an Encoding.
+// Returns an error if the string is unknown.
+func EncodingFromString(str string) (Encoding, error) {
+	str = strings.ToLower(str)
+	switch str {
+	case "dbn":
+		return Encoding_Dbn, nil
+	case "csv":
+		return Encoding_Csv, nil
+	case "json":
+		return Encoding_Json, nil
+	default:
+		return Encoding_Dbn, fmt.Errorf("unknown encoding: %s", str)
 	}
 }
 
