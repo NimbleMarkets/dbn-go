@@ -6,9 +6,9 @@
     <a href="https://github.com/NimbleMarkets/dbn-go/blob/main/CODE_OF_CONDUCT.md"><img src="https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg"  alt="Code Of Conduct"></a>
 </p>
 
-**Golang bindings to Databento's DBN**
+**Golang tooling for DataBento's APIs and DBN format**
 
-This repository contains Golang bindings to [Databento's](https://databento.com) file format [Databento Binary Encoding (DBN)](https://databento.com/docs/knowledge-base/new-users/dbn-encoding).
+This repository contains Golang bindings to [Databento's](https://databento.com) file format [Databento Binary Encoding (DBN)](https://databento.com/docs/knowledge-base/new-users/dbn-encoding), [Historical API](#historical-api), and [Live API](#live-api).  It also includes tools to interact with these services.
 
  * [Library Usage](#library-usage)
  * [Reading DBN Files](#reading-dbn-files)

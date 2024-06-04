@@ -1,0 +1,68 @@
+# dbn-go .goreleaser.yml
+# Make sure to check the documentation at https://goreleaser.com
+
+version: 1
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: "dbn-go-hist"
+    main: ./cmd/dbn-go-hist
+    binary: bin/dbn-go-hist
+    goos:
+      - linux
+      - darwin
+      - windows
+
+  - id: "dbn-go-live"
+    main: ./cmd/dbn-go-live
+    binary: bin/dbn-go-live
+    goos:
+      - linux
+      - darwin
+      - windows
+
+archives:
+  - format: tar.gz
+    # this name template makes the OS and Arch compatible with the results of `uname`.
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    # use zip for windows archives
+    format_overrides:
+      - goos: windows
+        format: zip
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+release:
+  github:
+    owner: NimbleMarkets
+    name: dbn-go
+
+brews:
+  - homepage: https://github.com/NimbleMarkets/dbn-go
+    description: "Golang tooling for DataBento's APIs and DBN format"
+    directory: Formula
+    repository:
+      owner: NimbleMarkets
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    commit_author:
+      name: goreleaserbot
+      email: goreleaserbot@nimble.markets
+    install: |
+      bin.install "./bin/dbn-go-hist"
+      bin.install "./bin/dbn-go-live"

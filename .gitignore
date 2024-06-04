@@ -3,3 +3,4 @@
 .task
 .DS_Store
 bin/
+dist/
