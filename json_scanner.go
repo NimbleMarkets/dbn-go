@@ -36,6 +36,7 @@ func (s *JsonScanner) Error() error {
 }
 
 // Parses the Scanner's current record as a `Record`.
+// This a plain function (not a method) because methods cannot be generic.
 func JsonScannerDecode[R Record, RP RecordPtr[R]](s *JsonScanner) (*R, error) {
 	val, header, err := s.parseWithHeader()
 	if err != nil {

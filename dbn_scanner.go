@@ -126,6 +126,7 @@ func (s *DbnScanner) Next() bool {
 }
 
 // Parses the Scanner's current record as a `Record`.
+// This a plain function because receiver functions cannot be generic.
 func DbnScannerDecode[R Record, RP RecordPtr[R]](s *DbnScanner) (*R, error) {
 	// Ensure there's a record to decode
 	if s.lastSize <= RHeader_Size {
