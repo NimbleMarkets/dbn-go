@@ -14,6 +14,7 @@ import (
 
 	"github.com/NimbleMarkets/dbn-go"
 	dbn_hist "github.com/NimbleMarkets/dbn-go/hist"
+	"github.com/charmbracelet/huh"
 	"github.com/neomantra/ymdflag"
 	"github.com/segmentio/encoding/json"
 	"github.com/spf13/cobra"
@@ -34,6 +35,8 @@ var (
 
 	startYMD ymdflag.YMDFlag
 	endYMD   ymdflag.YMDFlag
+
+	useForce bool
 )
 
 func getDateRangeArg() dbn_hist.DateRange {
@@ -47,6 +50,7 @@ func getDateRangeArg() dbn_hist.DateRange {
 	return dateRange
 }
 
+// getMetadataQueryParams returns a MetadataQueryParams struct based on CLI globals and the given symbols.
 func getMetadataQueryParams(symbols []string) dbn_hist.MetadataQueryParams {
 	return dbn_hist.MetadataQueryParams{
 		Dataset:   dataset,
@@ -56,6 +60,24 @@ func getMetadataQueryParams(symbols []string) dbn_hist.MetadataQueryParams {
 		Mode:      dbn_hist.FeedMode_Historical,
 		StypeIn:   dbn.SType_RawSymbol,
 		Limit:     -1,
+	}
+}
+
+// SubmitJobParams returns a MetadataQueryParams struct based on CLI globals and the given symbols.
+func getSubmitJobParams(symbols []string) dbn_hist.SubmitJobParams {
+	symbolsStr := strings.Join(symbols, ",")
+	schema, _ := dbn.SchemaFromString(schemaStr)
+	return dbn_hist.SubmitJobParams{
+		Dataset:     dataset,
+		Symbols:     symbolsStr,
+		Schema:      schema,
+		DateRange:   getDateRangeArg(),
+		Encoding:    dbn.Encoding_Dbn,
+		Compression: dbn.Compress_ZStd,
+		Packaging:   dbn_hist.Packaging_Tar,
+		Delivery:    dbn_hist.Delivery_Download,
+		StypeIn:     dbn.SType_RawSymbol,
+		StypeOut:    dbn.SType_InstrumentId,
 	}
 }
 
@@ -117,8 +139,36 @@ func requireDatabentoApiKey() string {
 
 func requireNoError(err error) {
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %s\n", err)
+		fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
 		os.Exit(1)
+	}
+}
+
+func requireNoErrorMsg(err error, msg string) {
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s %s\n", msg, err.Error())
+		os.Exit(1)
+	}
+}
+
+func requireHumanConfirmation(promptTitle string, verbName string) {
+	doVerb := false
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewConfirm().
+				Affirmative(fmt.Sprintf("Yes, %s", verbName)).
+				Negative("No, Cancel").
+				Title(promptTitle).
+				Value(&doVerb),
+		))
+	err := form.Run()
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "confirmation error: %s\n", err.Error())
+		os.Exit(1)
+	}
+	if !doVerb {
+		os.Exit(0)
 	}
 }
 
@@ -158,26 +208,6 @@ func main() {
 	getDatasetRangeCmd.Flags().StringVarP(&dataset, "dataset", "d", "", "Dataset to get date range for")
 	getDatasetRangeCmd.MarkFlagRequired("dataset")
 
-	rootCmd.AddCommand(getRecordCountCmd)
-	getRecordCountCmd.Flags().StringVarP(&dataset, "dataset", "d", "", "Dataset to get condition for")
-	getRecordCountCmd.Flags().StringVarP(&schemaStr, "schema", "s", "", "Schema to get condition for")
-	getRecordCountCmd.Flags().StringVarP(&symbolsFile, "file", "f", "", "Newline delimited file to read symbols from (# is comment)")
-	getRecordCountCmd.Flags().BoolVarP(&allSymbols, "all", "", false, "Get record count for all symbols")
-	getRecordCountCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD.")
-	getRecordCountCmd.Flags().VarP(&endYMD, "end", "e", "End date as YYYYMMDD")
-	getRecordCountCmd.MarkFlagRequired("dataset")
-	getRecordCountCmd.MarkFlagRequired("schema")
-
-	rootCmd.AddCommand(getBillableSizeCmd)
-	getBillableSizeCmd.Flags().StringVarP(&dataset, "dataset", "d", "", "Dataset to get billable size for")
-	getBillableSizeCmd.Flags().StringVarP(&schemaStr, "schema", "s", "", "Schema to get billable size for")
-	getBillableSizeCmd.Flags().StringVarP(&symbolsFile, "file", "f", "", "Newline delimited file to read symbols from (# is comment)")
-	getBillableSizeCmd.Flags().BoolVarP(&allSymbols, "all", "", false, "Get record count for all symbols")
-	getBillableSizeCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD")
-	getBillableSizeCmd.Flags().VarP(&endYMD, "end", "e", "End date as YYYYMMDD")
-	getBillableSizeCmd.MarkFlagRequired("dataset")
-	getBillableSizeCmd.MarkFlagRequired("schema")
-
 	rootCmd.AddCommand(getCostCmd)
 	getCostCmd.Flags().StringVarP(&dataset, "dataset", "d", "", "Dataset to get cost for")
 	getCostCmd.Flags().StringVarP(&schemaStr, "schema", "s", "", "Schema to get cost for")
@@ -195,6 +225,18 @@ func main() {
 	rootCmd.AddCommand(listFilesCmd)
 	listFilesCmd.Flags().StringVarP(&jobID, "job", "j", "", "Job ID to list files for")
 	listFilesCmd.MarkFlagRequired("job")
+
+	rootCmd.AddCommand(submitJobCmd)
+	submitJobCmd.Flags().StringVarP(&dataset, "dataset", "d", "", "Dataset to request")
+	submitJobCmd.Flags().StringVarP(&schemaStr, "schema", "s", "", "Schema to request")
+	submitJobCmd.Flags().StringVarP(&symbolsFile, "file", "f", "", "Newline delimited file to read symbols from (# is comment)")
+	submitJobCmd.Flags().BoolVarP(&allSymbols, "all", "", false, "Request data for all symbols")
+	submitJobCmd.Flags().BoolVarP(&useForce, "force", "", false, "Do not warn about all symbols or cost")
+	submitJobCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD.")
+	submitJobCmd.Flags().VarP(&endYMD, "end", "e", "End date as YYYYMMDD")
+	submitJobCmd.MarkFlagRequired("dataset")
+	submitJobCmd.MarkFlagRequired("schema")
+	submitJobCmd.MarkFlagRequired("start")
 
 	err := rootCmd.Execute()
 	requireNoError(err)
@@ -339,54 +381,25 @@ var getDatasetRangeCmd = &cobra.Command{
 	},
 }
 
-var getRecordCountCmd = &cobra.Command{
-	Use:     "record-count",
-	Aliases: []string{"rc"},
-	Short:   "Queries DataBento Hist for record count for a GetRange query.  Args are in symbols",
-	Args:    cobra.ArbitraryArgs,
-	Run: func(cmd *cobra.Command, args []string) {
-		apiKey := requireDatabentoApiKey()
-		symbols := requireSymbolArgs(args)
-		params := getMetadataQueryParams(symbols)
-
-		recordCount, err := dbn_hist.GetRecordCount(apiKey, params)
-		requireNoError(err)
-
-		fmt.Fprintf(os.Stdout, "%d\n", recordCount)
-	},
-}
-
-var getBillableSizeCmd = &cobra.Command{
-	Use:     "billable-size",
-	Aliases: []string{"bs"},
-	Short:   "Queries DataBento Hist for the billable size of a GetRange query",
-	Args:    cobra.ArbitraryArgs,
-	Run: func(cmd *cobra.Command, args []string) {
-		apiKey := requireDatabentoApiKey()
-		symbols := requireSymbolArgs(args)
-		params := getMetadataQueryParams(symbols)
-
-		billable, err := dbn_hist.GetBillableSize(apiKey, params)
-		requireNoError(err)
-
-		fmt.Fprintf(os.Stdout, "%d\n", billable)
-	},
-}
-
 var getCostCmd = &cobra.Command{
 	Use:     "cost",
 	Aliases: []string{"c"},
-	Short:   "Queries DataBento Hist for the cost for a GetRange query",
+	Short:   "Queries DataBento Hist for the cost and size of a GetRange query",
 	Args:    cobra.ArbitraryArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		apiKey := requireDatabentoApiKey()
 		symbols := requireSymbolArgs(args)
-		params := getMetadataQueryParams(symbols)
+		metaParams := getMetadataQueryParams(symbols)
 
-		cost, err := dbn_hist.GetCost(apiKey, params)
+		cost, err := dbn_hist.GetCost(apiKey, metaParams)
+		requireNoError(err)
+		dataSize, err := dbn_hist.GetBillableSize(apiKey, metaParams)
+		requireNoError(err)
+		recordCount, err := dbn_hist.GetRecordCount(apiKey, metaParams)
 		requireNoError(err)
 
-		fmt.Fprintf(os.Stdout, "%0.06f\n", cost)
+		fmt.Fprintf(os.Stdout, "%s  %s   $ %0.06f  %d bytes  %d records\n",
+			metaParams.Dataset, metaParams.Schema, cost, dataSize, recordCount)
 	},
 }
 
@@ -425,5 +438,50 @@ var listFilesCmd = &cobra.Command{
 			requireNoError(err)
 			fmt.Fprintf(os.Stdout, "%s\n", jstr)
 		}
+	},
+}
+
+var submitJobCmd = &cobra.Command{
+	Use:     "submit-job",
+	Aliases: []string{"submit"},
+	Short:   "Submit a data request job to the Hist API",
+	Args:    cobra.ArbitraryArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		apiKey := requireDatabentoApiKey()
+		symbols := requireSymbolArgs(args)
+		jobParams := getSubmitJobParams(symbols)
+
+		if jobParams.Symbols == "ALL_SYMBOLS" || jobParams.Symbols == "" {
+			// Request verification unless forced
+			if !useForce {
+				requireHumanConfirmation(
+					"Are you sure you want to submit for ALL_SYMBOLS?",
+					"Submit for ALL")
+			}
+		}
+
+		if !useForce {
+			// Request cost of this job
+			fmt.Fprintf(os.Stdout, "Getting cost estimates for job...\n")
+			metaParams := getMetadataQueryParams(symbols)
+			cost, err := dbn_hist.GetCost(apiKey, metaParams)
+			requireNoError(err)
+			dataSize, err := dbn_hist.GetBillableSize(apiKey, metaParams)
+			requireNoError(err)
+			recordCount, err := dbn_hist.GetRecordCount(apiKey, metaParams)
+			requireNoError(err)
+
+			promptTitle := fmt.Sprintf("Are you sure you want to submit?\nEstimated cost of $%.2f for %d records and %d bytes of data.",
+				cost, recordCount, dataSize)
+			requireHumanConfirmation(promptTitle, "Submit Job")
+		}
+
+		batchJob, err := dbn_hist.SubmitJob(apiKey, jobParams)
+		requireNoErrorMsg(err, "error submitting job")
+
+		jstr, err := json.Marshal(batchJob)
+		requireNoErrorMsg(err, "error unmarshalling batchJob")
+
+		fmt.Fprintf(os.Stdout, "%s\n", jstr)
 	},
 }

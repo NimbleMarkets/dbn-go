@@ -49,7 +49,9 @@ type MetadataQueryParams struct {
 	Limit     int32     `json:"limit,omitempty"`    // The maximum number of records to return. 0 and negative (-1) means no limit.
 }
 
-func (metaParams *MetadataQueryParams) applyToURLValues(params *url.Values) error {
+// ApplyToURLValues fills a url.Values with the MetadataQueryParams per the Metadata API spec.
+// Returns any error.
+func (metaParams *MetadataQueryParams) ApplyToURLValues(params *url.Values) error {
 	params.Add("dataset", metaParams.Dataset)
 	params.Add("schema", metaParams.Schema)
 	params.Add("mode", metaParams.Mode.String())
@@ -63,7 +65,7 @@ func (metaParams *MetadataQueryParams) applyToURLValues(params *url.Values) erro
 	} else {
 		params.Add("start", metaParams.DateRange.Start.Format("2006-01-02"))
 	}
-	if !metaParams.DateRange.Start.IsZero() {
+	if !metaParams.DateRange.End.IsZero() {
 		params.Add("end", metaParams.DateRange.End.Format("2006-01-02"))
 	}
 
@@ -338,7 +340,7 @@ func GetRecordCount(apiKey string, metaParams MetadataQueryParams) (int, error) 
 	}
 
 	params := url.Values{}
-	err = metaParams.applyToURLValues(&params)
+	err = metaParams.ApplyToURLValues(&params)
 	if err != nil {
 		return 0, fmt.Errorf("bad params: %w", err)
 	}
@@ -367,7 +369,7 @@ func GetBillableSize(apiKey string, metaParams MetadataQueryParams) (int, error)
 	}
 
 	params := url.Values{}
-	err = metaParams.applyToURLValues(&params)
+	err = metaParams.ApplyToURLValues(&params)
 	if err != nil {
 		return 0, fmt.Errorf("bad params: %w", err)
 	}
@@ -396,7 +398,7 @@ func GetCost(apiKey string, metaParams MetadataQueryParams) (float64, error) {
 	}
 
 	params := url.Values{}
-	err = metaParams.applyToURLValues(&params)
+	err = metaParams.ApplyToURLValues(&params)
 	if err != nil {
 		return 0, fmt.Errorf("bad params: %w", err)
 	}

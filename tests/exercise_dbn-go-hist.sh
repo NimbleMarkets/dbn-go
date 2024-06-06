@@ -46,14 +46,6 @@ echo "$ dbn-go-hist dataset-range -d ${DATASET}"
 "${DBN_GO_HIST}" dataset-range -d "${DATASET}"
 echo
 
-echo "$ dbn-go-hist record-count -d ${DATASET} -s ${SCHEMA} -t ${START_DATE} -e ${END_DATE} ${SYMBOLS}"
-"${DBN_GO_HIST}" record-count -d "${DATASET}" -s "${SCHEMA}" -t "${START_DATE}" -e "${END_DATE}" "${SYMBOLS}"
-echo
-
-echo "$ dbn-go-hist billable-size -d ${DATASET} -s ${SCHEMA} -t ${START_DATE} -e ${END_DATE} ${SYMBOLS}"
-"${DBN_GO_HIST}" billable-size -d "${DATASET}" -s "${SCHEMA}" -t "${START_DATE}" -e "${END_DATE}" "${SYMBOLS}"
-echo
-
 echo "$ dbn-go-hist cost -d ${DATASET} -s ${SCHEMA} -t ${START_DATE} -e ${END_DATE} ${SYMBOLS}"
 "${DBN_GO_HIST}" cost -d "${DATASET}" -s "${SCHEMA}" -t "${START_DATE}" -e "${END_DATE}" "${SYMBOLS}"
 echo

@@ -5,8 +5,10 @@ package dbn_hist
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -109,7 +111,7 @@ func (p Packaging) MarshalJSON() ([]byte, error) {
 
 func (p *Packaging) UnmarshalJSON(data []byte) error {
 	if bytes.Equal(data, []byte("null")) {
-		*p = Packaging_None
+		*p = Packaging_None // default
 		return nil
 	}
 	var str string
@@ -161,6 +163,10 @@ func (d Delivery) MarshalJSON() ([]byte, error) {
 }
 
 func (d *Delivery) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(data, []byte("null")) {
+		*d = Delivery_Download // default
+		return nil
+	}
 	var str string
 	if err := json.Unmarshal(data, &str); err != nil {
 		return err
@@ -232,6 +238,98 @@ type BatchFileDesc struct {
 	Urls     map[string]string `json:"urls"`     // A map of download protocol to URL.
 }
 
+// SubmitJobParams are te parameters for [`BatchClient::submit_job()`]. Use [`SubmitJobParams::builder()`] to
+// get a builder type with all the preset defaults.
+type SubmitJobParams struct {
+	Dataset       string          `json:"dataset"`              /// The dataset code.
+	Symbols       string          `json:"symbols"`              /// The symbols to filter for.
+	Schema        dbn.Schema      `json:"schema"`               /// The data record schema.
+	DateRange     DateRange       `json:"date_time_range"`      /// The request time range.
+	Encoding      dbn.Encoding    `json:"encoding"`             /// The data encoding. Defaults to [`Dbn`](Encoding::Dbn).
+	Compression   dbn.Compression `json:"compression"`          /// The data compression mode. Defaults to [`ZStd`](Compression::ZStd).
+	PrettyPx      bool            `json:"pretty_px"`            /// If `true`, prices will be formatted to the correct scale (using the fixed-  precision scalar 1e-9). Only valid for [`Encoding::Csv`] and [`Encoding::Json`].
+	PrettyTs      bool            `json:"pretty_ts"`            /// If `true`, timestamps will be formatted as ISO 8601 strings. Only valid for [`Encoding::Csv`] and [`Encoding::Json`].
+	MapSymbols    bool            `json:"map_symbols"`          /// If `true`, a symbol field will be included with each text-encoded record, reducing the need to look at the `symbology.json`. Only valid for [`Encoding::Csv`] and [`Encoding::Json`].
+	SplitSymbols  bool            `json:"split_symbols"`        /// If `true`, files will be split by raw symbol. Cannot be requested with [`Symbols::All`].
+	SplitDuration string          `json:"split_duration"`       /// The maximum time duration before batched data is split into multiple files. Defaults to [`Day`](SplitDuration::Day).
+	SplitSize     uint64          `json:"split_size,omitempty"` /// The optional maximum size (in bytes) of each batched data file before being split. Defaults to `None`.
+	Packaging     Packaging       `json:"packaging,omitempty"`  /// The optional archive type to package all batched data files in. Defaults to `None`.
+	Delivery      Delivery        `json:"delivery"`             /// The delivery mechanism for the batched data files once processed. Defaults to [`Download`](Delivery::Download).
+	StypeIn       dbn.SType       `json:"stype_in"`             /// The symbology type of the input `symbols`. Defaults to [`RawSymbol`](dbn::enums::SType::RawSymbol).
+	StypeOut      dbn.SType       `json:"stype_out"`            /// The symbology type of the output `symbols`. Defaults to [`InstrumentId`](dbn::enums::SType::InstrumentId).
+	Limit         uint64          `json:"limit,omitempty"`      /// The optional maximum number of records to return. Defaults to no limit.
+}
+
+// ApplyToURLValues fills a url.Values with the SubmitJobParams per the Batch API spec.
+// Returns any error.
+func (jobParams *SubmitJobParams) ApplyToURLValues(params *url.Values) error {
+	if jobParams.Dataset == "" {
+		return fmt.Errorf("missing required Dataset")
+	} else {
+		params.Add("dataset", jobParams.Dataset)
+	}
+	if jobParams.Symbols == "" {
+		return fmt.Errorf("missing required Symbols CSV or specify 'ALL_SYMBOLS'")
+	} else {
+		params.Add("symbols", jobParams.Symbols)
+	}
+	if schemaStr := jobParams.Schema.String(); schemaStr == "" {
+		return fmt.Errorf("missing required Schema")
+	} else {
+		params.Add("schema", schemaStr)
+	}
+	if jobParams.DateRange.Start.IsZero() {
+		return errors.New("DateRange.Start is required")
+	} else {
+		params.Add("start", jobParams.DateRange.Start.Format("2006-01-02"))
+	}
+	if !jobParams.DateRange.End.IsZero() {
+		params.Add("end", jobParams.DateRange.End.Format("2006-01-02"))
+	}
+	if encodingStr := jobParams.Encoding.String(); encodingStr == "" {
+		return fmt.Errorf("missing require Encoding")
+	} else {
+		params.Add("encoding", encodingStr)
+	}
+	if compressStr := jobParams.Compression.String(); compressStr != "" {
+		params.Add("compression", compressStr)
+	}
+	if jobParams.PrettyPx {
+		params.Add("pretty_px", "true")
+	}
+	if jobParams.PrettyTs {
+		params.Add("pretty_ts", "true")
+	}
+	if jobParams.MapSymbols {
+		params.Add("map_symbols", "true")
+	}
+	if jobParams.SplitSymbols {
+		params.Add("split_symbols", "true")
+	}
+	if jobParams.SplitDuration != "" {
+		params.Add("split_duration", jobParams.SplitDuration)
+	}
+	if jobParams.SplitSize > 0 {
+		params.Add("split_size", strconv.Itoa(int(jobParams.SplitSize)))
+	}
+	if packagingStr := jobParams.Packaging.String(); packagingStr != "" {
+		params.Add("packaging", packagingStr)
+	}
+	if deliveryStr := jobParams.Delivery.String(); deliveryStr != "" {
+		params.Add("delivery", deliveryStr)
+	}
+	if stypeStr := jobParams.StypeIn.String(); stypeStr != "" {
+		params.Add("stype_in", stypeStr)
+	}
+	if stypeStr := jobParams.StypeOut.String(); stypeStr != "" {
+		params.Add("stype_out", stypeStr)
+	}
+	if jobParams.Limit > 0 {
+		params.Add("limit", strconv.Itoa(int(jobParams.Limit)))
+	}
+	return nil
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 // Lists all jobs associated with the given state filter and 'since' date.
@@ -295,4 +393,33 @@ func ListFiles(apiKey string, jobID string) ([]BatchFileDesc, error) {
 		return nil, err
 	}
 	return batchFiles, nil
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+// SubmitJob submits a new batch job and returns a description and identifiers for the job.
+//
+// # Errors
+// This function returns an error when it fails to communicate with the Databento API
+// or the API indicates there's an issue with the request.
+func SubmitJob(apiKey string, jobParams SubmitJobParams) (*BatchJob, error) {
+	apiUrl := "https://hist.databento.com/v0/batch.submit_job"
+
+	formData := url.Values{}
+	err := jobParams.ApplyToURLValues(&formData)
+	if err != nil {
+		return nil, fmt.Errorf("bad params: %w", err)
+	}
+
+	body, err := databentoPostFormRequest(apiUrl, apiKey, formData)
+	if err != nil {
+		return nil, fmt.Errorf("failed post request: %w", err)
+	}
+
+	var batchJob BatchJob
+	err = json.Unmarshal(body, &batchJob)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+	return &batchJob, nil
 }
