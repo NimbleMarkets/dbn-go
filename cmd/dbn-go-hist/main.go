@@ -6,8 +6,11 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/NimbleMarkets/dbn-go"
 	dbn_hist "github.com/NimbleMarkets/dbn-go/hist"
@@ -20,11 +23,12 @@ import (
 var (
 	databentoApiKey string
 
-	dataset    string
-	schemaStr  string
-	allSymbols bool
-	startYMD   ymdflag.YMDFlag
-	endYMD     ymdflag.YMDFlag
+	dataset     string
+	schemaStr   string
+	allSymbols  bool
+	symbolsFile string
+	startYMD    ymdflag.YMDFlag
+	endYMD      ymdflag.YMDFlag
 )
 
 func getDateRangeArg() dbn_hist.DateRange {
@@ -54,11 +58,43 @@ func requireSymbolArgs(args []string) []string {
 	if allSymbols {
 		return []string{"ALL_SYMBOLS"}
 	}
-	if len(args) == 0 {
-		fmt.Fprint(os.Stderr, "must pass symbols as arguments or use --all\n")
+	result := args
+
+	if symbolsFile != "" {
+		symbols, err := loadSymbolFile(symbolsFile)
+		requireNoError(err)
+		result = append(result, symbols...)
+	}
+
+	if len(result) == 0 {
+		fmt.Fprint(os.Stderr, "must pass symbols as arguments or use --file or --all\n")
 		os.Exit(1)
 	}
-	return args
+	return result
+}
+
+func loadSymbolFile(filename string) ([]string, error) {
+	if filename == "" {
+		return nil, fmt.Errorf("filename was empty")
+	}
+
+	fileBytes, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	var symbols []string
+	scanner := bufio.NewScanner(bytes.NewReader(fileBytes))
+	for scanner.Scan() {
+		text := scanner.Text()
+		if len(text) > 0 && text[0] != '#' { // skip empty lines and comments
+			symbols = append(symbols, strings.TrimSpace(text))
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return symbols, err
+	}
+	return symbols, nil
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -120,6 +156,7 @@ func main() {
 	rootCmd.AddCommand(getRecordCountCmd)
 	getRecordCountCmd.Flags().StringVarP(&dataset, "dataset", "d", "", "Dataset to get condition for")
 	getRecordCountCmd.Flags().StringVarP(&schemaStr, "schema", "s", "", "Schema to get condition for")
+	getRecordCountCmd.Flags().StringVarP(&symbolsFile, "file", "f", "", "Newline delimited file to read symbols from (# is comment)")
 	getRecordCountCmd.Flags().BoolVarP(&allSymbols, "all", "", false, "Get record count for all symbols")
 	getRecordCountCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD.")
 	getRecordCountCmd.Flags().VarP(&endYMD, "end", "e", "End date as YYYYMMDD")
@@ -129,6 +166,7 @@ func main() {
 	rootCmd.AddCommand(getBillableSizeCmd)
 	getBillableSizeCmd.Flags().StringVarP(&dataset, "dataset", "d", "", "Dataset to get billable size for")
 	getBillableSizeCmd.Flags().StringVarP(&schemaStr, "schema", "s", "", "Schema to get billable size for")
+	getBillableSizeCmd.Flags().StringVarP(&symbolsFile, "file", "f", "", "Newline delimited file to read symbols from (# is comment)")
 	getBillableSizeCmd.Flags().BoolVarP(&allSymbols, "all", "", false, "Get record count for all symbols")
 	getBillableSizeCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD")
 	getBillableSizeCmd.Flags().VarP(&endYMD, "end", "e", "End date as YYYYMMDD")
@@ -138,6 +176,7 @@ func main() {
 	rootCmd.AddCommand(getCostCmd)
 	getCostCmd.Flags().StringVarP(&dataset, "dataset", "d", "", "Dataset to get cost for")
 	getCostCmd.Flags().StringVarP(&schemaStr, "schema", "s", "", "Schema to get cost for")
+	getCostCmd.Flags().StringVarP(&symbolsFile, "file", "f", "", "Newline delimited file to read symbols from (# is comment)")
 	getCostCmd.Flags().BoolVarP(&allSymbols, "all", "", false, "Get record count for all symbols")
 	getCostCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD")
 	getCostCmd.Flags().VarP(&endYMD, "end", "e", "End date as YYYYMMDD")
