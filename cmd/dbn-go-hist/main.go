@@ -30,6 +30,9 @@ var (
 	allSymbols  bool
 	symbolsFile string
 
+	encoding    dbn.Encoding    = dbn.Encoding_Dbn
+	compression dbn.Compression = dbn.Compress_ZStd
+
 	jobID       string
 	stateFilter string
 
@@ -72,8 +75,8 @@ func getSubmitJobParams(symbols []string) dbn_hist.SubmitJobParams {
 		Symbols:     symbolsStr,
 		Schema:      schema,
 		DateRange:   getDateRangeArg(),
-		Encoding:    dbn.Encoding_Dbn,
-		Compression: dbn.Compress_ZStd,
+		Encoding:    encoding,
+		Compression: compression,
 		Packaging:   dbn_hist.Packaging_Tar,
 		Delivery:    dbn_hist.Delivery_Download,
 		StypeIn:     dbn.SType_RawSymbol,
@@ -192,6 +195,7 @@ func main() {
 
 	rootCmd.AddCommand(listFieldsCmd)
 	listFieldsCmd.Flags().StringVarP(&schemaStr, "schema", "s", "", "Schema to list fields for")
+	listFieldsCmd.Flags().VarP(&encoding, "encoding", "", "Encoding to use ('dbn', 'csv', 'json')")
 	listFieldsCmd.MarkFlagRequired("schema")
 
 	rootCmd.AddCommand(listUnitPricesCmd)
@@ -229,6 +233,8 @@ func main() {
 	rootCmd.AddCommand(submitJobCmd)
 	submitJobCmd.Flags().StringVarP(&dataset, "dataset", "d", "", "Dataset to request")
 	submitJobCmd.Flags().StringVarP(&schemaStr, "schema", "s", "", "Schema to request")
+	submitJobCmd.Flags().VarP(&encoding, "encoding", "", "Encoding to use ('dbn', 'csv', 'json')")
+	submitJobCmd.Flags().VarP(&compression, "compression", "", "Compression to use ('none', 'zstd')")
 	submitJobCmd.Flags().StringVarP(&symbolsFile, "file", "f", "", "Newline delimited file to read symbols from (# is comment)")
 	submitJobCmd.Flags().BoolVarP(&allSymbols, "all", "", false, "Request data for all symbols")
 	submitJobCmd.Flags().BoolVarP(&useForce, "force", "", false, "Do not warn about all symbols or cost")
@@ -319,7 +325,7 @@ var listFieldsCmd = &cobra.Command{
 		schema, err := dbn.SchemaFromString(schemaStr)
 		requireNoError(err)
 
-		fields, err := dbn_hist.ListFields(apiKey, dbn.Encoding_Dbn, schema)
+		fields, err := dbn_hist.ListFields(apiKey, encoding, schema)
 		requireNoError(err)
 
 		for _, field := range fields {

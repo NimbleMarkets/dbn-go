@@ -515,6 +515,20 @@ func (e *Encoding) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// Type implements pflag.Value.Type.  Returns "dbn.Encoding".
+func (*Encoding) Type() string {
+	return "dbn.Encoding"
+}
+
+// Set implements the flag.Value interface.
+func (e *Encoding) Set(value string) error {
+	enc, err := EncodingFromString(value)
+	if err == nil {
+		*e = enc
+	}
+	return err
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 // Compression is the compression format or none if uncompressed.
@@ -568,6 +582,20 @@ func (c *Compression) UnmarshalJSON(data []byte) error {
 	}
 	*c = js
 	return nil
+}
+
+// Type implements pflag.Value.Type.  Returns "dbn.Compression".
+func (*Compression) Type() string {
+	return "dbn.Compression"
+}
+
+// Set implements the flag.Value interface.
+func (c *Compression) Set(value string) error {
+	comp, err := CompressionFromString(value)
+	if err == nil {
+		*c = comp
+	}
+	return err
 }
 
 ///////////////////////////////////////////////////////////////////////////////

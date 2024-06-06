@@ -38,7 +38,7 @@ type Config struct {
 func main() {
 	var err error
 	var config Config
-	var encodingArg, startTimeArg, stypeInArg string
+	var startTimeArg, stypeInArg string
 	var showHelp bool
 
 	pflag.StringVarP(&config.Dataset, "dataset", "d", "", "Dataset to subscribe to ")
@@ -46,7 +46,7 @@ func main() {
 	pflag.StringVarP(&config.ApiKey, "key", "k", "", "Databento API key (or set 'DATABENTO_API_KEY' envvar)")
 	pflag.StringVarP(&config.OutFilename, "out", "o", "", "Output filename for DBN stream ('-' for stdout)")
 	pflag.StringVarP(&stypeInArg, "stype", "i", "raw", "SType of the symbols")
-	pflag.StringVarP(&encodingArg, "encoding", "e", "dbn", "Encoding of the output")
+	pflag.VarP(&config.Encoding, "encoding", "e", "Encoding of the output ('dbn', 'csv', 'json')")
 	pflag.StringVarP(&startTimeArg, "start", "t", "", "Start time to request as ISO 8601 format (default: now)")
 	pflag.BoolVarP(&config.Verbose, "verbose", "v", false, "Verbose logging")
 	pflag.BoolVarP(&showHelp, "help", "h", false, "Show help")
@@ -80,12 +80,6 @@ func main() {
 
 	if len(config.Symbols) == 0 {
 		fmt.Fprintf(os.Stderr, "requires at least one symbol argument\n")
-		os.Exit(1)
-	}
-
-	config.Encoding, err = dbn.EncodingFromString(encodingArg)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "argument --encoding '%s' is unknown\n", encodingArg)
 		os.Exit(1)
 	}
 
@@ -126,6 +120,7 @@ func run(config Config) error {
 	client, err := dbn_live.NewLiveClient(dbn_live.LiveConfig{
 		ApiKey:               config.ApiKey,
 		Dataset:              config.Dataset,
+		Encoding:             config.Encoding,
 		SendTsOut:            false,
 		VersionUpgradePolicy: dbn.VersionUpgradePolicy_AsIs,
 		Verbose:              config.Verbose,
