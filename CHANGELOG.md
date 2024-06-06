@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## v0.0.12 (unreleased)
+
+ * Add `ListFiles` and `ListJobs` to Hist API
+ * Add some JSON marshallers
+ * `dbn-go-hist` now has `jobs` and `files` subcommands
+ * `dbn-go-hist` now supports `--file` to supply lists of tickers
+
 ## v0.0.11 (2024-06-03)
 
 * Expand `dbn-go-hist` tool and add `tests/exercise_dbn-go-hist.sh` example.

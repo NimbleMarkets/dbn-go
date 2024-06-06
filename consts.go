@@ -7,6 +7,7 @@
 package dbn
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -178,6 +179,23 @@ func STypeFromString(str string) (SType, error) {
 	default:
 		return SType_InstrumentId, fmt.Errorf("unknown stype: %s", str)
 	}
+}
+
+func (s SType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.String())
+}
+
+func (s *SType) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
+	}
+	js, err := STypeFromString(str)
+	if err != nil {
+		return err
+	}
+	*s = js
+	return nil
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -419,6 +437,23 @@ func SchemaFromString(str string) (Schema, error) {
 	}
 }
 
+func (s Schema) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.String())
+}
+
+func (s *Schema) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
+	}
+	js, err := SchemaFromString(str)
+	if err != nil {
+		return err
+	}
+	*s = js
+	return nil
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 // / Encoding A data encoding format.
@@ -463,9 +498,26 @@ func EncodingFromString(str string) (Encoding, error) {
 	}
 }
 
+func (e Encoding) MarshalJSON() ([]byte, error) {
+	return json.Marshal(e.String())
+}
+
+func (e *Encoding) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
+	}
+	js, err := EncodingFromString(str)
+	if err != nil {
+		return err
+	}
+	*e = js
+	return nil
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
-// / A compression format or none if uncompressed.
+// Compression is the compression format or none if uncompressed.
 type Compression uint8
 
 const (
@@ -474,6 +526,51 @@ const (
 	/// Zstandard compressed.
 	Compress_ZStd Compression = 1
 )
+
+// Returns the string representation of the Compression ('zstd' or 'none'), or empty string if unknown.
+func (c Compression) String() string {
+	switch c {
+	case Compress_None:
+		return "none"
+	case Compress_ZStd:
+		return "zstd"
+	default:
+		return ""
+	}
+}
+
+// CompressionFromString converts a string to a Compression.
+// Returns an error if the string is unknown.
+func CompressionFromString(str string) (Compression, error) {
+	str = strings.ToLower(str)
+	switch str {
+	case "none":
+		return Compress_None, nil
+	case "zstd":
+		return Compress_ZStd, nil
+	default:
+		return Compress_None, fmt.Errorf("unknown encoding: %s", str)
+	}
+}
+
+func (c Compression) MarshalJSON() ([]byte, error) {
+	return json.Marshal(c.String())
+}
+
+func (c *Compression) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
+	}
+	js, err := CompressionFromString(str)
+	if err != nil {
+		return err
+	}
+	*c = js
+	return nil
+}
+
+///////////////////////////////////////////////////////////////////////////////
 
 // / Constants for the bit flag record fields.
 const (

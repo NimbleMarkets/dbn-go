@@ -57,3 +57,7 @@ echo
 echo "$ dbn-go-hist cost -d ${DATASET} -s ${SCHEMA} -t ${START_DATE} -e ${END_DATE} ${SYMBOLS}"
 "${DBN_GO_HIST}" cost -d "${DATASET}" -s "${SCHEMA}" -t "${START_DATE}" -e "${END_DATE}" "${SYMBOLS}"
 echo
+
+echo "$ dbn-go-hist jobs"
+"${DBN_GO_HIST}" jobs
+echo

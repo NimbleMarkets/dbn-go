@@ -15,6 +15,7 @@ import (
 	"github.com/NimbleMarkets/dbn-go"
 	dbn_hist "github.com/NimbleMarkets/dbn-go/hist"
 	"github.com/neomantra/ymdflag"
+	"github.com/segmentio/encoding/json"
 	"github.com/spf13/cobra"
 )
 
@@ -27,8 +28,12 @@ var (
 	schemaStr   string
 	allSymbols  bool
 	symbolsFile string
-	startYMD    ymdflag.YMDFlag
-	endYMD      ymdflag.YMDFlag
+
+	jobID       string
+	stateFilter string
+
+	startYMD ymdflag.YMDFlag
+	endYMD   ymdflag.YMDFlag
 )
 
 func getDateRangeArg() dbn_hist.DateRange {
@@ -182,6 +187,14 @@ func main() {
 	getCostCmd.Flags().VarP(&endYMD, "end", "e", "End date as YYYYMMDD")
 	getCostCmd.MarkFlagRequired("dataset")
 	getCostCmd.MarkFlagRequired("schema")
+
+	rootCmd.AddCommand(listJobsCmd)
+	listJobsCmd.Flags().StringVarP(&stateFilter, "state", "", "", "Comma-separated Filter for job states. Can include 'received', 'queued', 'processing', 'done', and 'expired'.")
+	listJobsCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD (optional)")
+
+	rootCmd.AddCommand(listFilesCmd)
+	listFilesCmd.Flags().StringVarP(&jobID, "job", "j", "", "Job ID to list files for")
+	listFilesCmd.MarkFlagRequired("job")
 
 	err := rootCmd.Execute()
 	requireNoError(err)
@@ -374,5 +387,43 @@ var getCostCmd = &cobra.Command{
 		requireNoError(err)
 
 		fmt.Fprintf(os.Stdout, "%0.06f\n", cost)
+	},
+}
+
+var listJobsCmd = &cobra.Command{
+	Use:     "jobs",
+	Aliases: []string{"lj", "j"},
+	Short:   "Lists DataBento Hist jobs",
+	Args:    cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		apiKey := requireDatabentoApiKey()
+
+		jobs, err := dbn_hist.ListJobs(apiKey, stateFilter, getDateRangeArg().Start)
+		requireNoError(err)
+
+		for _, job := range jobs {
+			jstr, err := json.Marshal(job)
+			requireNoError(err)
+			fmt.Fprintf(os.Stdout, "%s\n", jstr)
+		}
+	},
+}
+
+var listFilesCmd = &cobra.Command{
+	Use:     "files",
+	Aliases: []string{"lf", "f"},
+	Short:   "Lists files for the given DataBento Hist JobID",
+	Args:    cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		apiKey := requireDatabentoApiKey()
+
+		files, err := dbn_hist.ListFiles(apiKey, jobID)
+		requireNoError(err)
+
+		for _, file := range files {
+			jstr, err := json.Marshal(file)
+			requireNoError(err)
+			fmt.Fprintf(os.Stdout, "%s\n", jstr)
+		}
 	},
 }

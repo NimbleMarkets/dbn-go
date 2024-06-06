@@ -128,7 +128,7 @@ schemas, err := dbn_hist.ListSchemas(databentoApiKey, "DBEQ.BASIC")
 
 The source for `dbn-go-hist` illustrates [using this `dbn_hist` module](https://github.com/NimbleMarkets/dbn-go/blob/main/cmd/dbn-go-hist/main.go#L104).
 
- * TODO: implement `get_range`, `submit_job`, `list_job`, `list_files`
+ * TODO: implement `get_range`, `submit_job`
 
 
 ## Live API
@@ -148,13 +148,26 @@ The source for `dbn-go-live` illustrates [using this `dbn_live` module](https://
 
 ## Tools
 
-We include some tools to make our lives easier.  They can be built-from-source to the `./bin` folder with the command `task go-build` (install [Taskfile](https://taskfile.dev)).  They are also available as Docker multi-architecture images on [GitHub's Container Registry](https://github.com/NimbleMarkets/dbn-go/pkgs/container/dbn-go) at `ghcr.io/nimblemarkets/dbn-go`.
+We include some tools to make our lives easier: [`dbn-go-hist`](#dbn-go-hist) and [`dbn-go-live`](#dbn-go-live).  They are available as:
 
-TODO: goreleaser of binaries
+ * Binaries from the [`dbn-go` releases page](https://github.com/NimbleMarkets/dbn-go/releases)
+
+ * Homebrew packages via:
+   * `brew install NimbleMarkets/homebrew-tap/dbn-go`
+
+ * Docker multi-architecture images on [GitHub's Container Registry](https://github.com/NimbleMarkets/dbn-go/pkgs/container/dbn-go) at `ghcr.io/nimblemarkets/dbn-go`: 
+   * Hist query: `docker run -e DATABENTO_API_KEY --rm ghcr.io/nimblemarkets/dbn-go:0.0.12 /usr/local/bin/dbn-go-hist datasets` 
+   * Simple Live feed handler: `docker run -e DATABENTO_API_KEY -v ${pwd}/dbn --rm ghcr.io/nimblemarkets/dbn-go:0.0.12 /usr/local/bin/dbn-go-live -d DBEQ.BASIC -s ohlcv-1h -o /dbn/foo.dbn -v -t QQQ SPY`
+
+ * Built-from-source to the `./bin` folder with the command `task go-build` (install [Taskfile](https://taskfile.dev)).  
+
+----
 
 ### `dbn-go-hist`
 
 `dbn-go-hist` is a command-line tool to interact with the Databento Historical API.  You can see an example of exercising it in [this script file](./tests/exercise_dbn-go-hist.sh).  It requires your [Databento API Key](https://databento.com/portal/keys) to be set with `--key` or preferably via the `DATABENTO_API_KEY` environment variable.
+
+*CAUTION: This program may incur billing!*
 
 ```
 $ ./bin/dbn-go-hist --help
@@ -171,7 +184,9 @@ Available Commands:
   dataset-range     Queries DataBento Hist for date range of a dataset
   datasets          Queries DataBento Hist for datasets and prints them
   fields            Queries DataBento Hist for fields of a schema/encoding and prints them
+  files             Lists files for the given DataBento Hist JobID
   help              Help about any command
+  jobs              Lists DataBento Hist jobs
   publishers        Queries DataBento Hist for publishers and prints them
   record-count      Queries DataBento Hist for record count for a GetRange query.  Args are in symbols
   schemas           Queries DataBento Hist for publishers and prints them
@@ -195,13 +210,14 @@ NDEX.IMPACT
 OPRA.PILLAR
 XNAS.ITCH
 ```
- TODO: we only support Symbology and Metadata right now.  No jobs or data download.
+
+----
 
 ### `dbn-go-live`
 
 `dbn-go-live` is a command-line tool to subscribe to a Live DataBento stream and write it to a file.   It requires your [Databento API Key](https://databento.com/portal/keys) to be set with `--key` or preferably via the `DATABENTO_API_KEY` environment variable.
 
-*This program incurs billing!*
+*CAUTION: This program incurs billing!*
 
 ```
 $ ./bin/dbn-go-live --help

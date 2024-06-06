@@ -45,9 +45,9 @@ type Resolution struct {
 	// A list of symbols that were not resolved.
 	NotFound []string `json:"not_found"`
 	// The input symbology type, in string form.
-	StypeIn string `json:"stype_in"`
+	StypeIn dbn.SType `json:"stype_in"`
 	// The output symbology type, in string form.
-	StypeOut string `json:"stype_out"`
+	StypeOut dbn.SType `json:"stype_out"`
 	// A message from the server.
 	Message string `json:"message"`
 	// The status code of the response.

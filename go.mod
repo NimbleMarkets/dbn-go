@@ -8,6 +8,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.17.3
 	github.com/onsi/gomega v1.33.1
 	github.com/relvacode/iso8601 v1.4.0
+	github.com/segmentio/encoding v0.4.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
 	github.com/valyala/fastjson v1.6.4
@@ -20,6 +21,7 @@ require (
 	github.com/google/pprof v0.0.0-20240509144519-723abb6459b7 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
+	github.com/segmentio/asm v1.1.3 // indirect
 	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/sys v0.20.0 // indirect
 	golang.org/x/text v0.15.0 // indirect
