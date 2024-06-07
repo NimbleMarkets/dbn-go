@@ -73,7 +73,7 @@ func databentoGetRequest(urlStr string, apiKey string) ([]byte, error) {
 
 //////////////////////////////////////////////////////////////////////////////
 
-func databentoPostFormRequest(urlStr string, apiKey string, form url.Values) ([]byte, error) {
+func databentoPostFormRequest(urlStr string, apiKey string, form url.Values, accept string) ([]byte, error) {
 	apiUrl, err := url.Parse(urlStr)
 	if err != nil {
 		return nil, err
@@ -86,6 +86,9 @@ func databentoPostFormRequest(urlStr string, apiKey string, form url.Values) ([]
 	}
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if accept != "" {
+		req.Header.Set("Accept-Encoding", accept)
+	}
 
 	auth := base64.StdEncoding.EncodeToString([]byte(apiKey + ":"))
 	req.Header.Add("Authorization", "Basic "+auth)

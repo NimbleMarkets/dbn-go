@@ -1,10 +1,10 @@
 # CHANGELOG
 
-## v0.0.12 (unreleased)
+## v0.0.12 (2024-06-07)
 
- * Add `SubmitJobs`, `ListFiles`, and `ListJobs` to Hist API
+ * Add `GetRange`, `SubmitJobs`, `ListFiles`, and `ListJobs` to Hist API
  * Add some JSON marshallers
- * `dbn-go-hist` now has `submit`, `jobs` and `files` subcommands
+ * `dbn-go-hist` now has `get-range`, `submit`, `jobs` and `files` subcommands
  * `dbn-go-hist` now supports `--file` to supply lists of tickers
 
 ## v0.0.11 (2024-06-03)

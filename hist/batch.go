@@ -411,7 +411,7 @@ func SubmitJob(apiKey string, jobParams SubmitJobParams) (*BatchJob, error) {
 		return nil, fmt.Errorf("bad params: %w", err)
 	}
 
-	body, err := databentoPostFormRequest(apiUrl, apiKey, formData)
+	body, err := databentoPostFormRequest(apiUrl, apiKey, formData, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed post request: %w", err)
 	}

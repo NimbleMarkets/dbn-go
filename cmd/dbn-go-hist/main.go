@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -29,6 +30,7 @@ var (
 	schemaStr   string
 	allSymbols  bool
 	symbolsFile string
+	outputFile  string
 
 	encoding    dbn.Encoding    = dbn.Encoding_Dbn
 	compression dbn.Compression = dbn.Compress_ZStd
@@ -244,6 +246,22 @@ func main() {
 	submitJobCmd.MarkFlagRequired("schema")
 	submitJobCmd.MarkFlagRequired("start")
 
+	rootCmd.AddCommand(getRangeCmd)
+	getRangeCmd.Flags().StringVarP(&dataset, "dataset", "d", "", "Dataset to request")
+	getRangeCmd.Flags().StringVarP(&schemaStr, "schema", "s", "", "Schema to request")
+	getRangeCmd.Flags().VarP(&encoding, "encoding", "", "Encoding to use ('dbn', 'csv', 'json')")
+	getRangeCmd.Flags().VarP(&compression, "compression", "", "Compression to use ('none', 'zstd')")
+	getRangeCmd.Flags().StringVarP(&symbolsFile, "file", "f", "", "Newline delimited file to read symbols from (# is comment)")
+	getRangeCmd.Flags().BoolVarP(&allSymbols, "all", "", false, "Request data for all symbols")
+	getRangeCmd.Flags().BoolVarP(&useForce, "force", "", false, "Do not warn about all symbols or cost")
+	getRangeCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD.")
+	getRangeCmd.Flags().VarP(&endYMD, "end", "e", "End date as YYYYMMDD")
+	getRangeCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file for data ('-' is stdout)")
+	getRangeCmd.MarkFlagRequired("dataset")
+	getRangeCmd.MarkFlagRequired("schema")
+	getRangeCmd.MarkFlagRequired("start")
+	getRangeCmd.MarkFlagRequired("output")
+
 	err := rootCmd.Execute()
 	requireNoError(err)
 }
@@ -457,30 +475,7 @@ var submitJobCmd = &cobra.Command{
 		symbols := requireSymbolArgs(args)
 		jobParams := getSubmitJobParams(symbols)
 
-		if jobParams.Symbols == "ALL_SYMBOLS" || jobParams.Symbols == "" {
-			// Request verification unless forced
-			if !useForce {
-				requireHumanConfirmation(
-					"Are you sure you want to submit for ALL_SYMBOLS?",
-					"Submit for ALL")
-			}
-		}
-
-		if !useForce {
-			// Request cost of this job
-			fmt.Fprintf(os.Stdout, "Getting cost estimates for job...\n")
-			metaParams := getMetadataQueryParams(symbols)
-			cost, err := dbn_hist.GetCost(apiKey, metaParams)
-			requireNoError(err)
-			dataSize, err := dbn_hist.GetBillableSize(apiKey, metaParams)
-			requireNoError(err)
-			recordCount, err := dbn_hist.GetRecordCount(apiKey, metaParams)
-			requireNoError(err)
-
-			promptTitle := fmt.Sprintf("Are you sure you want to submit?\nEstimated cost of $%.2f for %d records and %d bytes of data.",
-				cost, recordCount, dataSize)
-			requireHumanConfirmation(promptTitle, "Submit Job")
-		}
+		requireBudgetApproval(apiKey, symbols, &jobParams)
 
 		batchJob, err := dbn_hist.SubmitJob(apiKey, jobParams)
 		requireNoErrorMsg(err, "error submitting job")
@@ -490,4 +485,69 @@ var submitJobCmd = &cobra.Command{
 
 		fmt.Fprintf(os.Stdout, "%s\n", jstr)
 	},
+}
+
+var getRangeCmd = &cobra.Command{
+	Use:     "get-range",
+	Aliases: []string{"range"},
+	Short:   "Download a range of data from the Hist API",
+	Args:    cobra.ArbitraryArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		// Check for file creation first
+		var writer io.Writer
+		var closer io.Closer
+		fileCloser := func() {
+			if closer != nil {
+				closer.Close()
+			}
+		}
+		if outputFile != "-" {
+			file, err := os.Create(outputFile)
+			requireNoErrorMsg(err, "error creating output file")
+			writer, closer = file, file
+		} else {
+			writer, closer = os.Stdout, nil
+		}
+		defer fileCloser()
+
+		// Now proceed with request
+		apiKey := requireDatabentoApiKey()
+		symbols := requireSymbolArgs(args)
+		jobParams := getSubmitJobParams(symbols)
+
+		requireBudgetApproval(apiKey, symbols, &jobParams)
+
+		dbnData, err := dbn_hist.GetRange(apiKey, jobParams)
+		requireNoErrorMsg(err, "error getting range")
+
+		// Write the output
+		_, err = writer.Write(dbnData)
+		requireNoErrorMsg(err, "error writing output")
+	},
+}
+
+func requireBudgetApproval(apiKey string, symbols []string, params *dbn_hist.SubmitJobParams) {
+	if useForce {
+		return
+	}
+
+	if params.Symbols == "" || strings.Contains(params.Symbols, "ALL_SYMBOLS") {
+		requireHumanConfirmation(
+			"Are you sure you want to submit for ALL_SYMBOLS?",
+			"Submit for ALL")
+	}
+
+	// Request cost of this job
+	fmt.Fprintf(os.Stderr, "Getting cost estimates for job...\n")
+	metaParams := getMetadataQueryParams(symbols)
+	cost, err := dbn_hist.GetCost(apiKey, metaParams)
+	requireNoError(err)
+	dataSize, err := dbn_hist.GetBillableSize(apiKey, metaParams)
+	requireNoError(err)
+	recordCount, err := dbn_hist.GetRecordCount(apiKey, metaParams)
+	requireNoError(err)
+
+	promptTitle := fmt.Sprintf("Are you sure you want to submit?\nEstimated cost of $%.2f for %d records and %d bytes of data.",
+		cost, recordCount, dataSize)
+	requireHumanConfirmation(promptTitle, "Submit Job")
 }

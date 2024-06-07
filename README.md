@@ -177,19 +177,19 @@ Usage:
   dbn-go-hist [command]
 
 Available Commands:
-  billable-size     Queries DataBento Hist for the billable size of a GetRange query
   completion        Generate the autocompletion script for the specified shell
-  cost              Queries DataBento Hist for the cost for a GetRange query
+  cost              Queries DataBento Hist for the cost and size of a GetRange query
   dataset-condition Queries DataBento Hist for condition of a dataset
   dataset-range     Queries DataBento Hist for date range of a dataset
   datasets          Queries DataBento Hist for datasets and prints them
   fields            Queries DataBento Hist for fields of a schema/encoding and prints them
   files             Lists files for the given DataBento Hist JobID
+  get-range         Download a range of data from the Hist API
   help              Help about any command
   jobs              Lists DataBento Hist jobs
   publishers        Queries DataBento Hist for publishers and prints them
-  record-count      Queries DataBento Hist for record count for a GetRange query.  Args are in symbols
   schemas           Queries DataBento Hist for publishers and prints them
+  submit-job        Submit a data request job to the Hist API
   unit-prices       Queries DataBento Hist for unit prices of a dataset
 
 Flags:

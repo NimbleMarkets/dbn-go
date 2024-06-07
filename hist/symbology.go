@@ -75,7 +75,7 @@ func SymbologyResolve(apiKey string, params ResolveParams) (*Resolution, error) 
 		formData.Add("end_date", params.DateRange.End.Format("2006-01-02"))
 	}
 
-	body, err := databentoPostFormRequest(apiUrl, apiKey, formData)
+	body, err := databentoPostFormRequest(apiUrl, apiKey, formData, "")
 	if err != nil {
 		return nil, err
 	}
