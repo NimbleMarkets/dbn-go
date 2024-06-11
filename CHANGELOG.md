@@ -2,6 +2,7 @@
 
 ## v0.0.13 (unreleased)
 
+ * Add `--json` flags to many `dbn-go-hist` commands
  * Add `resolve` command to `dbn-go-hist`
 
 ## v0.0.12 (2024-06-07)

@@ -128,8 +128,6 @@ schemas, err := dbn_hist.ListSchemas(databentoApiKey, "DBEQ.BASIC")
 
 The source for `dbn-go-hist` illustrates [using this `dbn_hist` module](https://github.com/NimbleMarkets/dbn-go/blob/main/cmd/dbn-go-hist/main.go#L104).
 
- * TODO: implement `get_range`, `submit_job`
-
 
 ## Live API
 
@@ -170,7 +168,7 @@ We include some tools to make our lives easier: [`dbn-go-hist`](#dbn-go-hist) an
 *CAUTION: This program may incur billing!*
 
 ```
-$ ./bin/dbn-go-hist --help
+$ dbn-go-hist --help
 dbn-go-hist queries the DataBento Historical API.
 
 Usage:
@@ -188,6 +186,7 @@ Available Commands:
   help              Help about any command
   jobs              Lists DataBento Hist jobs
   publishers        Queries DataBento Hist for publishers and prints them
+  resolve           Resolve symbols via the Databento Symbology API
   schemas           Queries DataBento Hist for publishers and prints them
   submit-job        Submit a data request job to the Hist API
   unit-prices       Queries DataBento Hist for unit prices of a dataset
@@ -202,7 +201,7 @@ Use "dbn-go-hist [command] --help" for more information about a command.
 Simple invocation:
 
 ```sh 
-$ ./bin/dbn-go-hist datasets
+$ dbn-go-hist datasets
 DBEQ.BASIC
 GLBX.MDP3
 IFEU.IMPACT
@@ -220,23 +219,23 @@ XNAS.ITCH
 *CAUTION: This program incurs billing!*
 
 ```
-$ ./bin/dbn-go-live --help
-usage: ./bin/dbn-go-live -d <dataset> -s <schema> [opts] symbol1 symbol2 ...
+$ dbn-go-live --help
+usage: dbn-go-live -d <dataset> -s <schema> [opts] symbol1 symbol2 ...
 
-  -d, --dataset string       Dataset to subscribe to 
-  -e, --encoding string      Encoding of the output (default "dbn")
-  -h, --help                 Show help
-  -k, --key string           Databento API key (or set 'DATABENTO_API_KEY' envvar)
-  -o, --out string           Output filename for DBN stream ('-' for stdout)
-  -s, --schema stringArray   Schema to subscribe to (multiple allowed)
-  -t, --start string         Start time to request as ISO 8601 format (default: now)
-  -i, --stype string         SType of the symbols (default "raw")
-  -v, --verbose              Verbose logging
+  -d, --dataset string          Dataset to subscribe to 
+  -e, --encoding dbn.Encoding   Encoding of the output ('dbn', 'csv', 'json') (default dbn)
+  -h, --help                    Show help
+  -k, --key string              Databento API key (or set 'DATABENTO_API_KEY' envvar)
+  -o, --out string              Output filename for DBN stream ('-' for stdout)
+  -s, --schema stringArray      Schema to subscribe to (multiple allowed)
+  -t, --start string            Start time to request as ISO 8601 format (default: now)
+  -i, --stype string            SType of the symbols (default "raw")
+  -v, --verbose                 Verbose logging
 ```
 
 Simple invocation:
 ```
-$ ./bin/dbn-go-live -d DBEQ.BASIC -s ohlcv-1h -o foo.dbn -v -t QQQ SPY 
+$ dbn-go-live -d DBEQ.BASIC -s ohlcv-1h -o foo.dbn -v -t QQQ SPY 
 ```
 
 Simple Docker invocation:

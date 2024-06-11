@@ -30,7 +30,9 @@ var (
 	schemaStr   string
 	allSymbols  bool
 	symbolsFile string
-	outputFile  string
+
+	outputFile string
+	emitJSON   bool // emit json from responses
 
 	encoding    dbn.Encoding    = dbn.Encoding_Dbn
 	compression dbn.Compression = dbn.Compress_ZStd
@@ -107,6 +109,9 @@ func requireSymbolArgs(args []string) []string {
 	return result
 }
 
+// loadSymbolFile loads a newline delimited file of symbols from `filename` and returns them as a slice.
+// Returns an error if any.
+// Empty lines and rows starting with `#“ are ignored.
 func loadSymbolFile(filename string) ([]string, error) {
 	if filename == "" {
 		return nil, fmt.Errorf("filename was empty")
@@ -190,26 +195,32 @@ func main() {
 	rootCmd.AddCommand(listDatasetsCmd)
 	listDatasetsCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD")
 	listDatasetsCmd.Flags().VarP(&endYMD, "end", "e", "End date as YYYYMMDD")
+	listDatasetsCmd.Flags().BoolVarP(&emitJSON, "json", "j", false, "Emit JSON instead of simple summary")
 
 	rootCmd.AddCommand(listPublishersCmd)
+	listPublishersCmd.Flags().BoolVarP(&emitJSON, "json", "j", false, "Emit JSON instead of simple summary")
 
 	rootCmd.AddCommand(listSchemasCmd)
 	listSchemasCmd.Flags().StringVarP(&dataset, "dataset", "d", "", "Dataset to list schema for")
+	listSchemasCmd.Flags().BoolVarP(&emitJSON, "json", "j", false, "Emit JSON instead of simple summary")
 	listSchemasCmd.MarkFlagRequired("dataset")
 
 	rootCmd.AddCommand(listFieldsCmd)
 	listFieldsCmd.Flags().StringVarP(&schemaStr, "schema", "s", "", "Schema to list fields for")
 	listFieldsCmd.Flags().VarP(&encoding, "encoding", "", "Encoding to use ('dbn', 'csv', 'json')")
+	listFieldsCmd.Flags().BoolVarP(&emitJSON, "json", "j", false, "Emit JSON instead of simple summary")
 	listFieldsCmd.MarkFlagRequired("schema")
 
 	rootCmd.AddCommand(listUnitPricesCmd)
 	listUnitPricesCmd.Flags().StringVarP(&dataset, "dataset", "d", "", "Dataset to list schema for")
+	listUnitPricesCmd.Flags().BoolVarP(&emitJSON, "json", "j", false, "Emit JSON instead of simple summary")
 	listUnitPricesCmd.MarkFlagRequired("dataset")
 
 	rootCmd.AddCommand(getDatasetConditionCmd)
 	getDatasetConditionCmd.Flags().StringVarP(&dataset, "dataset", "d", "", "Dataset to get condition for")
 	getDatasetConditionCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD")
 	getDatasetConditionCmd.Flags().VarP(&endYMD, "end", "e", "End date as YYYYMMDD")
+	getDatasetConditionCmd.Flags().BoolVarP(&emitJSON, "json", "j", false, "Emit JSON instead of simple summary")
 	getDatasetConditionCmd.MarkFlagRequired("dataset")
 
 	rootCmd.AddCommand(getDatasetRangeCmd)
@@ -223,15 +234,18 @@ func main() {
 	getCostCmd.Flags().BoolVarP(&allSymbols, "all", "", false, "Get record count for all symbols")
 	getCostCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD")
 	getCostCmd.Flags().VarP(&endYMD, "end", "e", "End date as YYYYMMDD")
+	getCostCmd.Flags().BoolVarP(&emitJSON, "json", "j", false, "Emit JSON instead of simple summary")
 	getCostCmd.MarkFlagRequired("dataset")
 	getCostCmd.MarkFlagRequired("schema")
 
 	rootCmd.AddCommand(listJobsCmd)
 	listJobsCmd.Flags().StringVarP(&stateFilter, "state", "", "", "Comma-separated Filter for job states. Can include 'received', 'queued', 'processing', 'done', and 'expired'.")
+	listJobsCmd.Flags().BoolVarP(&emitJSON, "json", "j", false, "Emit JSON instead of simple summary")
 	listJobsCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD (optional)")
 
 	rootCmd.AddCommand(listFilesCmd)
-	listFilesCmd.Flags().StringVarP(&jobID, "job", "j", "", "Job ID to list files for")
+	listFilesCmd.Flags().StringVarP(&jobID, "job", "", "", "Job ID to list files for")
+	listFilesCmd.Flags().BoolVarP(&emitJSON, "json", "j", false, "Emit JSON instead of simple summary")
 	listFilesCmd.MarkFlagRequired("job")
 
 	rootCmd.AddCommand(submitJobCmd)
@@ -270,6 +284,7 @@ func main() {
 	resolveCmd.Flags().BoolVarP(&allSymbols, "all", "", false, "Get record count for all symbols")
 	resolveCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD")
 	resolveCmd.Flags().VarP(&endYMD, "end", "e", "End date as YYYYMMDD")
+	resolveCmd.Flags().BoolVarP(&emitJSON, "json", "j", false, "Emit JSON instead of simple summary")
 	resolveCmd.MarkFlagRequired("dataset")
 	resolveCmd.MarkFlagRequired("start")
 
@@ -297,6 +312,10 @@ var listDatasetsCmd = &cobra.Command{
 		datasets, err := dbn_hist.ListDatasets(apiKey, dateRange)
 		requireNoError(err)
 
+		if emitJSON {
+			printJSON(datasets)
+			return
+		}
 		for _, dataset := range datasets {
 			fmt.Fprintf(os.Stdout, "%s\n", dataset)
 		}
@@ -312,6 +331,10 @@ var listPublishersCmd = &cobra.Command{
 		publishers, err := dbn_hist.ListPublishers(apiKey)
 		requireNoError(err)
 
+		if emitJSON {
+			printJSON(publishers)
+			return
+		}
 		for _, publisher := range publishers {
 			fmt.Fprintf(os.Stdout, "%d %s %s %s\n",
 				publisher.PublisherID,
@@ -332,6 +355,10 @@ var listSchemasCmd = &cobra.Command{
 		schemas, err := dbn_hist.ListSchemas(apiKey, dataset)
 		requireNoError(err)
 
+		if emitJSON {
+			printJSON(schemas)
+			return
+		}
 		for _, schema := range schemas {
 			fmt.Fprintf(os.Stdout, "  %s\n", schema)
 		}
@@ -350,6 +377,10 @@ var listFieldsCmd = &cobra.Command{
 		fields, err := dbn_hist.ListFields(apiKey, encoding, schema)
 		requireNoError(err)
 
+		if emitJSON {
+			printJSON(fields)
+			return
+		}
 		for _, field := range fields {
 			fmt.Fprintf(os.Stdout, "%s %s\n", field.Name, field.TypeName)
 		}
@@ -366,6 +397,10 @@ var listUnitPricesCmd = &cobra.Command{
 		unitPrices, err := dbn_hist.ListUnitPrices(apiKey, dataset)
 		requireNoError(err)
 
+		if emitJSON {
+			printJSON(unitPrices)
+			return
+		}
 		for _, unitPrice := range unitPrices {
 			fmt.Fprintf(os.Stdout, "%s %s\n", dataset, unitPrice.Mode)
 			for schema, price := range unitPrice.UnitPrices {
@@ -385,6 +420,10 @@ var getDatasetConditionCmd = &cobra.Command{
 		conditions, err := dbn_hist.GetDatasetCondition(apiKey, dataset, getDateRangeArg())
 		requireNoError(err)
 
+		if emitJSON {
+			printJSON(conditions)
+			return
+		}
 		for _, c := range conditions {
 			fmt.Fprintf(os.Stdout, "%s %s %s %s\n", dataset, c.Condition, c.Date, c.LastModified)
 		}
@@ -426,6 +465,15 @@ var getCostCmd = &cobra.Command{
 		recordCount, err := dbn_hist.GetRecordCount(apiKey, metaParams)
 		requireNoError(err)
 
+		if emitJSON {
+			printJSON(map[string]interface{}{
+				"query":        metaParams,
+				"cost":         cost,
+				"data_size":    dataSize,
+				"record_count": recordCount,
+			})
+			return
+		}
 		fmt.Fprintf(os.Stdout, "%s  %s   $ %0.06f  %d bytes  %d records\n",
 			metaParams.Dataset, metaParams.Schema, cost, dataSize, recordCount)
 	},
@@ -442,6 +490,10 @@ var listJobsCmd = &cobra.Command{
 		jobs, err := dbn_hist.ListJobs(apiKey, stateFilter, getDateRangeArg().Start)
 		requireNoError(err)
 
+		if emitJSON {
+			printJSON(jobs)
+			return
+		}
 		for _, job := range jobs {
 			jstr, err := json.Marshal(job)
 			requireNoError(err)
@@ -461,6 +513,10 @@ var listFilesCmd = &cobra.Command{
 		files, err := dbn_hist.ListFiles(apiKey, jobID)
 		requireNoError(err)
 
+		if emitJSON {
+			printJSON(files)
+			return
+		}
 		for _, file := range files {
 			jstr, err := json.Marshal(file)
 			requireNoError(err)
@@ -551,6 +607,11 @@ var resolveCmd = &cobra.Command{
 		resolution, err := dbn_hist.SymbologyResolve(apiKey, resolveParams)
 		requireNoError(err)
 
+		if emitJSON {
+			printJSON(resolution)
+			return
+		}
+
 		// human mode just print the symbols
 		for symbol, _ := range resolution.Mappings {
 			fmt.Fprintf(os.Stdout, "%s\n", symbol)
@@ -585,4 +646,11 @@ func requireBudgetApproval(apiKey string, symbols []string, params *dbn_hist.Sub
 	fmt.Fprintf(os.Stderr, "Estimated cost of $%.2f for %d records and %d bytes of data.\n",
 		cost, recordCount, dataSize)
 	requireHumanConfirmation("Are you sure you want to submit?\n", "Submit Job")
+}
+
+// printJSON is a generic helper to print a value as JSON to stdout.
+func printJSON[T any](val T) {
+	jstr, err := json.Marshal(val)
+	requireNoError(err)
+	fmt.Fprintf(os.Stdout, "%s\n", jstr)
 }
