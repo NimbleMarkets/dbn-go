@@ -20,7 +20,8 @@ import (
 const (
 	DATABENTO_VERSION = "0.18.1"
 
-	DATABENTO_API_ENV_KEY = "DATABENTO_API_KEY"
+	DATABENTO_API_ENV_KEY    = "DATABENTO_API_KEY"
+	DATABENTO_CLIENT_ENV_KEY = "DATABENTO_CLIENT"
 
 	LIVE_HOST_SUFFIX = ".lsg.databento.com"
 	LIVE_API_PORT    = 13000
@@ -65,18 +66,26 @@ type LiveConfig struct {
 	Logger               *slog.Logger
 	ApiKey               string
 	Dataset              string
+	Client               string
 	Encoding             dbn.Encoding // nil mean Encoding_Dbn
 	SendTsOut            bool
 	VersionUpgradePolicy dbn.VersionUpgradePolicy
 	Verbose              bool
 }
 
-func (c *LiveConfig) SetKeyFromEnv() error {
+// SetFromEnv fills in the LiveConfig from environment variables.
+// `DATABENTO_API_KEY` holds the DataBento API key.
+// `DATABENTO_CLIENT` holds the Client name.
+func (c *LiveConfig) SetFromEnv() error {
 	databentoApiKey := os.Getenv(DATABENTO_API_ENV_KEY)
 	if databentoApiKey == "" {
 		return errors.New("expected environment variable DATABENTO_API_KEY to be set")
 	}
 	c.ApiKey = databentoApiKey
+
+	if c.Client == "" {
+		c.Client = os.Getenv(DATABENTO_CLIENT_ENV_KEY)
+	}
 	return nil
 }
 
@@ -130,6 +139,10 @@ func NewLiveClient(config LiveConfig) (*LiveClient, error) {
 
 	if c.logger == nil {
 		c.logger = slog.Default()
+	}
+
+	if c.config.Client == "" {
+		c.config.Client = "Go " + DATABENTO_VERSION
 	}
 
 	// Connect to server
