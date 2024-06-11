@@ -86,6 +86,8 @@ func getSubmitJobParams(symbols []string) dbn_hist.SubmitJobParams {
 	}
 }
 
+// Returns a list of symbols from the command line arguments, or otherwise exits with an error.
+// If --all is set, returns ["ALL_SYMBOLS"].  Also handles loading from a symbol file.
 func requireSymbolArgs(args []string) []string {
 	if allSymbols {
 		return []string{"ALL_SYMBOLS"}
@@ -262,6 +264,15 @@ func main() {
 	getRangeCmd.MarkFlagRequired("start")
 	getRangeCmd.MarkFlagRequired("output")
 
+	rootCmd.AddCommand(resolveCmd)
+	resolveCmd.Flags().StringVarP(&dataset, "dataset", "d", "", "Dataset to get cost for")
+	resolveCmd.Flags().StringVarP(&schemaStr, "schema", "s", "", "Schema to get cost for")
+	resolveCmd.Flags().BoolVarP(&allSymbols, "all", "", false, "Get record count for all symbols")
+	resolveCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD")
+	resolveCmd.Flags().VarP(&endYMD, "end", "e", "End date as YYYYMMDD")
+	resolveCmd.MarkFlagRequired("dataset")
+	resolveCmd.MarkFlagRequired("start")
+
 	err := rootCmd.Execute()
 	requireNoError(err)
 }
@@ -281,14 +292,7 @@ var listDatasetsCmd = &cobra.Command{
 	Args:    cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		apiKey := requireDatabentoApiKey()
-
-		dateRange := dbn_hist.DateRange{}
-		if !startYMD.IsZero() {
-			dateRange.Start = startYMD.AsTime()
-		}
-		if !endYMD.IsZero() {
-			dateRange.End = endYMD.AsTime()
-		}
+		dateRange := getDateRangeArg()
 
 		datasets, err := dbn_hist.ListDatasets(apiKey, dateRange)
 		requireNoError(err)
@@ -526,12 +530,43 @@ var getRangeCmd = &cobra.Command{
 	},
 }
 
+var resolveCmd = &cobra.Command{
+	Use:     "resolve",
+	Aliases: []string{"symbols"},
+	Short:   "Resolve symbols via the Databento Symbology API",
+	Args:    cobra.ArbitraryArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		apiKey := requireDatabentoApiKey()
+		symbols := requireSymbolArgs(args)
+		dateRange := getDateRangeArg()
+
+		resolveParams := dbn_hist.ResolveParams{
+			Dataset:   dataset,
+			Symbols:   symbols,
+			StypeIn:   dbn.SType_RawSymbol,
+			StypeOut:  dbn.SType_InstrumentId,
+			DateRange: dateRange,
+		}
+
+		resolution, err := dbn_hist.SymbologyResolve(apiKey, resolveParams)
+		requireNoError(err)
+
+		// human mode just print the symbols
+		for symbol, _ := range resolution.Mappings {
+			fmt.Fprintf(os.Stdout, "%s\n", symbol)
+		}
+	},
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
 func requireBudgetApproval(apiKey string, symbols []string, params *dbn_hist.SubmitJobParams) {
 	if useForce {
 		return
 	}
 
 	if params.Symbols == "" || strings.Contains(params.Symbols, "ALL_SYMBOLS") {
+		fmt.Fprint(os.Stderr, "Submitting for ALL_SYMBOLS...\n")
 		requireHumanConfirmation(
 			"Are you sure you want to submit for ALL_SYMBOLS?",
 			"Submit for ALL")
@@ -547,7 +582,7 @@ func requireBudgetApproval(apiKey string, symbols []string, params *dbn_hist.Sub
 	recordCount, err := dbn_hist.GetRecordCount(apiKey, metaParams)
 	requireNoError(err)
 
-	promptTitle := fmt.Sprintf("Are you sure you want to submit?\nEstimated cost of $%.2f for %d records and %d bytes of data.",
+	fmt.Fprintf(os.Stderr, "Estimated cost of $%.2f for %d records and %d bytes of data.\n",
 		cost, recordCount, dataSize)
-	requireHumanConfirmation(promptTitle, "Submit Job")
+	requireHumanConfirmation("Are you sure you want to submit?\n", "Submit Job")
 }

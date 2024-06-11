@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.0.13 (unreleased)
+
+ * Add `resolve` command to `dbn-go-hist`
+
 ## v0.0.12 (2024-06-07)
 
  * Add `GetRange`, `SubmitJobs`, `ListFiles`, and `ListJobs` to Hist API
