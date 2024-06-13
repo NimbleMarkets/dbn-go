@@ -159,6 +159,7 @@ func (s SType) String() string {
 
 // STypeFromString converts a string to an SType.
 // Returns an error if the string is unknown.
+// Possible string values: instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms
 func STypeFromString(str string) (SType, error) {
 	str = strings.ToLower(str)
 	switch str {
@@ -196,6 +197,20 @@ func (s *SType) UnmarshalJSON(data []byte) error {
 	}
 	*s = js
 	return nil
+}
+
+// Type implements pflag.Value.Type.  Returns "dbn.SType".
+func (*SType) Type() string {
+	return "dbn.SType"
+}
+
+// Set implements the flag.Value interface.
+func (s *SType) Set(value string) error {
+	stype, err := STypeFromString(value)
+	if err == nil {
+		*s = stype
+	}
+	return err
 }
 
 ///////////////////////////////////////////////////////////////////////////////

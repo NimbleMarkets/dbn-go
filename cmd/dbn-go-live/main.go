@@ -38,14 +38,16 @@ type Config struct {
 func main() {
 	var err error
 	var config Config
-	var startTimeArg, stypeInArg string
+	var startTimeArg string
 	var showHelp bool
+
+	config.STypeIn = dbn.SType_RawSymbol
 
 	pflag.StringVarP(&config.Dataset, "dataset", "d", "", "Dataset to subscribe to ")
 	pflag.StringArrayVarP(&config.Schemas, "schema", "s", []string{}, "Schema to subscribe to (multiple allowed)")
 	pflag.StringVarP(&config.ApiKey, "key", "k", "", "Databento API key (or set 'DATABENTO_API_KEY' envvar)")
 	pflag.StringVarP(&config.OutFilename, "out", "o", "", "Output filename for DBN stream ('-' for stdout)")
-	pflag.StringVarP(&stypeInArg, "stype", "i", "raw", "SType of the symbols")
+	pflag.VarP(&config.STypeIn, "sin", "i", "Input SType of the symbols. One of instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms")
 	pflag.VarP(&config.Encoding, "encoding", "e", "Encoding of the output ('dbn', 'csv', 'json')")
 	pflag.StringVarP(&startTimeArg, "start", "t", "", "Start time to request as ISO 8601 format (default: now)")
 	pflag.BoolVarP(&config.Verbose, "verbose", "v", false, "Verbose logging")
@@ -80,12 +82,6 @@ func main() {
 
 	if len(config.Symbols) == 0 {
 		fmt.Fprintf(os.Stderr, "requires at least one symbol argument\n")
-		os.Exit(1)
-	}
-
-	config.STypeIn, err = dbn.STypeFromString(stypeInArg)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "argument --stype '%s' is unknown\n", stypeInArg)
 		os.Exit(1)
 	}
 

@@ -1,8 +1,9 @@
 # CHANGELOG
 
-## v0.0.13 (unreleased)
+## v0.0.13 (2024-06-13)
 
  * Add `--json` flags to many `dbn-go-hist` commands
+ * Add `--sin` and `--sout` to tools
  * Add `resolve` command to `dbn-go-hist`
 
 ## v0.0.12 (2024-06-07)

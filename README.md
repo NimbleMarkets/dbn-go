@@ -228,10 +228,9 @@ usage: dbn-go-live -d <dataset> -s <schema> [opts] symbol1 symbol2 ...
   -k, --key string              Databento API key (or set 'DATABENTO_API_KEY' envvar)
   -o, --out string              Output filename for DBN stream ('-' for stdout)
   -s, --schema stringArray      Schema to subscribe to (multiple allowed)
+  -i, --sin dbn.SType           Input SType of the symbols. One of instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms (default raw_symbol)
   -t, --start string            Start time to request as ISO 8601 format (default: now)
-  -i, --stype string            SType of the symbols (default "raw")
-  -v, --verbose                 Verbose logging
-```
+  -v, --verbose                 Verbose logging```
 
 Simple invocation:
 ```

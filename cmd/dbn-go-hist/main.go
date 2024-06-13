@@ -26,10 +26,14 @@ import (
 var (
 	databentoApiKey string
 
-	dataset     string
-	schemaStr   string
+	dataset   string
+	schemaStr string
+
 	allSymbols  bool
 	symbolsFile string
+
+	stypeIn  dbn.SType = dbn.SType_RawSymbol
+	stypeOut dbn.SType = dbn.SType_InstrumentId
 
 	outputFile string
 	emitJSON   bool // emit json from responses
@@ -65,7 +69,7 @@ func getMetadataQueryParams(symbols []string) dbn_hist.MetadataQueryParams {
 		Schema:    schemaStr,
 		DateRange: getDateRangeArg(),
 		Mode:      dbn_hist.FeedMode_Historical,
-		StypeIn:   dbn.SType_RawSymbol,
+		StypeIn:   stypeIn,
 		Limit:     -1,
 	}
 }
@@ -83,8 +87,8 @@ func getSubmitJobParams(symbols []string) dbn_hist.SubmitJobParams {
 		Compression: compression,
 		Packaging:   dbn_hist.Packaging_Tar,
 		Delivery:    dbn_hist.Delivery_Download,
-		StypeIn:     dbn.SType_RawSymbol,
-		StypeOut:    dbn.SType_InstrumentId,
+		StypeIn:     stypeIn,
+		StypeOut:    stypeOut,
 	}
 }
 
@@ -235,6 +239,8 @@ func main() {
 	getCostCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD")
 	getCostCmd.Flags().VarP(&endYMD, "end", "e", "End date as YYYYMMDD")
 	getCostCmd.Flags().BoolVarP(&emitJSON, "json", "j", false, "Emit JSON instead of simple summary")
+	getCostCmd.Flags().VarP(&stypeIn, "sin", "", "Set stype_in: one of instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms (default: 'raw')")
+	getCostCmd.Flags().VarP(&stypeOut, "sout", "", "Set stype_out: one of instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms (default: 'id')")
 	getCostCmd.MarkFlagRequired("dataset")
 	getCostCmd.MarkFlagRequired("schema")
 
@@ -258,6 +264,8 @@ func main() {
 	submitJobCmd.Flags().BoolVarP(&useForce, "force", "", false, "Do not warn about all symbols or cost")
 	submitJobCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD.")
 	submitJobCmd.Flags().VarP(&endYMD, "end", "e", "End date as YYYYMMDD")
+	submitJobCmd.Flags().VarP(&stypeIn, "sin", "", "Set stype_in: one of instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms (default: 'raw')")
+	submitJobCmd.Flags().VarP(&stypeOut, "sout", "", "Set stype_out: one of instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms (default: 'id')")
 	submitJobCmd.MarkFlagRequired("dataset")
 	submitJobCmd.MarkFlagRequired("schema")
 	submitJobCmd.MarkFlagRequired("start")
@@ -272,6 +280,8 @@ func main() {
 	getRangeCmd.Flags().BoolVarP(&useForce, "force", "", false, "Do not warn about all symbols or cost")
 	getRangeCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD.")
 	getRangeCmd.Flags().VarP(&endYMD, "end", "e", "End date as YYYYMMDD")
+	getRangeCmd.Flags().VarP(&stypeIn, "sin", "", "Set stype_in: one of instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms (default: 'raw')")
+	getRangeCmd.Flags().VarP(&stypeOut, "sout", "", "Set stype_out: one of instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms (default: 'id')")
 	getRangeCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file for data ('-' is stdout)")
 	getRangeCmd.MarkFlagRequired("dataset")
 	getRangeCmd.MarkFlagRequired("schema")
@@ -284,6 +294,8 @@ func main() {
 	resolveCmd.Flags().BoolVarP(&allSymbols, "all", "", false, "Get record count for all symbols")
 	resolveCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD")
 	resolveCmd.Flags().VarP(&endYMD, "end", "e", "End date as YYYYMMDD")
+	resolveCmd.Flags().VarP(&stypeIn, "sin", "", "Set stype_in: one of instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms (default: 'raw')")
+	resolveCmd.Flags().VarP(&stypeOut, "sout", "", "Set stype_out: one of instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms (default: 'id')")
 	resolveCmd.Flags().BoolVarP(&emitJSON, "json", "j", false, "Emit JSON instead of simple summary")
 	resolveCmd.MarkFlagRequired("dataset")
 	resolveCmd.MarkFlagRequired("start")
@@ -599,8 +611,8 @@ var resolveCmd = &cobra.Command{
 		resolveParams := dbn_hist.ResolveParams{
 			Dataset:   dataset,
 			Symbols:   symbols,
-			StypeIn:   dbn.SType_RawSymbol,
-			StypeOut:  dbn.SType_InstrumentId,
+			StypeIn:   stypeIn,
+			StypeOut:  stypeOut,
 			DateRange: dateRange,
 		}
 
@@ -613,7 +625,7 @@ var resolveCmd = &cobra.Command{
 		}
 
 		// human mode just print the symbols
-		for symbol, _ := range resolution.Mappings {
+		for symbol := range resolution.Mappings {
 			fmt.Fprintf(os.Stdout, "%s\n", symbol)
 		}
 	},
