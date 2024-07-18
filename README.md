@@ -18,6 +18,7 @@ This repository contains Golang bindings to [Databento's](https://databento.com)
  * [Tools](#tools)
    * [`dbn-go-hist`](#dbn-go-hist)
    * [`dbn-go-live`](#dbn-go-live)
+   * [`dbn-go-file`](#dbn-go-file)
 
 NOTE: This is a new library and is under active development.  It is not affiliated with Databento.  Please be careful with commands which incur billing.  We are not responsible for any charges you incur.
 
@@ -187,7 +188,7 @@ Available Commands:
   jobs              Lists DataBento Hist jobs
   publishers        Queries DataBento Hist for publishers and prints them
   resolve           Resolve symbols via the Databento Symbology API
-  schemas           Queries DataBento Hist for publishers and prints them
+  schemas           Queries DataBento Hist for schemas and prints them
   submit-job        Submit a data request job to the Hist API
   unit-prices       Queries DataBento Hist for unit prices of a dataset
 
@@ -230,7 +231,8 @@ usage: dbn-go-live -d <dataset> -s <schema> [opts] symbol1 symbol2 ...
   -s, --schema stringArray      Schema to subscribe to (multiple allowed)
   -i, --sin dbn.SType           Input SType of the symbols. One of instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms (default raw_symbol)
   -t, --start string            Start time to request as ISO 8601 format (default: now)
-  -v, --verbose                 Verbose logging```
+  -v, --verbose                 Verbose logging
+```
 
 Simple invocation:
 ```
