@@ -1,7 +1,7 @@
 # dbn-go .goreleaser.yml
 # Make sure to check the documentation at https://goreleaser.com
 
-version: 1
+version: 2
 
 before:
   hooks:

@@ -23,9 +23,9 @@ func NewJsonScanner(r io.Reader) *JsonScanner {
 	}
 }
 
-// Next parses the next JSON value from the data
-// Returns true on success. The parsed Envelope is available via Envelope call.
+// Next parses the next JSON value from the data.  Returns true on success.
 // Returns false either on error or on the end of data. Call Error() in order to determine the cause of the returned false.
+// Acces the raw data with GetLastRecord, JsonScannerDecocde, or Visit.
 func (s *JsonScanner) Next() bool {
 	return s.scanner.Scan()
 }
@@ -33,6 +33,17 @@ func (s *JsonScanner) Next() bool {
 // Error returns the last error from Next().
 func (s *JsonScanner) Error() error {
 	return s.scanner.Err()
+}
+
+// GetLastRecord returns the raw JSON bytes of the last record read.
+// This data may be overwritten by the next call to Next().
+func (s *JsonScanner) GetLastRecord() []byte {
+	return s.scanner.Bytes()
+}
+
+// GetLastSize returns the size of the last record read.
+func (s *JsonScanner) GetLastSize() int {
+	return len(s.scanner.Bytes())
 }
 
 // Parses the Scanner's current record as a `Record`.

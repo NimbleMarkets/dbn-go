@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v0.0.14 (unreleased)
+
+ * `LiveClient` now has `GetDBNScanner` and `GetJsonScanne`, depending on encoding.
+ * Add `JsonScanner.GetLastRecord`
+ * Fix `dbn-go-live` JSON mode.
+ 
 ## v0.0.13 (2024-06-13)
 
  * Add `--json` flags to many `dbn-go-hist` commands

@@ -115,9 +115,11 @@ type LiveClient struct {
 
 	logger *slog.Logger
 
-	conn       net.Conn
-	bufReader  *bufio.Reader
-	dbnScanner *dbn.DbnScanner
+	conn      net.Conn
+	bufReader *bufio.Reader
+
+	dbnScanner  *dbn.DbnScanner
+	jsonScanner *dbn.JsonScanner
 
 	lsgVersion string
 	sessionID  string
@@ -159,28 +161,41 @@ func NewLiveClient(config LiveConfig) (*LiveClient, error) {
 	return c, nil
 }
 
+// GetConfig returns the LiveConfig used to create the LiveClient.
 func (c *LiveClient) GetConfig() LiveConfig {
 	return c.config
 }
 
+// GetGateway returns the gateway host for connection.
 func (c *LiveClient) GetGateway() string {
 	return c.gateway
 }
 
+// GetPort returns the port for connection.
 func (c *LiveClient) GetPort() uint16 {
 	return c.port
 }
 
+// GetLsgVersion returns the version of the LSG server
 func (c *LiveClient) GetLsgVersion() string {
 	return c.lsgVersion
 }
 
+// GetSessionID returns the session ID
 func (c *LiveClient) GetSessionID() string {
 	return c.lsgVersion
 }
 
+// GetDbnScanner returns the DbnScanner
+// Returns nil if the encoding is JSON
 func (c *LiveClient) GetDbnScanner() *dbn.DbnScanner {
 	return c.dbnScanner
+}
+
+// GetJsonScanner returns a JsonScanner
+// Returns nil if the encoding is DBN
+func (c *LiveClient) GetJsonScanner() *dbn.JsonScanner {
+	return c.jsonScanner
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -215,30 +230,35 @@ func (c *LiveClient) Subscribe(sub SubscriptionRequestMsg) error {
 
 // Notifies the gateway to start sending messages for all subscriptions.
 // This method should only be called once per instance.
-func (c *LiveClient) Start() (*dbn.DbnScanner, error) {
+func (c *LiveClient) Start() error {
 	// TODO: don't start twice, etc
 	// Send start_session
 	msg := SessionStartMsg{}
 	startBytes := msg.Encode()
 	if n, err := c.conn.Write(startBytes); err != nil {
-		return nil, fmt.Errorf("failed to send start: %v", err)
+		return fmt.Errorf("failed to send start: %v", err)
 	} else if n != len(startBytes) {
-		return nil, fmt.Errorf("failed to send start: wanted %d sent %d", len(startBytes), n)
+		return fmt.Errorf("failed to send start: wanted %d sent %d", len(startBytes), n)
 	}
 	if c.config.Verbose {
 		c.logger.Info("[LiveClient.Start] sent start_session")
 	}
 
 	// Create a DbnScanner and ensure we get the metadata
-	c.dbnScanner = dbn.NewDbnScanner(c.conn)
-	_, err := c.dbnScanner.Metadata()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get metadata: %v", err)
+	if c.config.Encoding == dbn.Encoding_Json {
+		c.jsonScanner = dbn.NewJsonScanner(c.conn)
+	} else {
+		c.dbnScanner = dbn.NewDbnScanner(c.conn)
+		_, err := c.dbnScanner.Metadata()
+		if err != nil {
+			return fmt.Errorf("failed to get metadata: %v", err)
+		}
 	}
 	if c.config.Verbose {
 		c.logger.Info("[LiveClient.Start] read metadata susccessfully")
 	}
-	return c.dbnScanner, nil
+
+	return nil
 }
 
 // Stops the session with the gateway. Once stopped, the session cannot be restarted.

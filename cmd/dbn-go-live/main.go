@@ -146,10 +146,18 @@ func run(config Config) error {
 	}
 
 	// Start session
-	if _, err = client.Start(); err != nil {
+	if err = client.Start(); err != nil {
 		return fmt.Errorf("failed to start LiveClient: %w", err)
 	}
 
+	if config.Encoding == dbn.Encoding_Dbn {
+		return followStreamDBN(client, outWriter)
+	} else {
+		return followStreamJSON(client, outWriter)
+	}
+}
+
+func followStreamDBN(client *dbn_live.LiveClient, outWriter io.Writer) error {
 	// Write metadata to file
 	dbnScanner := client.GetDbnScanner()
 	if dbnScanner == nil {
@@ -173,6 +181,28 @@ func run(config Config) error {
 		}
 	}
 	if err := dbnScanner.Error(); err != nil && err != io.EOF {
+		fmt.Fprintf(os.Stderr, "scanner err: %s\n", err.Error())
+		return err
+	}
+	return nil
+}
+
+func followStreamJSON(client *dbn_live.LiveClient, outWriter io.Writer) error {
+	// Get the JSON scanner
+	jsonScanner := client.GetJsonScanner()
+	if jsonScanner == nil {
+		return fmt.Errorf("failed to get JsonScanner from LiveClient")
+	}
+	// Follow the JSON stream, writing JSON messages to the file
+	for jsonScanner.Next() {
+		recordBytes := jsonScanner.GetLastRecord()
+		_, err := outWriter.Write(recordBytes)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to write record: %s\n", err.Error())
+			return err
+		}
+	}
+	if err := jsonScanner.Error(); err != nil && err != io.EOF {
 		fmt.Fprintf(os.Stderr, "scanner err: %s\n", err.Error())
 		return err
 	}
