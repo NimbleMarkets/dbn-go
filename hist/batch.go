@@ -346,10 +346,10 @@ func ListJobs(apiKey string, stateFilter string, sinceYMD time.Time) ([]BatchJob
 
 	params := url.Values{}
 	if stateFilter != "" {
-		params.Add("state", stateFilter)
+		params.Add("states", stateFilter)
 	}
 	if !sinceYMD.IsZero() {
-		params.Add("since", sinceYMD.Format("2006-01-02"))
+		params.Add("since", sinceYMD.UTC().Format("2006-01-02"))
 	}
 	baseUrl.RawQuery = params.Encode()
 

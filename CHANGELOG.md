@@ -5,6 +5,7 @@
  * `LiveClient` now has `GetDBNScanner` and `GetJsonScanne`, depending on encoding.
  * Add `JsonScanner.GetLastRecord`
  * Fix `dbn-go-live` JSON mode.
+ * Fix `ListJobs`: typo in `states` and `since` is UTC
  
 ## v0.0.13 (2024-06-13)
 
