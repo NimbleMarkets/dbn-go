@@ -6,6 +6,7 @@
  * Add `JsonScanner.GetLastRecord`
  * Fix `dbn-go-live` JSON mode.
  * Fix `ListJobs`: typo in `states` and `since` is UTC
+ * Fix `Compression` error message and convert-from-null
  
 ## v0.0.13 (2024-06-13)
 

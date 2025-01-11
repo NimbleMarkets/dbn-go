@@ -509,7 +509,7 @@ func EncodingFromString(str string) (Encoding, error) {
 	case "json":
 		return Encoding_Json, nil
 	default:
-		return Encoding_Dbn, fmt.Errorf("unknown encoding: %s", str)
+		return Encoding_Dbn, fmt.Errorf("unknown encoding: '%s'", str)
 	}
 }
 
@@ -573,12 +573,17 @@ func (c Compression) String() string {
 func CompressionFromString(str string) (Compression, error) {
 	str = strings.ToLower(str)
 	switch str {
+	case "":
+		// In JSON marshalling, null is turned into the empty string
+		// We accept that as the default of no compression
+		// and don't consider it an error.
+		return Compress_None, nil
 	case "none":
 		return Compress_None, nil
 	case "zstd":
 		return Compress_ZStd, nil
 	default:
-		return Compress_None, fmt.Errorf("unknown encoding: %s", str)
+		return Compress_None, fmt.Errorf("unknown compression: '%s'", str)
 	}
 }
 
