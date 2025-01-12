@@ -130,9 +130,21 @@ const (
 	/// "parent" symbol, e.g. ES.FUT to refer to all ES futures.
 	SType_Parent SType = 4
 	/// Symbology for US equities using NASDAQ Integrated suffix conventions.
-	SType_Nasdaq SType = 5
+	SType_NasdaqSymbol SType = 5
 	/// Symbology for US equities using CMS suffix conventions.
-	SType_Cms SType = 6
+	SType_CmsSymbol SType = 6
+	/// Symbology using International Security Identification Numbers (ISIN) - ISO 6166.
+	SType_Isin SType = 7
+	/// Symbology using US domestic Committee on Uniform Securities Identification Procedure (CUSIP) codes.
+	SType_UsCode SType = 8
+	/// Symbology using Bloomberg composite global IDs.
+	SType_BbgCompId SType = 9
+	/// Symbology using Bloomberg composite tickers.
+	SType_BbgCompTicker SType = 10
+	/// Symbology using Bloomberg FIGI exchange level IDs.
+	SType_Figi SType = 11
+	/// Symbology using Bloomberg exchange level tickers.
+	SType_FigiTicker SType = 12
 )
 
 // Returns the string representation of the SType, or empty string if unknown.
@@ -148,10 +160,22 @@ func (s SType) String() string {
 		return "continuous"
 	case SType_Parent:
 		return "parent"
-	case SType_Nasdaq:
-		return "nasdaq"
-	case SType_Cms:
-		return "cms"
+	case SType_NasdaqSymbol:
+		return "nasdaq_symbol"
+	case SType_CmsSymbol:
+		return "cms_symbol"
+	case SType_Isin:
+		return "isin"
+	case SType_UsCode:
+		return "us_code"
+	case SType_BbgCompId:
+		return "bbg_comp_id"
+	case SType_BbgCompTicker:
+		return "bbg_comp_ticker"
+	case SType_Figi:
+		return "figi"
+	case SType_FigiTicker:
+		return "figi_ticker"
 	default:
 		return ""
 	}
@@ -174,9 +198,21 @@ func STypeFromString(str string) (SType, error) {
 	case "parent":
 		return SType_Parent, nil
 	case "nasdaq":
-		return SType_Nasdaq, nil
+		return SType_NasdaqSymbol, nil
 	case "cms":
-		return SType_Cms, nil
+		return SType_CmsSymbol, nil
+	case "isin":
+		return SType_Isin, nil
+	case "us_code":
+		return SType_UsCode, nil
+	case "bbg_comp_id":
+		return SType_BbgCompId, nil
+	case "bbg_comp_ticker":
+		return SType_BbgCompTicker, nil
+	case "figi":
+		return SType_Figi, nil
+	case "figi_ticker":
+		return SType_FigiTicker, nil
 	default:
 		return SType_InstrumentId, fmt.Errorf("unknown stype: %s", str)
 	}

@@ -6,6 +6,7 @@
  * Add `JsonScanner.GetLastRecord`
  * Add `ListFiles` may now return `JobExpiredError`.
  * Add `FeedMode` JSON marshalling
+ * Add new reference data STypes from DBN v0.20.0
  * Fix `dbn-go-live` JSON mode.
  * Fix `ListJobs`: typo in `states` and `since` is UTC
  * Fix `Compression` error message and convert-from-null
