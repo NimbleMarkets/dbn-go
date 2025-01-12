@@ -18,7 +18,6 @@ This repository contains Golang bindings to [Databento's](https://databento.com)
  * [Tools](#tools)
    * [`dbn-go-hist`](#dbn-go-hist)
    * [`dbn-go-live`](#dbn-go-live)
-   * [`dbn-go-file`](#dbn-go-file)
 
 NOTE: This is a new library and is under active development.  It is not affiliated with Databento.  Please be careful with commands which incur billing.  We are not responsible for any charges you incur.
 
@@ -48,6 +47,8 @@ Most `dbn-go` [types](./structs.go) and [enums](./consts.go) parallel DataBento'
   * [`ErrorMsg`](https://pkg.go.dev/github.com/NimbleMarkets/dbn-go#ErrorMsg)
   * [`SystemMsg`](https://pkg.go.dev/github.com/NimbleMarkets/dbn-go#SystemMsg)
   * [`StatMsg`](https://pkg.go.dev/github.com/NimbleMarkets/dbn-go#StatMsg)
+  * [`StatusMsg`](https://pkg.go.dev/github.com/NimbleMarkets/dbn-go#StatusMsg)
+  * [`InstrumentDefMsg`](https://pkg.go.dev/github.com/NimbleMarkets/dbn-go#InstrumentDefMsg)
 
 
 ## Reading DBN Files
@@ -264,7 +265,7 @@ Released under the [Apache License, version 2.0](https://www.apache.org/licenses
 
 Portions adapted from [`databento/dbn`](https://github.com/databento/dbn) [`databendo/databento-rs`](https://github.com/databento/databento-rs) under the same Apache license.
 
-Copyright (c) 2024 [Neomantra Corp](https://www.neomantra.com).   
+Copyright (c) 2024-2025 [Neomantra Corp](https://www.neomantra.com).   
 
 ----
 Made with :heart: and :fire: by the team behind [Nimble.Markets](https://nimble.markets).

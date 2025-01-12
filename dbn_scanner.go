@@ -254,12 +254,28 @@ func (s *DbnScanner) Visit(visitor Visitor) error {
 		} else {
 			return visitor.OnStatMsg(&record)
 		}
+	// Status
+	case RType_Status:
+		record := StatusMsg{}
+		if err := record.Fill_Raw(s.lastRecord[:StatusMsg_Size]); err != nil {
+			return err // TODO: OnError()
+		} else {
+			return visitor.OnStatusMsg(&record)
+		}
+
+	// InstrumentDef
+	case RType_InstrumentDef:
+		// TODO: handle multiple versions... this is v2...
+		record := InstrumentDefMsg{}
+		if err := record.Fill_Raw(s.lastRecord[:s.lastSize]); err != nil {
+			return err // TODO: OnError()
+		} else {
+			return visitor.OnInstrumentDefMsg(&record)
+		}
 
 	default:
 		return ErrUnknownRType
 	}
-	// RType_Status
-	// RType_InstrumentDef
 }
 
 /////////////////////////////////////////////////////////////////////////////

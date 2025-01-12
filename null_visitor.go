@@ -39,6 +39,14 @@ func (v *NullVisitor) OnStatMsg(record *StatMsg) error {
 	return nil
 }
 
+func (v *NullVisitor) OnStatusMsg(record *StatusMsg) error {
+	return nil
+}
+
+func (v *NullVisitor) OnInstrumentDefMsg(record *InstrumentDefMsg) error {
+	return nil
+}
+
 func (v *NullVisitor) OnErrorMsg(record *ErrorMsg) error {
 	return nil
 }

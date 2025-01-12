@@ -3,6 +3,8 @@
 ## v0.0.14 (unreleased)
 
  * `LiveClient` now has `GetDBNScanner` and `GetJsonScanne`, depending on encoding.
+ * Add `InstrumenDefMsg` and `StatusMsg`
+ * Add `OnStatusMsg` and `OnInstrumentDefMsg` to `Visitor` interface
  * Add `JsonScanner.GetLastRecord`
  * Add `ListFiles` may now return `JobExpiredError`.
  * Add `FeedMode` JSON marshalling

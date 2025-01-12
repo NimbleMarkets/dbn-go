@@ -13,6 +13,8 @@ type Visitor interface {
 
 	OnImbalance(record *ImbalanceMsg) error
 	OnStatMsg(record *StatMsg) error
+	OnStatusMsg(record *StatusMsg) error
+	OnInstrumentDefMsg(record *InstrumentDefMsg) error
 
 	OnErrorMsg(record *ErrorMsg) error
 	OnSystemMsg(record *SystemMsg) error

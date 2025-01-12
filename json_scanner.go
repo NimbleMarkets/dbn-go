@@ -160,7 +160,23 @@ func dispatchJsonVisitor(val *fastjson.Value, header *RHeader, visitor Visitor) 
 		} else {
 			return visitor.OnStatMsg(&record)
 		}
-	// SymbolMapping
+	// Status
+	case RType_Status:
+		record := StatusMsg{}
+		if err := record.Fill_Json(val, header); err != nil {
+			return err // TODO: OnError()
+		} else {
+			return visitor.OnStatusMsg(&record)
+		}
+	// Status
+	case RType_InstrumentDef:
+		record := InstrumentDefMsg{}
+		if err := record.Fill_Json(val, header); err != nil {
+			return err // TODO: OnError()
+		} else {
+			return visitor.OnInstrumentDefMsg(&record)
+		}
+		// SymbolMapping
 	case RType_SymbolMapping:
 		record := SymbolMappingMsg{}
 		if err := record.Fill_Json(val, header); err != nil {
