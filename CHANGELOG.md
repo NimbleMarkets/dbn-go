@@ -5,6 +5,7 @@
  * `LiveClient` now has `GetDBNScanner` and `GetJsonScanne`, depending on encoding.
  * Add `JsonScanner.GetLastRecord`
  * Add `ListFiles` may now return `JobExpiredError`.
+ * Add `FeedMode` JSON marshalling
  * Fix `dbn-go-live` JSON mode.
  * Fix `ListJobs`: typo in `states` and `since` is UTC
  * Fix `Compression` error message and convert-from-null

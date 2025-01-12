@@ -25,6 +25,7 @@ const (
 	FeedMode_Live FeedMode = 2
 )
 
+// Returns the string representation of the FeedMode, or empty string if unknown.
 func (f FeedMode) String() string {
 	switch f {
 	case FeedMode_Historical:
@@ -34,8 +35,44 @@ func (f FeedMode) String() string {
 	case FeedMode_Live:
 		return "live"
 	}
-	return "unknown"
+	return ""
 }
+
+// FeedModeFromString converts a string to an FeedMode.
+// Returns an error if the string is unknown.
+// Possible string values: historical, historical-streaming, live.
+func FeedModeFromString(str string) (FeedMode, error) {
+	str = strings.ToLower(str)
+	switch str {
+	case "historical":
+		return FeedMode_Historical, nil
+	case "historical-streaming":
+		return FeedMode_HistoricalStreaming, nil
+	case "live":
+		return FeedMode_Live, nil
+	default:
+		return FeedMode_Historical, fmt.Errorf("unknown feedMode: %s", str)
+	}
+}
+
+func (f FeedMode) MarshalJSON() ([]byte, error) {
+	return json.Marshal(f.String())
+}
+
+func (f *FeedMode) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
+	}
+	js, err := FeedModeFromString(str)
+	if err != nil {
+		return err
+	}
+	*f = js
+	return nil
+}
+
+///////////////////////////////////////////////////////////////////////////////
 
 // MetadataQueryParams is the common request structure for several Metadata API queries
 type MetadataQueryParams struct {
@@ -98,7 +135,7 @@ type FieldDetail struct {
 // The unit prices for a particular [`FeedMode`].
 type UnitPricesForMode struct {
 	/// The data feed mode.
-	Mode string `json:"mode,omitempty"`
+	Mode FeedMode `json:"mode,omitempty"`
 	/// The unit prices in US dollars by data record schema.
 	UnitPrices map[string]float64 `json:"unit_prices,omitempty"`
 }
