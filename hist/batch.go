@@ -73,6 +73,15 @@ func (j *JobState) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// JobExpiredError is returned when an expired Job has its file listed
+type JobExpiredError struct {
+	JobID string
+}
+
+func (e JobExpiredError) Error() string {
+	return fmt.Sprintf("Job %s is expired", e.JobID)
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 type Packaging string
@@ -367,6 +376,7 @@ func ListJobs(apiKey string, stateFilter string, sinceYMD time.Time) ([]BatchJob
 }
 
 // Lists all files associated with the batch job with ID `jobID`.
+// Returns JobExpiredError if the response indicates the job has expired.
 //
 // # Errors
 // This function returns an error when it fails to communicate with the Databento API
@@ -384,6 +394,9 @@ func ListFiles(apiKey string, jobID string) ([]BatchFileDesc, error) {
 
 	body, err := databentoGetRequest(baseUrl.String(), apiKey)
 	if err != nil {
+		if errStr := err.Error(); strings.HasPrefix(errStr, "HTTP 410") {
+			return nil, JobExpiredError{JobID: jobID}
+		}
 		return nil, err
 	}
 
