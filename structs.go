@@ -254,7 +254,7 @@ type MboMsg struct {
 	ChannelID uint8   `json:"channel_id" csv:"channel_id" `   // A channel ID within the venue.
 	Action    byte    `json:"action" csv:"action" `           // The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**,  **T**rade, or **F**ill.
 	Side      byte    `json:"side" csv:"side" `               // The side that initiates the event. Can be **A**sk for a sell order (or sell aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or **N**one where no side is specified by the original source.
-	TsRecv    int64   `json:"ts_recv" csv:"ts_recv" `         // The capture-server-received timestamp expressed as number of nanoseconds since the UNIX epoch.
+	TsRecv    uint64  `json:"ts_recv" csv:"ts_recv" `         // The capture-server-received timestamp expressed as number of nanoseconds since the UNIX epoch.
 	TsInDelta int32   `json:"ts_in_delta" csv:"ts_in_delta" ` // The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
 	Sequence  uint32  `json:"sequence" csv:"sequence" `       // The message sequence number assigned at the venue.
 }
@@ -285,7 +285,7 @@ func (r *MboMsg) Fill_Raw(b []byte) error {
 	r.ChannelID = body[21]
 	r.Action = body[22]
 	r.Side = body[23]
-	r.TsRecv = int64(binary.LittleEndian.Uint64(body[24:32]))
+	r.TsRecv = binary.LittleEndian.Uint64(body[24:32])
 	r.TsInDelta = int32(binary.LittleEndian.Uint32(body[32:36]))
 	r.Sequence = binary.LittleEndian.Uint32(body[36:40])
 	return nil
@@ -300,7 +300,7 @@ func (r *MboMsg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 	r.ChannelID = uint8(val.GetUint("channel_id"))
 	r.Action = byte(val.GetUint("action"))
 	r.Side = byte(val.GetUint("side"))
-	r.TsRecv = fastjson_GetInt64FromString(val, "ts_recv")
+	r.TsRecv = fastjson_GetUint64FromString(val, "ts_recv")
 	r.TsInDelta = int32(val.GetUint("ts_in_delta"))
 	r.Sequence = uint32(val.GetUint("sequence"))
 	return nil
