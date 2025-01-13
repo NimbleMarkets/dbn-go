@@ -250,23 +250,23 @@ type BatchFileDesc struct {
 // SubmitJobParams are te parameters for [`BatchClient::submit_job()`]. Use [`SubmitJobParams::builder()`] to
 // get a builder type with all the preset defaults.
 type SubmitJobParams struct {
-	Dataset       string          `json:"dataset"`              /// The dataset code.
-	Symbols       string          `json:"symbols"`              /// The symbols to filter for.
-	Schema        dbn.Schema      `json:"schema"`               /// The data record schema.
-	DateRange     DateRange       `json:"date_time_range"`      /// The request time range.
-	Encoding      dbn.Encoding    `json:"encoding"`             /// The data encoding. Defaults to [`Dbn`](Encoding::Dbn).
-	Compression   dbn.Compression `json:"compression"`          /// The data compression mode. Defaults to [`ZStd`](Compression::ZStd).
-	PrettyPx      bool            `json:"pretty_px"`            /// If `true`, prices will be formatted to the correct scale (using the fixed-  precision scalar 1e-9). Only valid for [`Encoding::Csv`] and [`Encoding::Json`].
-	PrettyTs      bool            `json:"pretty_ts"`            /// If `true`, timestamps will be formatted as ISO 8601 strings. Only valid for [`Encoding::Csv`] and [`Encoding::Json`].
-	MapSymbols    bool            `json:"map_symbols"`          /// If `true`, a symbol field will be included with each text-encoded record, reducing the need to look at the `symbology.json`. Only valid for [`Encoding::Csv`] and [`Encoding::Json`].
-	SplitSymbols  bool            `json:"split_symbols"`        /// If `true`, files will be split by raw symbol. Cannot be requested with [`Symbols::All`].
-	SplitDuration string          `json:"split_duration"`       /// The maximum time duration before batched data is split into multiple files. Defaults to [`Day`](SplitDuration::Day).
-	SplitSize     uint64          `json:"split_size,omitempty"` /// The optional maximum size (in bytes) of each batched data file before being split. Defaults to `None`.
-	Packaging     Packaging       `json:"packaging,omitempty"`  /// The optional archive type to package all batched data files in. Defaults to `None`.
-	Delivery      Delivery        `json:"delivery"`             /// The delivery mechanism for the batched data files once processed. Defaults to [`Download`](Delivery::Download).
-	StypeIn       dbn.SType       `json:"stype_in"`             /// The symbology type of the input `symbols`. Defaults to [`RawSymbol`](dbn::enums::SType::RawSymbol).
-	StypeOut      dbn.SType       `json:"stype_out"`            /// The symbology type of the output `symbols`. Defaults to [`InstrumentId`](dbn::enums::SType::InstrumentId).
-	Limit         uint64          `json:"limit,omitempty"`      /// The optional maximum number of records to return. Defaults to no limit.
+	Dataset       string          `json:"dataset"`              // The dataset code.
+	Symbols       string          `json:"symbols"`              // The symbols to filter for.
+	Schema        dbn.Schema      `json:"schema"`               // The data record schema.
+	DateRange     DateRange       `json:"date_time_range"`      // The request time range.
+	Encoding      dbn.Encoding    `json:"encoding"`             // The data encoding. Defaults to [`Dbn`](Encoding::Dbn).
+	Compression   dbn.Compression `json:"compression"`          // The data compression mode. Defaults to [`ZStd`](Compression::ZStd).
+	PrettyPx      bool            `json:"pretty_px"`            // If `true`, prices will be formatted to the correct scale (using the fixed-  precision scalar 1e-9). Only valid for [`Encoding::Csv`] and [`Encoding::Json`].
+	PrettyTs      bool            `json:"pretty_ts"`            // If `true`, timestamps will be formatted as ISO 8601 strings. Only valid for [`Encoding::Csv`] and [`Encoding::Json`].
+	MapSymbols    bool            `json:"map_symbols"`          // If `true`, a symbol field will be included with each text-encoded record, reducing the need to look at the `symbology.json`. Only valid for [`Encoding::Csv`] and [`Encoding::Json`].
+	SplitSymbols  bool            `json:"split_symbols"`        // If `true`, files will be split by raw symbol. Cannot be requested with [`Symbols::All`].
+	SplitDuration string          `json:"split_duration"`       // The maximum time duration before batched data is split into multiple files. Defaults to [`Day`](SplitDuration::Day).
+	SplitSize     uint64          `json:"split_size,omitempty"` // The optional maximum size (in bytes) of each batched data file before being split. Defaults to `None`.
+	Packaging     Packaging       `json:"packaging,omitempty"`  // The optional archive type to package all batched data files in. Defaults to `None`.
+	Delivery      Delivery        `json:"delivery"`             // The delivery mechanism for the batched data files once processed. Defaults to [`Download`](Delivery::Download).
+	StypeIn       dbn.SType       `json:"stype_in"`             // The symbology type of the input `symbols`. Defaults to [`RawSymbol`](dbn::enums::SType::RawSymbol).
+	StypeOut      dbn.SType       `json:"stype_out"`            // The symbology type of the output `symbols`. Defaults to [`InstrumentId`](dbn::enums::SType::InstrumentId).
+	Limit         uint64          `json:"limit,omitempty"`      // The optional maximum number of records to return. Defaults to no limit.
 }
 
 // ApplyToURLValues fills a url.Values with the SubmitJobParams per the Batch API spec.

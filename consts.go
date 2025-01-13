@@ -273,12 +273,12 @@ const (
 	RType_System          RType = 0x17 // Denotes a non-error message from the gateway. Also used for heartbeats.
 	RType_Statistics      RType = 0x18 // Denotes a statistics record from the publisher (not calculated by Databento).
 	RType_Mbo             RType = 0xA0 // Denotes a market by order record.
-	RType_Cbbo            RType = 0xB1 /// Denotes a consolidated best bid and offer record.
-	RType_Cbbo1S          RType = 0xC0 /// Denotes a consolidated best bid and offer record subsampled on a one-second interval.
-	RType_Cbbo1M          RType = 0xC1 /// Denotes a consolidated best bid and offer record subsampled on a one-minute interval.
-	RType_Tcbbo           RType = 0xC2 /// Denotes a consolidated best bid and offer trade record containing the consolidated BBO before the trade.
-	RType_Bbo1S           RType = 0xC3 /// Denotes a best bid and offer record subsampled on a one-second interval.
-	RType_Bbo1M           RType = 0xC4 /// Denotes a best bid and offer record subsampled on a one-minute interval.
+	RType_Cbbo            RType = 0xB1 // Denotes a consolidated best bid and offer record.
+	RType_Cbbo1S          RType = 0xC0 // Denotes a consolidated best bid and offer record subsampled on a one-second interval.
+	RType_Cbbo1M          RType = 0xC1 // Denotes a consolidated best bid and offer record subsampled on a one-minute interval.
+	RType_Tcbbo           RType = 0xC2 // Denotes a consolidated best bid and offer trade record containing the consolidated BBO before the trade.
+	RType_Bbo1S           RType = 0xC3 // Denotes a best bid and offer record subsampled on a one-second interval.
+	RType_Bbo1M           RType = 0xC4 // Denotes a best bid and offer record subsampled on a one-minute interval.
 	RType_Unknown         RType = 0xFF // Golang-only: Unknown or invalid record type
 )
 

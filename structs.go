@@ -246,17 +246,17 @@ func (r *Mbp0Msg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 // DataBento Normalized market-by-order (MBO) tick message.
 // The record of the [`Mbo`](crate::enums::Schema::Mbo) schema.
 type MboMsg struct {
-	Header    RHeader `json:"hd" csv:"hd"`                    // The record header.
-	OrderID   uint64  `json:"order_id" csv:"order_id" `       // The order ID assigned at the venue.
-	Price     int64   `json:"price" csv:"price" `             // The order price expressed as a signed integer where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
-	Size      uint32  `json:"size" csv:"size" `               // The order quantity.
-	Flags     uint8   `json:"flags" csv:"flags" `             // A bit field indicating event end, message characteristics, and data quality. See [`enums::flags`](crate::enums::flags) for possible values.
-	ChannelID uint8   `json:"channel_id" csv:"channel_id" `   // A channel ID within the venue.
-	Action    byte    `json:"action" csv:"action" `           // The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**,  **T**rade, or **F**ill.
-	Side      byte    `json:"side" csv:"side" `               // The side that initiates the event. Can be **A**sk for a sell order (or sell aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or **N**one where no side is specified by the original source.
-	TsRecv    uint64  `json:"ts_recv" csv:"ts_recv" `         // The capture-server-received timestamp expressed as number of nanoseconds since the UNIX epoch.
-	TsInDelta int32   `json:"ts_in_delta" csv:"ts_in_delta" ` // The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
-	Sequence  uint32  `json:"sequence" csv:"sequence" `       // The message sequence number assigned at the venue.
+	Header    RHeader `json:"hd" csv:"hd"`                   // The record header.
+	OrderID   uint64  `json:"order_id" csv:"order_id"`       // The order ID assigned at the venue.
+	Price     int64   `json:"price" csv:"price"`             // The order price expressed as a signed integer where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
+	Size      uint32  `json:"size" csv:"size"`               // The order quantity.
+	Flags     uint8   `json:"flags" csv:"flags"`             // A bit field indicating event end, message characteristics, and data quality. See [`enums::flags`](crate::enums::flags) for possible values.
+	ChannelID uint8   `json:"channel_id" csv:"channel_id"`   // A channel ID within the venue.
+	Action    byte    `json:"action" csv:"action"`           // The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**,  **T**rade, or **F**ill.
+	Side      byte    `json:"side" csv:"side"`               // The side that initiates the event. Can be **A**sk for a sell order (or sell aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or **N**one where no side is specified by the original source.
+	TsRecv    uint64  `json:"ts_recv" csv:"ts_recv"`         // The capture-server-received timestamp expressed as number of nanoseconds since the UNIX epoch.
+	TsInDelta int32   `json:"ts_in_delta" csv:"ts_in_delta"` // The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
+	Sequence  uint32  `json:"sequence" csv:"sequence"`       // The message sequence number assigned at the venue.
 }
 
 const MboMsg_Size = RHeader_Size + 40
@@ -894,9 +894,9 @@ type StatusMsg struct {
 	TsRecv                uint64   `json:"ts_recv" csv:"ts_recv"`                                   // The capture-server-received timestamp expressed as number of nanoseconds since the UNIX epoch.
 	Action                uint16   `json:"action" csv:"action"`                                     // The type of status change.
 	Reason                uint16   `json:"reason" csv:"reason"`                                     // Additional details about the cause of the status change.
-	TradingEvent          uint16   `json:"trading_event" csv:"trading_event"`                       /// Further information about the status change and its effect on trading.
-	IsTrading             uint8    `json:"is_trading" csv:"is_trading"`                             /// The state of trading in the instrument.
-	IsQuoting             uint8    `json:"is_quoting" csv:"is_quoting"`                             /// The state of quoting in the instrument.
+	TradingEvent          uint16   `json:"trading_event" csv:"trading_event"`                       // Further information about the status change and its effect on trading.
+	IsTrading             uint8    `json:"is_trading" csv:"is_trading"`                             // The state of trading in the instrument.
+	IsQuoting             uint8    `json:"is_quoting" csv:"is_quoting"`                             // The state of quoting in the instrument.
 	IsShortSellRestricted uint8    `json:"is_short_sell_restricted" csv:"is_short_sell_restricted"` // The state of short sell restrictions for the instrument.
 	Reserved              [7]uint8 // Filler for alignment.
 }

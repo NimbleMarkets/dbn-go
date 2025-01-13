@@ -46,8 +46,8 @@ type Metadata struct {
 
 // A raw symbol and its symbol mappings for different time ranges within the query range.
 type SymbolMapping struct {
-	RawSymbol string            /// The symbol assigned by publisher.
-	Intervals []MappingInterval /// The mappings of `native` for different date ranges.
+	RawSymbol string            // The symbol assigned by publisher.
+	Intervals []MappingInterval // The mappings of `native` for different date ranges.
 }
 
 // The resolved symbol for a date range.
