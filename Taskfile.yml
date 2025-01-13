@@ -25,7 +25,7 @@ tasks:
   clean:
     desc: 'Clean all'
     cmds:
-      - rm -f bin/dbn-go-hist bin/dbn-go-live
+      - rm -f bin/dbn-go-hist bin/dbn-go-live bin/dbn-go-tui
 
   docker-build:
     desc: 'Docker build'
@@ -51,6 +51,7 @@ tasks:
     deps:
       - build-dbn-go-hist
       - build-dbn-go-live
+      - build-dbn-go-tui
 
   build-dbn-go-hist:
     desc: 'Build dbn-go-hist'
@@ -58,6 +59,7 @@ tasks:
     sources:
       - ./*.go
       - hist/*.go
+      - internal/**/*.go
       - cmd/dbn-go-hist/*.go
     generates:
       - bin/dbn-go-hist
@@ -82,6 +84,19 @@ tasks:
       - bin/dbn-go-live
     cmds:
       - go build -o bin/dbn-go-live cmd/dbn-go-live/*.go
+
+  build-dbn-go-tui:
+    desc: 'Build dbn-go-tui'
+    deps: [go-tidy]
+    sources:
+      - ./*.go
+      - hist/*.go
+      - internal/**/*.go
+      - cmd/dbn-go-tui/*.go
+    generates:
+      - bin/dbn-go-tui
+    cmds:
+      - go build -o bin/dbn-go-tui cmd/dbn-go-tui/*.go
 
   go-test:
     desc: 'Test Go'

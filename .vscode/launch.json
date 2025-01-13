@@ -18,6 +18,17 @@
             ]
         },
         {
+            "name": "Attach dbn-go-hist TUI",
+            "type": "go",
+            "debugAdapter": "dlv-dap",
+            "request": "attach",
+            "mode": "remote",
+            "remotePath": "${workspaceFolder}/cmd/dbn-go-hist",
+            "port": 2345,
+            "host": "127.0.0.1",
+            "preLaunchTask": "Run TUI with headless dlv"
+        },
+        {
             "name": "dbn-go-live",
             "type": "go",
             "request": "launch",

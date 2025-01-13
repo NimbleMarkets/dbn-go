@@ -1,0 +1,36 @@
+// .vscode/tasks.json
+// Thank you @KevM
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Run TUI with headless dlv",
+            "type": "process",
+            "command": [
+                "dlv",
+            ],
+            "args": [
+                "debug",
+                "--headless",
+                "--listen=:2345",
+                "--api-version=2",
+                "${workspaceFolder}/cmd/dbn-go-hist", "--",
+                "tui",
+                "--key", "<insert-api-key>"
+            ],
+            "isBackground": true,
+            "problemMatcher": {
+                "owner": "go",
+                "fileLocation": "relative",
+                "pattern": {
+                    "regexp": "^couldn't start listener:", // error if matched
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^API server listening at:",
+                    "endsPattern": "^Got a connection, launched process" // success if matched
+                }
+            }
+        }
+    ]
+}

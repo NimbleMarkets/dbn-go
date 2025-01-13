@@ -1,8 +1,9 @@
 # CHANGELOG
 
-## v0.0.14 (unreleased)
+## v0.1.0 (2025-01-13)
 
- * `LiveClient` now has `GetDBNScanner` and `GetJsonScanne`, depending on encoding.
+ * Add `dbn-go-tui` text user interface :fire:
+ * Add `LiveClient` now has `GetDBNScanner` and `GetJsonScannr`, depending on encoding.
  * Add `InstrumenDefMsg` and `StatusMsg`
  * Add `OnStatusMsg` and `OnInstrumentDefMsg` to `Visitor` interface
  * Add `JsonScanner.GetLastRecord`

@@ -24,6 +24,14 @@ builds:
       - darwin
       - windows
 
+  - id: "dbn-go-tui"
+    main: ./cmd/dbn-go-tui
+    binary: bin/dbn-go-tui
+    goos:
+      - linux
+      - darwin
+      - windows
+
 archives:
   - format: tar.gz
     # this name template makes the OS and Arch compatible with the results of `uname`.
@@ -66,3 +74,4 @@ brews:
     install: |
       bin.install "./bin/dbn-go-hist"
       bin.install "./bin/dbn-go-live"
+      bin.install "./bin/dbn-go-tui"

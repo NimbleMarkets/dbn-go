@@ -15,6 +15,7 @@ import (
 
 	"github.com/NimbleMarkets/dbn-go"
 	dbn_hist "github.com/NimbleMarkets/dbn-go/hist"
+	dbn_tui "github.com/NimbleMarkets/dbn-go/internal/tui"
 	"github.com/charmbracelet/huh"
 	"github.com/neomantra/ymdflag"
 	"github.com/segmentio/encoding/json"
@@ -299,6 +300,8 @@ func main() {
 	resolveCmd.Flags().BoolVarP(&emitJSON, "json", "j", false, "Emit JSON instead of simple summary")
 	resolveCmd.MarkFlagRequired("dataset")
 	resolveCmd.MarkFlagRequired("start")
+
+	rootCmd.AddCommand(tuiCmd)
 
 	err := rootCmd.Execute()
 	requireNoError(err)
@@ -627,6 +630,22 @@ var resolveCmd = &cobra.Command{
 		// human mode just print the symbols
 		for symbol := range resolution.Mappings {
 			fmt.Fprintf(os.Stdout, "%s\n", symbol)
+		}
+	},
+}
+
+var tuiCmd = &cobra.Command{
+	Use:     "tui",
+	Aliases: []string{"symbols"},
+	Short:   "dbn-go-hist TUI",
+	Args:    cobra.ArbitraryArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		config := dbn_tui.Config{
+			DatabentoApiKey: requireDatabentoApiKey(),
+		}
+		err := dbn_tui.Run(config)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 		}
 	},
 }
