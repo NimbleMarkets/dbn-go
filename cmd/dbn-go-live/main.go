@@ -9,12 +9,10 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"time"
 
 	dbn "github.com/NimbleMarkets/dbn-go"
 	dbn_live "github.com/NimbleMarkets/dbn-go/live"
-	"github.com/klauspost/compress/zstd"
 	"github.com/relvacode/iso8601"
 	"github.com/spf13/pflag"
 )
@@ -106,7 +104,7 @@ func requireValOrExit(val string, errstr string) {
 
 func run(config Config) error {
 	// Create output file before connecting
-	outWriter, outCloser, err := makeCompressedWriter(config.OutFilename)
+	outWriter, outCloser, err := dbn.MakeCompressedWriter(config.OutFilename, false)
 	if err != nil {
 		return fmt.Errorf("failed to create output file: %w", err)
 	}
@@ -207,44 +205,4 @@ func followStreamJSON(client *dbn_live.LiveClient, outWriter io.Writer) error {
 		return err
 	}
 	return nil
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Compression helpers
-// https://gist.github.com/neomantra/691a6028cdf2ac3fc6ec97d00e8ea802
-
-// Returns an io.Writer for the given filename, or os.Stdout if filename is "-".  Also returns a closing function to defer and any error.
-// If the filename ends in ".zst" or ".zstd", the writer will zstd-compress the output.
-func makeCompressedWriter(filename string) (io.Writer, func(), error) {
-	var writer io.Writer
-	var closer io.Closer
-	fileCloser := func() {
-		if closer != nil {
-			closer.Close()
-		}
-	}
-	if filename != "-" {
-		if file, err := os.Create(filename); err == nil {
-			writer, closer = file, file
-		} else {
-			return nil, nil, err
-		}
-	} else {
-		writer, closer = os.Stdout, nil
-	}
-
-	if strings.HasSuffix(filename, ".zst") || strings.HasSuffix(filename, ".zstd") {
-		zstdWriter, err := zstd.NewWriter(writer)
-		if err != nil {
-			fileCloser()
-			return nil, nil, err
-		}
-		zstdCloser := func() {
-			zstdWriter.Close()
-			fileCloser()
-		}
-		return zstdWriter, zstdCloser, nil
-	} else {
-		return writer, fileCloser, nil
-	}
 }

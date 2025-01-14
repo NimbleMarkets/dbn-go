@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.2.0 (unreleased)
+
+ * Add `MakeCompressedReader` and `MakeCompressedWriter` zstd helpers
+
 ## v0.1.0 (2025-01-13)
 
  * Add `dbn-go-tui` text user interface :fire:
