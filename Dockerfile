@@ -2,7 +2,7 @@
 # Copyright (c) 2024 Neomantra Corp
 
 ARG DBNGO_BUILD_BASE="golang"
-ARG DBNGO_BUILD_TAG="1.22-bullseye"
+ARG DBNGO_BUILD_TAG="1.23-bullseye"
 
 ARG DBNGO_RUNTIME_BASE="debian"
 ARG DBNGO_RUNTIME_TAG="bullseye-slim"
@@ -14,7 +14,7 @@ ARG DBNGO_RUNTIME_TAG="bullseye-slim"
 FROM ${DBNGO_BUILD_BASE}:${DBNGO_BUILD_TAG} AS build
 
 ARG DBNGO_BUILD_BASE="golang"
-ARG DBNGO_BUILD_TAG="1.22-bullseye"
+ARG DBNGO_BUILD_TAG="1.23-bullseye"
 
 # Extract TARGETARCH from BuildKit
 ARG TARGETARCH
@@ -24,12 +24,12 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     git
 
-ARG TASKFILE_VERSION="v3.37.2"
+ARG TASKFILE_VERSION="v3.40.1"
 RUN curl -fSL "https://github.com/go-task/task/releases/download/${TASKFILE_VERSION}/task_linux_${TARGETARCH}.deb" -o /tmp/task_linux.deb \
     && dpkg -i /tmp/task_linux.deb \
     && rm /tmp/task_linux.deb
 
-ARG GINKO_VERSION="v2.19.0"
+ARG GINKO_VERSION="v2.22.2"
 RUN go install "github.com/onsi/ginkgo/v2/ginkgo@${GINKO_VERSION}"
 
 RUN env
