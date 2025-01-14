@@ -1,0 +1,126 @@
+# `dbn-go` Tools
+
+This directory contains command-line tools that use the `dbn-go` library to interact with the Databento API.
+
+It includes:
+ * [`dbn-go-hist`](#dbn-go-hist): a CLI to hit the Historical API
+ * [`dbn-go-live`](#dbn-go-live): a simple Live API feed handler
+ * [`dbn-go-tui`](#dbn-go-tui): a TUI for your Databento account
+
+## `dbn-go-hist`
+
+`dbn-go-hist` is a command-line tool to interact with the Databento Historical API.  You can see an example of exercising it in [this script file](./tests/exercise_dbn-go-hist.sh).  It requires your [Databento API Key](https://databento.com/portal/keys) to be set with `--key` or preferably via the `DATABENTO_API_KEY` environment variable.
+
+*CAUTION: This program may incur billing!*
+
+```
+$ dbn-go-hist --help
+dbn-go-hist queries the DataBento Historical API.
+
+Usage:
+  dbn-go-hist [command]
+
+Available Commands:
+  completion        Generate the autocompletion script for the specified shell
+  cost              Queries DataBento Hist for the cost and size of a GetRange query
+  dataset-condition Queries DataBento Hist for condition of a dataset
+  dataset-range     Queries DataBento Hist for date range of a dataset
+  datasets          Queries DataBento Hist for datasets and prints them
+  fields            Queries DataBento Hist for fields of a schema/encoding and prints them
+  files             Lists files for the given DataBento Hist JobID
+  get-range         Download a range of data from the Hist API
+  help              Help about any command
+  jobs              Lists DataBento Hist jobs
+  publishers        Queries DataBento Hist for publishers and prints them
+  resolve           Resolve symbols via the Databento Symbology API
+  schemas           Queries DataBento Hist for publishers and prints them
+  submit-job        Submit a data request job to the Hist API
+  tui               dbn-go-hist TUI
+  unit-prices       Queries DataBento Hist for unit prices of a dataset
+
+Flags:
+  -h, --help         help for dbn-go-hist
+  -k, --key string   DataBento API key (or use DATABENT_API_KEY envvar)
+
+Use "dbn-go-hist [command] --help" for more information about a command.
+```
+
+Simple invocation:
+
+```sh 
+$ dbn-go-hist datasets
+DBEQ.BASIC
+GLBX.MDP3
+IFEU.IMPACT
+NDEX.IMPACT
+OPRA.PILLAR
+XNAS.ITCH
+```
+
+----
+
+## `dbn-go-live`
+
+`dbn-go-live` is a command-line tool to subscribe to a Live DataBento stream and write it to a file.   It requires your [Databento API Key](https://databento.com/portal/keys) to be set with `--key` or preferably via the `DATABENTO_API_KEY` environment variable.
+
+*CAUTION: This program incurs billing!*
+
+```
+$ dbn-go-live --help
+usage: dbn-go-live -d <dataset> -s <schema> [opts] symbol1 symbol2 ...
+
+  -d, --dataset string          Dataset to subscribe to 
+  -e, --encoding dbn.Encoding   Encoding of the output ('dbn', 'csv', 'json') (default dbn)
+  -h, --help                    Show help
+  -k, --key string              Databento API key (or set 'DATABENTO_API_KEY' envvar)
+  -o, --out string              Output filename for DBN stream ('-' for stdout)
+  -s, --schema stringArray      Schema to subscribe to (multiple allowed)
+  -i, --sin dbn.SType           Input SType of the symbols. One of instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms (default raw_symbol)
+  -t, --start string            Start time to request as ISO 8601 format (default: now)
+  -v, --verbose                 Verbose logging
+```
+
+Simple invocation:
+```
+$ dbn-go-live -d DBEQ.BASIC -s ohlcv-1h -o foo.dbn -v -t QQQ SPY 
+```
+
+Simple Docker invocation:
+
+```
+$ docker run -it --rm \
+    -e DATABENTO_API_KEY \
+    -v ${pwd}/dbn \
+    ghcr.io/nimblemarkets/dbn-go:0.0.11 \
+    /usr/local/bin/dbn-go-live -d DBEQ.BASIC -s ohlcv-1h -o /dbn/foo.dbn -v -t QQQ SPY 
+```
+
+## `dbn-go-tui`
+
+`dbn-go-tui` is a terminal user interface for your Databento account.  It requires your [Databento API Key](https://databento.com/portal/keys) to be set with `--key` or preferably via the `DATABENTO_API_KEY` environment variable.  The TUI may also be invoked via `dbn-go-hist tui`.
+
+It has four main pages.  See the bottom of each page for key bindings.
+
+| <!-- --> | <!-- --> |
+|----------|----------|
+| **Jobs** | List your batch jobs and their files, then download them |
+| **Downloads** | Status of the Downloads from the Jobs page |
+| **Datasets** | List datasets, their schemas, and costs |
+| **Publishers** | List publishers and their datasets |
+
+
+Here are some screenshots of each TUI page:
+
+<p><b>Jobs</b><br>
+<img src="./dbn-go-tui/tui_jobs.png"  alt="Jobs TUI Page" width="50%"/>
+</p>
+
+<p><b>Downloads</b><br>
+<img src="./dbn-go-tui/tui_downloads.png"  alt="Downloads TUI Page" width="50%"/></p>
+
+<p><b>Datasets</b><br>
+<img src="./dbn-go-tui/tui_datasets.png"  alt="Datasets TUI Page" width="50%"/></p>
+
+<p><b>Publishers</b><br>
+<img src="./dbn-go-tui/tui_publishers.png"  alt="Publishers TUI Page" width="50%"/></p>
+
