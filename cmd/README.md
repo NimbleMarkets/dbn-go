@@ -15,32 +15,32 @@ It includes:
 
 ```
 $ dbn-go-hist --help
-dbn-go-hist queries the DataBento Historical API.
+dbn-go-hist queries the Databento Historical API.
 
 Usage:
   dbn-go-hist [command]
 
 Available Commands:
   completion        Generate the autocompletion script for the specified shell
-  cost              Queries DataBento Hist for the cost and size of a GetRange query
-  dataset-condition Queries DataBento Hist for condition of a dataset
-  dataset-range     Queries DataBento Hist for date range of a dataset
-  datasets          Queries DataBento Hist for datasets and prints them
-  fields            Queries DataBento Hist for fields of a schema/encoding and prints them
-  files             Lists files for the given DataBento Hist JobID
+  cost              Queries Databento Hist for the cost and size of a GetRange query
+  dataset-condition Queries Databento Hist for condition of a dataset
+  dataset-range     Queries Databento Hist for date range of a dataset
+  datasets          Queries Databento Hist for datasets and prints them
+  fields            Queries Databento Hist for fields of a schema/encoding and prints them
+  files             Lists files for the given Databento Hist JobID
   get-range         Download a range of data from the Hist API
   help              Help about any command
-  jobs              Lists DataBento Hist jobs
-  publishers        Queries DataBento Hist for publishers and prints them
+  jobs              Lists Databento Hist jobs
+  publishers        Queries Databento Hist for publishers and prints them
   resolve           Resolve symbols via the Databento Symbology API
-  schemas           Queries DataBento Hist for publishers and prints them
+  schemas           Queries Databento Hist for publishers and prints them
   submit-job        Submit a data request job to the Hist API
   tui               dbn-go-hist TUI
-  unit-prices       Queries DataBento Hist for unit prices of a dataset
+  unit-prices       Queries Databento Hist for unit prices of a dataset
 
 Flags:
   -h, --help         help for dbn-go-hist
-  -k, --key string   DataBento API key (or use DATABENT_API_KEY envvar)
+  -k, --key string   Databento API key (or use DATABENT_API_KEY envvar)
 
 Use "dbn-go-hist [command] --help" for more information about a command.
 ```
@@ -61,7 +61,7 @@ XNAS.ITCH
 
 ## `dbn-go-live`
 
-`dbn-go-live` is a command-line tool to subscribe to a Live DataBento stream and write it to a file.   It requires your [Databento API Key](https://databento.com/portal/keys) to be set with `--key` or preferably via the `DATABENTO_API_KEY` environment variable.
+`dbn-go-live` is a command-line tool to subscribe to a Live Databento stream and write it to a file.   It requires your [Databento API Key](https://databento.com/portal/keys) to be set with `--key` or preferably via the `DATABENTO_API_KEY` environment variable.
 
 *CAUTION: This program incurs billing!*
 

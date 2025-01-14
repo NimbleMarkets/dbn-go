@@ -1,6 +1,6 @@
 # go-dbn test data
 
-These test data files were taken from DataBento's test corpus:
+These test data files were taken from Databento's test corpus:
 
  * https://github.com/databento/dbn/tree/main/tests/data
 

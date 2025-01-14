@@ -195,7 +195,7 @@ func main() {
 
 	cobra.OnInitialize()
 
-	rootCmd.PersistentFlags().StringVarP(&databentoApiKey, "key", "k", "", "DataBento API key (or use DATABENT_API_KEY envvar)")
+	rootCmd.PersistentFlags().StringVarP(&databentoApiKey, "key", "k", "", "Databento API key (or use DATABENT_API_KEY envvar)")
 
 	rootCmd.AddCommand(listDatasetsCmd)
 	listDatasetsCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD")
@@ -311,14 +311,14 @@ func main() {
 
 var rootCmd = &cobra.Command{
 	Use:   "dbn-go-hist",
-	Short: "dbn-go-hist queries the DataBento Historical API.",
-	Long:  "dbn-go-hist queries the DataBento Historical API.",
+	Short: "dbn-go-hist queries the Databento Historical API.",
+	Long:  "dbn-go-hist queries the Databento Historical API.",
 }
 
 var listDatasetsCmd = &cobra.Command{
 	Use:     "datasets",
 	Aliases: []string{"d"},
-	Short:   "Queries DataBento Hist for datasets and prints them",
+	Short:   "Queries Databento Hist for datasets and prints them",
 	Args:    cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		apiKey := requireDatabentoApiKey()
@@ -340,7 +340,7 @@ var listDatasetsCmd = &cobra.Command{
 var listPublishersCmd = &cobra.Command{
 	Use:     "publishers",
 	Aliases: []string{"p"},
-	Short:   "Queries DataBento Hist for publishers and prints them",
+	Short:   "Queries Databento Hist for publishers and prints them",
 	Run: func(cmd *cobra.Command, args []string) {
 		apiKey := requireDatabentoApiKey()
 		publishers, err := dbn_hist.ListPublishers(apiKey)
@@ -364,7 +364,7 @@ var listPublishersCmd = &cobra.Command{
 var listSchemasCmd = &cobra.Command{
 	Use:     "schemas",
 	Aliases: []string{"s"},
-	Short:   "Queries DataBento Hist for publishers and prints them",
+	Short:   "Queries Databento Hist for publishers and prints them",
 	Run: func(cmd *cobra.Command, args []string) {
 		apiKey := requireDatabentoApiKey()
 		schemas, err := dbn_hist.ListSchemas(apiKey, dataset)
@@ -383,7 +383,7 @@ var listSchemasCmd = &cobra.Command{
 var listFieldsCmd = &cobra.Command{
 	Use:     "fields",
 	Aliases: []string{"f"},
-	Short:   "Queries DataBento Hist for fields of a schema/encoding and prints them",
+	Short:   "Queries Databento Hist for fields of a schema/encoding and prints them",
 	Run: func(cmd *cobra.Command, args []string) {
 		apiKey := requireDatabentoApiKey()
 		schema, err := dbn.SchemaFromString(schemaStr)
@@ -405,7 +405,7 @@ var listFieldsCmd = &cobra.Command{
 var listUnitPricesCmd = &cobra.Command{
 	Use:     "unit-prices",
 	Aliases: []string{"u", "up"},
-	Short:   "Queries DataBento Hist for unit prices of a dataset",
+	Short:   "Queries Databento Hist for unit prices of a dataset",
 	Args:    cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		apiKey := requireDatabentoApiKey()
@@ -428,7 +428,7 @@ var listUnitPricesCmd = &cobra.Command{
 var getDatasetConditionCmd = &cobra.Command{
 	Use:     "dataset-condition",
 	Aliases: []string{"dc"},
-	Short:   "Queries DataBento Hist for condition of a dataset",
+	Short:   "Queries Databento Hist for condition of a dataset",
 	Args:    cobra.ArbitraryArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		apiKey := requireDatabentoApiKey()
@@ -448,7 +448,7 @@ var getDatasetConditionCmd = &cobra.Command{
 var getDatasetRangeCmd = &cobra.Command{
 	Use:     "dataset-range",
 	Aliases: []string{"dr"},
-	Short:   "Queries DataBento Hist for date range of a dataset",
+	Short:   "Queries Databento Hist for date range of a dataset",
 	Args:    cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		apiKey := requireDatabentoApiKey()
@@ -466,7 +466,7 @@ var getDatasetRangeCmd = &cobra.Command{
 var getCostCmd = &cobra.Command{
 	Use:     "cost",
 	Aliases: []string{"c"},
-	Short:   "Queries DataBento Hist for the cost and size of a GetRange query",
+	Short:   "Queries Databento Hist for the cost and size of a GetRange query",
 	Args:    cobra.ArbitraryArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		apiKey := requireDatabentoApiKey()
@@ -497,7 +497,7 @@ var getCostCmd = &cobra.Command{
 var listJobsCmd = &cobra.Command{
 	Use:     "jobs",
 	Aliases: []string{"lj", "j"},
-	Short:   "Lists DataBento Hist jobs",
+	Short:   "Lists Databento Hist jobs",
 	Args:    cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		apiKey := requireDatabentoApiKey()
@@ -520,7 +520,7 @@ var listJobsCmd = &cobra.Command{
 var listFilesCmd = &cobra.Command{
 	Use:     "files",
 	Aliases: []string{"lf", "f"},
-	Short:   "Lists files for the given DataBento Hist JobID",
+	Short:   "Lists files for the given Databento Hist JobID",
 	Args:    cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		apiKey := requireDatabentoApiKey()

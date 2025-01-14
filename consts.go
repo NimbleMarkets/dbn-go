@@ -1,6 +1,6 @@
 // Copyright (c) 2024 Neomantra Corp
 //
-// Adapted from DataBento's DBN:
+// Adapted from Databento's DBN:
 //   https://github.com/databento/dbn/blob/main/rust/dbn/src/enums.rs
 //
 

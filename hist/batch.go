@@ -15,7 +15,7 @@ import (
 	dbn "github.com/NimbleMarkets/dbn-go"
 )
 
-// DataBento Batch API:
+// Databento Batch API:
 //  https://databento.com/docs/api-reference-historical/batch/batch-list-files/returns?historical=http&live=python
 
 ///////////////////////////////////////////////////////////////////////////////

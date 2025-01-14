@@ -61,7 +61,7 @@ release:
 
 brews:
   - homepage: https://github.com/NimbleMarkets/dbn-go
-    description: "Golang tooling for DataBento's APIs and DBN format"
+    description: "Golang tooling for Databento's APIs and DBN format"
     directory: Formula
     repository:
       owner: NimbleMarkets

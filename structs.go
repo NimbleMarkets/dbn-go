@@ -6,7 +6,7 @@
 // Schemas:
 //   https://databento.com/docs/knowledge-base/new-users/fields-by-schema/
 //
-// Adapted from DataBento's DBN:
+// Adapted from Databento's DBN:
 //   https://github.com/databento/dbn/blob/194d9006155c684e172f71fd8e66ddeb6eae092e/rust/dbn/src/record.rs
 //
 // DBN encoding is little-endian.
@@ -72,7 +72,7 @@ func (rtype RType) IsCandle() bool {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// DataBento Normalized Record Header
+// Databento Normalized Record Header
 // {"ts_event":"1704186000403918695","rtype":0,"publisher_id":2,"instrument_id":15144}
 type RHeader struct {
 	Length       uint8  `json:"len,omitempty"`                     // The length of the record in 32-bit words.
@@ -181,7 +181,7 @@ func (p *ConsolidatedBidAskPair) Fill_Json(val *fastjson.Value) error {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// DataBento Normalized Mbp0 message (Market-by-order)
+// Databento Normalized Mbp0 message (Market-by-order)
 // {"ts_recv":"1704186000404085841","hd":{"ts_event":"1704186000403918695","rtype":0,"publisher_id":2,"instrument_id":15144},"action":"T","side":"B","depth":0,"price":"476370000000","size":40,"flags":130,"ts_in_delta":167146,"sequence":277449,"symbol":"SPY"}
 type Mbp0Msg struct {
 	Header    RHeader `json:"hd" csv:"hd"`                   // The record header.
@@ -243,7 +243,7 @@ func (r *Mbp0Msg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// DataBento Normalized market-by-order (MBO) tick message.
+// Databento Normalized market-by-order (MBO) tick message.
 // The record of the [`Mbo`](crate::enums::Schema::Mbo) schema.
 type MboMsg struct {
 	Header    RHeader `json:"hd" csv:"hd"`                   // The record header.
@@ -308,7 +308,7 @@ func (r *MboMsg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// DataBento Normalized market-by-price (MBP) implementation with a known book depth of 1. The record of the [`Mbp1`](crate::enums::Schema::Mbp1) schema.
+// Databento Normalized market-by-price (MBP) implementation with a known book depth of 1. The record of the [`Mbp1`](crate::enums::Schema::Mbp1) schema.
 type Mbp1Msg struct {
 	Header    RHeader    `json:"hd" csv:"hd"`                   // The record header.
 	Price     int64      `json:"price" csv:"price"`             // The order price expressed as a signed integer where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
@@ -442,7 +442,7 @@ func (r *CbboMsg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// DataBento Normalized market-by-price implementation with a known book depth of 10. The record of the [`Mbp10`](crate::enums::Schema::Mbp10) schema.
+// Databento Normalized market-by-price implementation with a known book depth of 10. The record of the [`Mbp10`](crate::enums::Schema::Mbp10) schema.
 type Mbp10Msg struct {
 	Header    RHeader        `json:"hd" csv:"hd"`                   // The record header.
 	Price     int64          `json:"price" csv:"price"`             // The order price expressed as a signed integer where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
@@ -515,7 +515,7 @@ func (r *Mbp10Msg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// DataBento Normalized Ohlcv Message (OHLC candlestick, bar)
+// Databento Normalized Ohlcv Message (OHLC candlestick, bar)
 // {"hd":{"ts_event":"1702987922000000000","rtype":32,"publisher_id":40,"instrument_id":15144},"open":"472600000000","high":"472600000000","low":"472600000000","close":"472600000000","volume":"300"}
 type OhlcvMsg struct {
 	Header RHeader `json:"hd" csv:"hd"`         // The record header.
@@ -566,7 +566,7 @@ func (r *OhlcvMsg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// DataBento Normalized Imbalance Message
+// Databento Normalized Imbalance Message
 // {"ts_recv":"1711027500000942123","hd":{"ts_event":"1711027500000776211","rtype":20,"publisher_id":2,"instrument_id":17598},"ref_price":"0","auction_time":"0","cont_book_clr_price":"0","auct_interest_clr_price":"0","ssr_filling_price":"0","ind_match_price":"0","upper_collar":"0","lower_collar":"0","paired_qty":0,"total_imbalance_qty":0,"market_imbalance_qty":0,"unpaired_qty":0,"auction_type":"O","side":"N","auction_status":0,"freeze_status":0,"num_extensions":0,"unpaired_side":"N","significant_imbalance":"~"}
 type ImbalanceMsg struct {
 	Header               RHeader `json:"hd" csv:"hd"`                                          // The record header.
@@ -664,7 +664,7 @@ func (r *ImbalanceMsg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// DataBento Symbol Mapping Message
+// Databento Symbol Mapping Message
 // This is not a strict byte-layout because StypeInSymbol and StypeOutSymbol have dynamic lengths
 // that depend on metadata's SymbolCstrLen.
 type SymbolMappingMsg struct {
@@ -888,7 +888,7 @@ func (r *StatMsg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// DataBento normalized Trading Status Update message.
+// Databento normalized Trading Status Update message.
 type StatusMsg struct {
 	Header                RHeader  `json:"hd" csv:"hd"`                                             // The record header.
 	TsRecv                uint64   `json:"ts_recv" csv:"ts_recv"`                                   // The capture-server-received timestamp expressed as number of nanoseconds since the UNIX epoch.

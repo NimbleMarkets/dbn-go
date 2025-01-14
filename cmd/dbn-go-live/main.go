@@ -72,7 +72,7 @@ func main() {
 
 	if config.ApiKey == "" {
 		config.ApiKey = os.Getenv("DATABENTO_API_KEY")
-		requireValOrExit(config.ApiKey, "missing DataBento API key, use --key or set DATABENTO_API_KEY envvar\n")
+		requireValOrExit(config.ApiKey, "missing Databento API key, use --key or set DATABENTO_API_KEY envvar\n")
 	}
 
 	if len(config.Schemas) == 0 {

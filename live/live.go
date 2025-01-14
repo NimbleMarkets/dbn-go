@@ -74,7 +74,7 @@ type LiveConfig struct {
 }
 
 // SetFromEnv fills in the LiveConfig from environment variables.
-// `DATABENTO_API_KEY` holds the DataBento API key.
+// `DATABENTO_API_KEY` holds the Databento API key.
 // `DATABENTO_CLIENT` holds the Client name.
 func (c *LiveConfig) SetFromEnv() error {
 	databentoApiKey := os.Getenv(DATABENTO_API_ENV_KEY)

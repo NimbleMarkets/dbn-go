@@ -29,7 +29,7 @@ func main() {
 	if config.DatabentoApiKey == "" {
 		config.DatabentoApiKey = os.Getenv("DATABENTO_API_KEY")
 		if config.DatabentoApiKey == "" {
-			fmt.Fprintf(os.Stderr, "missing DataBento API key, use --key or set DATABENTO_API_KEY envvar\n")
+			fmt.Fprintf(os.Stderr, "missing Databento API key, use --key or set DATABENTO_API_KEY envvar\n")
 			os.Exit(1)
 		}
 	}

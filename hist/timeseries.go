@@ -7,7 +7,7 @@ import (
 	"net/url"
 )
 
-// DataBento Time Series API:
+// Databento Time Series API:
 //  https://databento.com/docs/api-reference-historical/timeseries/timeseries-get-range?historical=http&live=python
 
 ///////////////////////////////////////////////////////////////////////////////
