@@ -147,27 +147,11 @@ The source for `dbn-go-live` illustrates [using this `dbn_live` module](https://
 
 ## Tools
 
-We include [some tools](./cmd/README.md) to make our lives easier:
+We include [some tools](./cmd/README.md) to make our lives easier. [Installation instructions](./cmd/README.md#installation)
 
- * [`dbn-go-tui`](./cmd/README.md#dbn-go-tui)
  * [`dbn-go-hist`](./cmd/README.md#dbn-go-hist)
- * [`dbn-go-live`](./cmd/README.md#dbn-go-live).
-
-### Tool Instalation
-
-These tools are available as:
-
- * Binaries from the [`dbn-go` releases page](https://github.com/NimbleMarkets/dbn-go/releases)
-
- * Homebrew packages via:
-   * `brew install NimbleMarkets/homebrew-tap/dbn-go`
-
- * Docker multi-architecture images on [GitHub's Container Registry](https://github.com/NimbleMarkets/dbn-go/pkgs/container/dbn-go) at `ghcr.io/nimblemarkets/dbn-go`: 
-   * Hist query: `docker run -e DATABENTO_API_KEY --rm ghcr.io/nimblemarkets/dbn-go:0.0.12 /usr/local/bin/dbn-go-hist datasets` 
-   * Simple Live feed handler: `docker run -e DATABENTO_API_KEY -v ${pwd}/dbn --rm ghcr.io/nimblemarkets/dbn-go:0.0.12 /usr/local/bin/dbn-go-live -d DBEQ.BASIC -s ohlcv-1h -o /dbn/foo.dbn -v -t QQQ SPY`
-
- * Built-from-source to the `./bin` folder with the command `task go-build` (install [Taskfile](https://taskfile.dev)).  
-
+ * [`dbn-go-live`](./cmd/README.md#dbn-go-live)
+ * [`dbn-go-tui`](./cmd/README.md#dbn-go-tui)
 
 ## Open Collaboration
 

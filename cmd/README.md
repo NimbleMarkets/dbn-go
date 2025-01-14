@@ -7,6 +7,21 @@ It includes:
  * [`dbn-go-live`](#dbn-go-live): a simple Live API feed handler
  * [`dbn-go-tui`](#dbn-go-tui): a TUI for your Databento account
 
+## Installation
+
+These tools are available as:
+
+ * Binaries from the [`dbn-go` releases page](https://github.com/NimbleMarkets/dbn-go/releases)
+
+ * Homebrew packages via:
+   * `brew install NimbleMarkets/homebrew-tap/dbn-go`
+
+ * Docker multi-architecture images on [GitHub's Container Registry](https://github.com/NimbleMarkets/dbn-go/pkgs/container/dbn-go) at `ghcr.io/nimblemarkets/dbn-go`: 
+   * Hist query: `docker run -e DATABENTO_API_KEY --rm ghcr.io/nimblemarkets/dbn-go:0.0.12 /usr/local/bin/dbn-go-hist datasets` 
+   * Simple Live feed handler: `docker run -e DATABENTO_API_KEY -v ${pwd}/dbn --rm ghcr.io/nimblemarkets/dbn-go:0.0.12 /usr/local/bin/dbn-go-live -d DBEQ.BASIC -s ohlcv-1h -o /dbn/foo.dbn -v -t QQQ SPY`
+
+ * Built-from-source to the `./bin` folder with the command `task go-build` (install [Taskfile](https://taskfile.dev)).  
+
 ## `dbn-go-hist`
 
 `dbn-go-hist` is a command-line tool to interact with the Databento Historical API.  You can see an example of exercising it in [this script file](./tests/exercise_dbn-go-hist.sh).  It requires your [Databento API Key](https://databento.com/portal/keys) to be set with `--key` or preferably via the `DATABENTO_API_KEY` environment variable.
@@ -98,6 +113,11 @@ $ docker run -it --rm \
 ## `dbn-go-tui`
 
 `dbn-go-tui` is a terminal user interface for your Databento account.  It requires your [Databento API Key](https://databento.com/portal/keys) to be set with `--key` or preferably via the `DATABENTO_API_KEY` environment variable.  The TUI may also be invoked via `dbn-go-hist tui`.
+
+```
+$ export DATABENTO_API_KEY=<your key>
+$ dbn-go-tui
+```
 
 It has four main pages.  See the bottom of each page for key bindings.
 
