@@ -21,6 +21,29 @@ const (
 	focusJobs   = 0
 	focusFiles  = 1
 	focusDetail = 2
+
+	columnJobsReceivedWidth  = 19
+	columnJobsDatasetWidth   = 10
+	columnJobsStartDateWidth = 10
+	columnJobsEndDateWidth   = 10
+	columnJobsEncodingWidth  = 8
+	columnJobsDeliveryWidth  = 10
+	columnJobsSizeWidth      = 8
+
+	columnFilesFilenameIndex = 0
+	columnFilesSizeIndex     = 1
+	columnFilesHashIndex     = 2
+	columnFilesUrlsIndex     = 3
+	columnFilesFilenameWidth = 28
+	columnFilesSizeWidth     = 8
+	columnFilesHashWidth     = 18
+	columnFilesUrlsWidth     = 60
+
+	columnDetailsKeyIndex   = 0
+	columnDetailsValueIndex = 1
+	columnDetailsKeyWidth   = 16
+	columnDetailsValueWidth = 32
+	tableDetailsWidth       = 1 + columnDetailsKeyWidth + 2 + columnDetailsValueWidth + 1 // border + key + padding + value + padding
 )
 
 // Jobs page
@@ -52,27 +75,27 @@ type JobsPageModel struct {
 
 func NewJobsPage(config Config) JobsPageModel {
 	jobsTable := table.New(table.WithColumns([]table.Column{
-		{Title: "Received", Width: 19},
-		{Title: "Dataset", Width: 10},
-		{Title: "Start Date", Width: 10},
-		{Title: "End Date", Width: 10},
-		{Title: "Encoding", Width: 8},
-		{Title: "Delivery", Width: 10},
-		{Title: "Size", Width: 19},
+		{Title: "Received", Width: columnJobsReceivedWidth},
+		{Title: "Dataset", Width: columnJobsDatasetWidth},
+		{Title: "Start Date", Width: columnJobsStartDateWidth},
+		{Title: "End Date", Width: columnJobsEndDateWidth},
+		{Title: "Encoding", Width: columnJobsEncodingWidth},
+		{Title: "Delivery", Width: columnJobsDeliveryWidth},
+		{Title: "Size", Width: columnJobsSizeWidth},
 	}), table.WithStyles(nimbleTableStyles),
 		table.WithFocused(true))
 
 	detailTable := table.New(table.WithColumns([]table.Column{
-		{Title: "Key", Width: 16},
-		{Title: "Value", Width: 32},
+		{Title: "Key", Width: columnDetailsKeyWidth},
+		{Title: "Value", Width: columnDetailsValueWidth},
 	}), table.WithStyles(nimbleTableStyles),
 		table.WithFocused(false))
 
 	filesTable := table.New(table.WithColumns([]table.Column{
-		{Title: "Filename", Width: 28},
-		{Title: "Size", Width: 8},
-		{Title: "Hash", Width: 18},
-		{Title: "Urls", Width: 60},
+		{Title: "Filename", Width: columnFilesFilenameWidth},
+		{Title: "Size", Width: columnFilesSizeWidth},
+		{Title: "Hash", Width: columnFilesHashWidth},
+		{Title: "Urls", Width: columnFilesUrlsWidth},
 	}), table.WithStyles(nimbleTableStyles),
 		table.WithFocused(false))
 
@@ -363,23 +386,20 @@ func (m *JobsPageModel) updateHeights() {
 	m.jobsTable.SetHeight(jobsHeight)
 }
 
-// updateHeights update the heights of widgets
+// updateWidths update the heights of widgets
 func (m *JobsPageModel) updateWidths() {
-	availbleWidth := m.width - 2
-
-	const detailWidth = 16 + 2 + 32 + 2 // key + space + value + border
-	m.detailTable.SetWidth(detailWidth)
+	availbleWidth := m.width - 2 // -2 for details borders
+	m.detailTable.SetWidth(tableDetailsWidth)
 	if m.showDetails {
-		availbleWidth = maxInt(1, availbleWidth-detailWidth-2)
+		availbleWidth = maxInt(1, availbleWidth-tableDetailsWidth) - 2 // -2 for details border
 	}
 
 	m.help.Width = m.width
 	m.jobsTable.SetWidth(availbleWidth)
 
 	m.filesTable.SetWidth(availbleWidth)
-	const filesLeftURLWidth = 63
-	const urlColumnIndex = 3
-	m.filesTable.Columns()[urlColumnIndex].Width = availbleWidth - filesLeftURLWidth
+	const leftOfURLWidth = columnFilesFilenameWidth + columnFilesSizeWidth + columnFilesHashWidth + 8 // +9 for left borders/padding
+	m.filesTable.Columns()[columnFilesUrlsIndex].Width = availbleWidth - leftOfURLWidth
 	m.filesTable.UpdateViewport()
 }
 
