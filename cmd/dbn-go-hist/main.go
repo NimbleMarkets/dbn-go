@@ -192,7 +192,6 @@ func requireHumanConfirmation(promptTitle string, verbName string) {
 ///////////////////////////////////////////////////////////////////////////////
 
 func main() {
-
 	cobra.OnInitialize()
 
 	rootCmd.PersistentFlags().StringVarP(&databentoApiKey, "key", "k", "", "Databento API key (or use DATABENT_API_KEY envvar)")

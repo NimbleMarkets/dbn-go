@@ -4,7 +4,7 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Run TUI with headless dlv",
+            "label": "Run dbn-go-tui with headless dlv",
             "type": "process",
             "command": [
                 "dlv",
@@ -14,8 +14,7 @@
                 "--headless",
                 "--listen=:2345",
                 "--api-version=2",
-                "${workspaceFolder}/cmd/dbn-go-hist", "--",
-                "tui",
+                "${workspaceFolder}/cmd/dbn-go-tui", "--",
                 "--key", "<insert-api-key>"
             ],
             "isBackground": true,

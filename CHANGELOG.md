@@ -2,6 +2,7 @@
 
 ## v0.2.0 (unreleased)
 
+ * Add `dbn-go-file` tool for processing DBN files.
  * Add `MakeCompressedReader` and `MakeCompressedWriter` zstd helpers
 
 ## v0.1.0 (2025-01-13)

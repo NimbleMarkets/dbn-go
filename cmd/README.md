@@ -3,9 +3,12 @@
 This directory contains command-line tools that use the `dbn-go` library to interact with the Databento API.
 
 It includes:
- * [`dbn-go-hist`](#dbn-go-hist): a CLI to hit the Historical API
+ * [`dbn-go-file`](#dbn-go-file): a CLI to process DBN files
+ * [`dbn-go-hist`](#dbn-go-hist): a CLI to use the Historical API
  * [`dbn-go-live`](#dbn-go-live): a simple Live API feed handler
  * [`dbn-go-tui`](#dbn-go-tui): a TUI for your Databento account
+
+----
 
 ## Installation
 
@@ -21,6 +24,48 @@ These tools are available as:
    * Simple Live feed handler: `docker run -e DATABENTO_API_KEY -v ${pwd}/dbn --rm ghcr.io/nimblemarkets/dbn-go:0.0.12 /usr/local/bin/dbn-go-live -d DBEQ.BASIC -s ohlcv-1h -o /dbn/foo.dbn -v -t QQQ SPY`
 
  * Built-from-source to the `./bin` folder with the command `task go-build` (install [Taskfile](https://taskfile.dev)).  
+
+----
+
+## `dbn-go-file`
+
+`dbn-go-file` is a command-line tool to process DBN files.  You can see an example of exercising it in [this script file](./tests/exercise_dbn-go-file.sh).
+
+```
+$ dbn-go-file --help
+
+dbn-go-file processes Databento DBN files
+
+Usage:
+  dbn-go-file [command]
+
+Available Commands:
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+  json        Prints the specified file's records as JSON
+  metadata    Prints the specified file's metadata as JSON
+  split       Splits Databento download folders into "<feed>/<instrument_id>/Y/M/D/feed-YMD.type.dbn.zst"
+
+Flags:
+  -h, --help      help for dbn-go-file
+  -v, --verbose   Verbose output
+```
+
+----
+
+### `dbn-go-file split`
+
+`dbn-go-file split` is a command to split Databento download folders into a more manageable structure.  It will create a directory structure like `<feed>/<instrument_id>/Y/M/D/feed-YMD.type.dbn.zst`.   You can pass it a list of files and it will organize them into the appropriate directories.  Here's an example running it on the test data directory:
+
+```sh
+dbn-go-file split -v --dest tests/split ./tests/data/*.dbn
+writing to 'tests/split/XNAS.ITCH/MSFT/2021/10/04/MSFT.20211004.definition.dbn.zst'
+writing to 'tests/split/XNAS.ITCH/MSFT/2021/10/05/MSFT.20211005.definition.dbn.zst'
+writing to 'tests/split/GLBX.MDP3/ESH1/2020/12/28/ESH1.20201228.ohlcv-1s.dbn.zst'
+writing to 'tests/split/GLBX.MDP3/ESH1/2020/12/28/ESH1.20201228.ohlcv-1s.dbn.zst'
+```
+
+----
 
 ## `dbn-go-hist`
 
@@ -109,6 +154,8 @@ $ docker run -it --rm \
     ghcr.io/nimblemarkets/dbn-go:0.0.11 \
     /usr/local/bin/dbn-go-live -d DBEQ.BASIC -s ohlcv-1h -o /dbn/foo.dbn -v -t QQQ SPY 
 ```
+
+----
 
 ## `dbn-go-tui`
 
