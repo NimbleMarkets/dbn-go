@@ -181,17 +181,17 @@ func (p *ConsolidatedBidAskPair) Fill_Json(val *fastjson.Value) error {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// Databento Normalized Mbp0 message (Market-by-order)
+// Databento Normalized Mbp0 message (Market-by-price depth0)
 // {"ts_recv":"1704186000404085841","hd":{"ts_event":"1704186000403918695","rtype":0,"publisher_id":2,"instrument_id":15144},"action":"T","side":"B","depth":0,"price":"476370000000","size":40,"flags":130,"ts_in_delta":167146,"sequence":277449,"symbol":"SPY"}
-type Mbp0Msg struct {
+type Mbp0Msg struct { // TradeMsg
 	Header    RHeader `json:"hd" csv:"hd"`                   // The record header.
-	TsRecv    uint64  `json:"ts_recv" csv:"ts_recv"`         // The capture-server-received timestamp expressed as the number of nanoseconds since the UNIX epoch.
 	Price     int64   `json:"price" csv:"price"`             // The order price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 	Size      uint32  `json:"size" csv:"size"`               // The order quantity.
 	Action    uint8   `json:"action" csv:"action"`           // The event action. Always Trade in the trades schema. See Action.
 	Side      uint8   `json:"side" csv:"side"`               // The side that initiates the event. Can be Ask for a sell aggressor, Bid for a buy aggressor, or None where no side is specified by the original trade.
 	Flags     uint8   `json:"flags" csv:"flags"`             // A bit field indicating packet end, message characteristics, and data quality. See Flags.
 	Depth     uint8   `json:"depth" csv:"depth"`             // The book level where the update event occurred.
+	TsRecv    uint64  `json:"ts_recv" csv:"ts_recv"`         // The capture-server-received timestamp expressed as the number of nanoseconds since the UNIX epoch.
 	TsInDelta int32   `json:"ts_in_delta" csv:"ts_in_delta"` // The matching-engine-sending timestamp expressed as the number of nanoseconds before ts_recv.
 	Sequence  uint32  `json:"sequence" csv:"sequence"`       // The message sequence number assigned at the venue.
 }
@@ -215,13 +215,13 @@ func (r *Mbp0Msg) Fill_Raw(b []byte) error {
 		return err
 	}
 	body := b[RHeader_Size:] // slice of just the body
-	r.TsRecv = binary.LittleEndian.Uint64(body[0:8])
-	r.Price = int64(binary.LittleEndian.Uint64(body[8:16]))
-	r.Size = binary.LittleEndian.Uint32(body[16:20])
-	r.Action = body[20]
-	r.Side = body[21]
-	r.Flags = body[22]
-	r.Depth = body[23]
+	r.Price = int64(binary.LittleEndian.Uint64(body[0:8]))
+	r.Size = binary.LittleEndian.Uint32(body[8:12])
+	r.Action = body[12]
+	r.Side = body[13]
+	r.Flags = body[14]
+	r.Depth = body[15]
+	r.TsRecv = binary.LittleEndian.Uint64(body[16:24])
 	r.TsInDelta = int32(binary.LittleEndian.Uint32(body[24:28]))
 	r.Sequence = binary.LittleEndian.Uint32(body[28:32])
 	return nil
@@ -229,13 +229,13 @@ func (r *Mbp0Msg) Fill_Raw(b []byte) error {
 
 func (r *Mbp0Msg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 	r.Header = *header
-	r.TsRecv = fastjson_GetUint64FromString(val, "ts_recv")
 	r.Price = fastjson_GetInt64FromString(val, "price")
 	r.Size = uint32(val.GetUint("size"))
 	r.Action = uint8(val.GetUint("action"))
 	r.Side = uint8(val.GetUint("side"))
 	r.Flags = uint8(val.GetUint("flags"))
 	r.Depth = uint8(val.GetUint("depth"))
+	r.TsRecv = fastjson_GetUint64FromString(val, "ts_recv")
 	r.TsInDelta = int32(val.GetInt("ts_in_delta"))
 	r.Sequence = uint32(val.GetUint("sequence"))
 	return nil
@@ -243,7 +243,7 @@ func (r *Mbp0Msg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// Databento Normalized market-by-order (MBO) tick message.
+// Databento Normalized market-by-order (MBO) message.
 // The record of the [`Mbo`](crate::enums::Schema::Mbo) schema.
 type MboMsg struct {
 	Header    RHeader `json:"hd" csv:"hd"`                   // The record header.

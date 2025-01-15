@@ -129,6 +129,50 @@ var _ = Describe("Struct", func() {
 			Expect(r1.Close).To(Equal(int64(372050000000000)))
 			Expect(r1.Volume).To(Equal(uint64(13)))
 		})
+		It("should read a v2 trades/mbp0 correctly", func() {
+			file, err := os.Open("./tests/data/test_data.trades.dbn")
+			Expect(err).To(BeNil())
+			defer file.Close()
+
+			records, metadata, err := dbn.ReadDBNToSlice[dbn.Mbp0Msg](file)
+			Expect(err).To(BeNil())
+			Expect(metadata).ToNot(BeNil())
+			Expect(len(records)).To(Equal(2))
+
+			// dbn -J ./tests/data/test_data.trades.dbn
+			// {"ts_recv":"1609160400099150057","hd":{"ts_event":"1609160400098821953","rtype":0,"publisher_id":1,"instrument_id":5482},"action":"T","side":"A","depth":0,"price":"3720250000000","size":5,"flags":129,"ts_in_delta":19251,"sequence":1170380}
+			// {"ts_recv":"1609160400108142648","hd":{"ts_event":"1609160400107665963","rtype":0,"publisher_id":1,"instrument_id":5482},"action":"T","side":"A","depth":0,"price":"3720250000000","size":21,"flags":129,"ts_in_delta":20728,"sequence":1170414}
+
+			r0, r0h := records[0], records[0].Header
+			Expect(r0h.TsEvent).To(Equal(uint64(1609160400098821953)))
+			Expect(r0h.RType).To(Equal(dbn.RType(0)))
+			Expect(r0h.PublisherID).To(Equal(uint16(1)))
+			Expect(r0h.InstrumentID).To(Equal(uint32(5482)))
+			// Expect(r0.TsRecv).To(Equal(1609160400099150057))
+			Expect(string(r0.Action)).To(Equal("T"))
+			Expect(string(r0.Side)).To(Equal("A"))
+			Expect(r0.Depth).To(Equal(uint8(0)))
+			Expect(r0.Price).To(Equal(int64(3720250000000)))
+			Expect(r0.Size).To(Equal(uint32(5)))
+			Expect(r0.Flags).To(Equal(uint8(129)))
+			Expect(r0.TsInDelta).To(Equal(int32(19251)))
+			Expect(r0.Sequence).To(Equal(uint32(1170380)))
+
+			r1, r1h := records[1], records[1].Header
+			Expect(r1h.TsEvent).To(Equal(uint64(1609160400107665963)))
+			Expect(r1h.RType).To(Equal(dbn.RType(0)))
+			Expect(r1h.PublisherID).To(Equal(uint16(1)))
+			Expect(r1h.InstrumentID).To(Equal(uint32(5482)))
+			Expect(r1.TsRecv).To(Equal(uint64(1609160400108142648)))
+			Expect(string(r1.Action)).To(Equal("T"))
+			Expect(string(r1.Side)).To(Equal("A"))
+			Expect(r1.Depth).To(Equal(uint8(0)))
+			Expect(r1.Price).To(Equal(int64(3720250000000)))
+			Expect(r1.Size).To(Equal(uint32(21)))
+			Expect(r1.Flags).To(Equal(uint8(129)))
+			Expect(r1.TsInDelta).To(Equal(int32(20728)))
+			Expect(r1.Sequence).To(Equal(uint32(1170414)))
+		})
 		It("should read v2 definition correctly", func() {
 			file, err := os.Open("./tests/data/test_data.definition.dbn")
 			Expect(err).To(BeNil())

@@ -2,6 +2,7 @@
 
 ## v0.2.0 (unreleased)
 
+ * Fix `Mbp0Msg` structure and add tests.
  * Add `dbn-go-file` tool for processing DBN files.
  * Add `MakeCompressedReader` and `MakeCompressedWriter` zstd helpers
 
