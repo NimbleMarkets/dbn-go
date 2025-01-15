@@ -51,7 +51,18 @@ Flags:
   -v, --verbose   Verbose output
 ```
 
-----
+
+### `dbn-go-file parquet`
+
+`dbn-go-file split` is a command to generate Parquet files from DBN files.  It strives to have the same output as the `to_parquet` function [in Databento's Python SDK](https://databento.com/docs/api-reference-historical/helpers/dbn-store-to-parquet?historical=python&live=python&reference=python).  The simple [`dbn_to_parquet.py`](./dbn_to_parquet.py) script uses that to create tests.
+
+```sh
+./dbn_to_parquet.py tests/data/test_data.ohlcv-1s.dbn
+parquet-reader tests/data/test_data.ohlcv-1s.dbn.parquet > py.parquet.txt
+
+dbn-go-file parquet tests/data/test_data.ohlcv-1s.dbn
+parquet-reader tests/data/test_data.ohlcv-1s.dbn.parquet > go.parquet.txt
+```
 
 ### `dbn-go-file split`
 

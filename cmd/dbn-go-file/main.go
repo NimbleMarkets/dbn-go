@@ -45,6 +45,9 @@ func main() {
 	rootCmd.AddCommand(printMetadataCmd)
 	printMetadataCmd.Flags().BoolVarP(&forceZstdInput, "zstd", "z", false, "Input is zstd (useful for handling zstd on stdin)")
 
+	rootCmd.AddCommand(writeParquetCmd)
+	writeParquetCmd.Flags().BoolVarP(&forceZstdInput, "zstd", "z", false, "Input is zstd (useful for handling zstd on stdin)")
+
 	rootCmd.AddCommand(splitFilesCmd)
 	splitFilesCmd.Flags().BoolVarP(&forceZstdInput, "zstd", "z", false, "Input is zstd (useful for handling zstd on stdin)")
 	splitFilesCmd.Flags().StringVarP(&destDir, "dest", "d", "", "Destination directory")
@@ -104,14 +107,31 @@ func printMetadata(sourceFile string, forceZstd bool) error {
 
 var jsonPrintCmd = &cobra.Command{
 	Use:   "json file...",
-	Short: `Prints the specified file's records as JSON`,
-	Long:  `Prints the specified file's records as JSON`,
+	Short: `Prints the specified files' records as JSON`,
+	Long:  `Prints the specified files' records as JSON`,
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		// Run the split of the files
+		// Run the split on the files
 		for _, sourceFile := range args {
 			if err := dbn_file.WriteDbnFileAsJson(sourceFile, forceZstdInput, os.Stdout); err != nil {
 				fmt.Fprintf(os.Stderr, "error: splitting %s: %s\n", sourceFile, err.Error())
+			}
+		}
+	},
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+var writeParquetCmd = &cobra.Command{
+	Use:   "parquet file...",
+	Short: `Writes the specified files' records as parquet`,
+	Long:  `Writes the specified files' records as parquet`,
+	Args:  cobra.MinimumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		// Convert all the files to Parquet
+		for _, sourceFile := range args {
+			if err := dbn_file.WriteDbnFileAsParquet(sourceFile, forceZstdInput, sourceFile+".parquet"); err != nil {
+				fmt.Fprintf(os.Stderr, "error: parquet converting %s: %s\n", sourceFile, err.Error())
 			}
 		}
 	},
