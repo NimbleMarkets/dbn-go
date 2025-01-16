@@ -8,6 +8,14 @@ before:
     - go mod tidy
 
 builds:
+  - id: "dbn-go-file"
+    main: ./cmd/dbn-go-file
+    binary: bin/dbn-go-file
+    goos:
+      - linux
+      - darwin
+      - windows
+
   - id: "dbn-go-hist"
     main: ./cmd/dbn-go-hist
     binary: bin/dbn-go-hist
@@ -72,6 +80,7 @@ brews:
       name: goreleaserbot
       email: goreleaserbot@nimble.markets
     install: |
+      bin.install "./bin/dbn-go-file"
       bin.install "./bin/dbn-go-hist"
       bin.install "./bin/dbn-go-live"
       bin.install "./bin/dbn-go-tui"

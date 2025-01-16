@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.2.1 (2025-01-15)
+
+ * Fix `dbn-go-file` was not included in relase.
+
 ## v0.2.0 (2025-01-15)
 
  * Add `dbn-go-file parquet` tool for processing DBN files with commands:
