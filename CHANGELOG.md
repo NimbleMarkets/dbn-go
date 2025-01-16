@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## v0.2.0 (unreleased)
+## v0.2.0 (2025-01-15)
 
  * Add `dbn-go-file parquet` tool for processing DBN files with commands:
    * `metadata`
@@ -58,7 +58,7 @@
 ## v0.0.8 (2024-05-28)
  
  * Add initial Live API support
- * Add Mpb1, Mbp10, Mbo, Error, SymbolMapping, System, Statistics
+ * Add Mbp1, Mbp10, Mbo, Error, SymbolMapping, System, Statistics
  * Add Dockerfile
  * Minor interface tweaks and bug fixes
 

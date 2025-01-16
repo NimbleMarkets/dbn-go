@@ -42,19 +42,22 @@ Usage:
 Available Commands:
   completion  Generate the autocompletion script for the specified shell
   help        Help about any command
-  json        Prints the specified file's records as JSON
+  json        Prints the specified files' records as JSON
   metadata    Prints the specified file's metadata as JSON
+  parquet     Writes the specified files' records as parquet
   split       Splits Databento download folders into "<feed>/<instrument_id>/Y/M/D/feed-YMD.type.dbn.zst"
 
 Flags:
   -h, --help      help for dbn-go-file
   -v, --verbose   Verbose output
+
+Use "dbn-go-file [command] --help" for more information about a command.
 ```
 
 
 ### `dbn-go-file parquet`
 
-`dbn-go-file split` is a command to generate Parquet files from DBN files.  It strives to have the same output as the `to_parquet` function [in Databento's Python SDK](https://databento.com/docs/api-reference-historical/helpers/dbn-store-to-parquet?historical=python&live=python&reference=python).  The simple [`dbn_to_parquet.py`](./dbn_to_parquet.py) script uses that to create tests.
+`dbn-go-file parquet` is a command to generate [Parquet files](https://parquet.apache.org) from DBN files.  This tools strives to have the same output as the `to_parquet` function [in Databento's Python SDK](https://databento.com/docs/api-reference-historical/helpers/dbn-store-to-parquet?historical=python&live=python&reference=python).  The included simple  [`dbn_to_parquet.py`](./dbn_to_parquet.py) script uses that Python SDK to create tests.
 
 ```sh
 ./dbn_to_parquet.py tests/data/test_data.ohlcv-1s.dbn
@@ -62,6 +65,24 @@ parquet-reader tests/data/test_data.ohlcv-1s.dbn.parquet > py.parquet.txt
 
 dbn-go-file parquet tests/data/test_data.ohlcv-1s.dbn
 parquet-reader tests/data/test_data.ohlcv-1s.dbn.parquet > go.parquet.txt
+
+diff py.parquet.txt go.parquet.txt
+```
+
+Parquet is a common columnar data persistance format.  For example, DuckDB [natively supports](https://duckdb.org/docs/data/parquet/overview.html) Parquet files:
+
+```sh
+$ dbn-go-file parquet tests/data/test_data.ohlcv-1s.dbn
+$ duckdb mycandles.duckdb
+D CREATE TABLE mycandles AS SELECT * FROM './tests/data/test_data.ohlcv-1s.dbn.parquet';
+D SELECT * FROM mycandles;
+┌───────┬──────────────┬───────────────┬──────────┬──────────┬──────────┬──────────┬────────┬─────────┬──────────────────────────┐
+│ rtype │ publisher_id │ instrument_id │   open   │   high   │   low    │  close   │ volume │ symbol  │         ts_event         │
+│ uint8 │    uint16    │    uint32     │  double  │  double  │  double  │  double  │ uint64 │ varchar │ timestamp with time zone │
+├───────┼──────────────┼───────────────┼──────────┼──────────┼──────────┼──────────┼────────┼─────────┼──────────────────────────┤
+│    32 │            1 │          5482 │ 372025.0 │ 372050.0 │ 372025.0 │ 372050.0 │     57 │ ESH1    │ 2020-12-28 08:00:00-05   │
+│    32 │            1 │          5482 │ 372050.0 │ 372050.0 │ 372050.0 │ 372050.0 │     13 │ ESH1    │ 2020-12-28 08:00:01-05   │
+└───────┴──────────────┴───────────────┴──────────┴──────────┴──────────┴──────────┴────────┴─────────┴──────────────────────────┘
 ```
 
 ### `dbn-go-file split`
