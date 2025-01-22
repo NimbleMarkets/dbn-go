@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.3.0 (unreleased)
+
+ * Removed obsolete `Packaging` parameter from `dbn_hist.SubmitJob` and structs
+ 
 ## v0.2.2 (2025-01-21)
 
  * `dbn-go-tui` improvements:

@@ -478,7 +478,6 @@ func jobDetailRows(j dbn_hist.BatchJob) []table.Row {
 		table.Row{"Split Symbols", niceBool(j.SplitSymbols)},
 		table.Row{"Split Duration", j.SplitDuration},
 		table.Row{"Split Size", niceInt(j.SplitSize)},
-		table.Row{"Packaging", j.Packaging.String()},
 		table.Row{"Delivery", j.Delivery.String()},
 		table.Row{"Record Count", niceInt(j.RecordCount)},
 		table.Row{"Billed Size", niceInt(j.BilledSize)},

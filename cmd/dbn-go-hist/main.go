@@ -17,6 +17,7 @@ import (
 	dbn_hist "github.com/NimbleMarkets/dbn-go/hist"
 	dbn_tui "github.com/NimbleMarkets/dbn-go/internal/tui"
 	"github.com/charmbracelet/huh"
+	"github.com/dustin/go-humanize"
 	"github.com/neomantra/ymdflag"
 	"github.com/segmentio/encoding/json"
 	"github.com/spf13/cobra"
@@ -90,7 +91,6 @@ func getSubmitJobParams(symbols []string) dbn_hist.SubmitJobParams {
 		DateRange:   getDateRangeArg(),
 		Encoding:    encoding,
 		Compression: compression,
-		Packaging:   dbn_hist.Packaging_Tar,
 		Delivery:    dbn_hist.Delivery_Download,
 		StypeIn:     stypeIn,
 		StypeOut:    stypeOut,
@@ -684,8 +684,8 @@ func requireBudgetApproval(apiKey string, symbols []string, params *dbn_hist.Sub
 	recordCount, err := dbn_hist.GetRecordCount(apiKey, metaParams)
 	requireNoError(err)
 
-	fmt.Fprintf(os.Stderr, "Estimated cost of $%.2f for %d records and %d bytes of data.\n",
-		cost, recordCount, dataSize)
+	fmt.Fprintf(os.Stderr, "Estimated cost of $%.2f for %s records and %s of data.\n",
+		cost, humanize.Comma(int64(recordCount)), humanize.Bytes(uint64(dataSize)))
 	requireHumanConfirmation("Are you sure you want to submit?\n", "Submit Job")
 }
 

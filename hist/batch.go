@@ -84,59 +84,6 @@ func (e JobExpiredError) Error() string {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-type Packaging string
-
-const (
-	Packaging_Unknown Packaging = ""
-	Packaging_None    Packaging = "none"
-	Packaging_Zip     Packaging = "zip"
-	Packaging_Tar     Packaging = "tar"
-)
-
-// Returns the string representation of the Packaging, or empty string if unknown.
-func (p Packaging) String() string {
-	return string(p)
-}
-
-// PackagingFromString converts a string to an Packaging.
-// Returns an error if the string is unknown.
-func PackagingFromString(str string) (Packaging, error) {
-	str = strings.ToLower(str)
-	switch str {
-	case "none":
-		return Packaging_None, nil
-	case "zip":
-		return Packaging_Zip, nil
-	case "tar":
-		return Packaging_Tar, nil
-	default:
-		return Packaging_Unknown, fmt.Errorf("unknown Packaging: %s", str)
-	}
-}
-
-func (p Packaging) MarshalJSON() ([]byte, error) {
-	return json.Marshal(string(p))
-}
-
-func (p *Packaging) UnmarshalJSON(data []byte) error {
-	if bytes.Equal(data, []byte("null")) {
-		*p = Packaging_None // default
-		return nil
-	}
-	var str string
-	if err := json.Unmarshal(data, &str); err != nil {
-		return err
-	}
-	js, err := PackagingFromString(str)
-	if err != nil {
-		return err
-	}
-	*p = js
-	return nil
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
 type Delivery string
 
 const (
@@ -212,7 +159,6 @@ type BatchJob struct {
 	SplitSymbols   bool            `json:"split_symbols"`              // If files are split by raw symbol.
 	SplitDuration  string          `json:"split_duration"`             // The maximum time interval for an individual file before splitting into multiple files.
 	SplitSize      uint64          `json:"split_size,omitempty"`       // The maximum size for an individual file before splitting into multiple files.
-	Packaging      Packaging       `json:"packaging,omitempty"`        // The packaging method of the batch data.
 	Delivery       Delivery        `json:"delivery"`                   // The delivery mechanism of the batch data.
 	RecordCount    uint64          `json:"record_count"`               // The number of data records (`None` until the job is processed).
 	BilledSize     uint64          `json:"billed_size"`                // The size of the raw binary data used to process the batch job (used for billing purposes).
@@ -262,7 +208,6 @@ type SubmitJobParams struct {
 	SplitSymbols  bool            `json:"split_symbols"`        // If `true`, files will be split by raw symbol. Cannot be requested with [`Symbols::All`].
 	SplitDuration string          `json:"split_duration"`       // The maximum time duration before batched data is split into multiple files. Defaults to [`Day`](SplitDuration::Day).
 	SplitSize     uint64          `json:"split_size,omitempty"` // The optional maximum size (in bytes) of each batched data file before being split. Defaults to `None`.
-	Packaging     Packaging       `json:"packaging,omitempty"`  // The optional archive type to package all batched data files in. Defaults to `None`.
 	Delivery      Delivery        `json:"delivery"`             // The delivery mechanism for the batched data files once processed. Defaults to [`Download`](Delivery::Download).
 	StypeIn       dbn.SType       `json:"stype_in"`             // The symbology type of the input `symbols`. Defaults to [`RawSymbol`](dbn::enums::SType::RawSymbol).
 	StypeOut      dbn.SType       `json:"stype_out"`            // The symbology type of the output `symbols`. Defaults to [`InstrumentId`](dbn::enums::SType::InstrumentId).
@@ -320,9 +265,6 @@ func (jobParams *SubmitJobParams) ApplyToURLValues(params *url.Values) error {
 	}
 	if jobParams.SplitSize > 0 {
 		params.Add("split_size", strconv.Itoa(int(jobParams.SplitSize)))
-	}
-	if packagingStr := jobParams.Packaging.String(); packagingStr != "" {
-		params.Add("packaging", packagingStr)
 	}
 	if deliveryStr := jobParams.Delivery.String(); deliveryStr != "" {
 		params.Add("delivery", deliveryStr)
