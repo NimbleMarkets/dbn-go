@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/NimbleMarkets/dbn-go"
 	dbn_file "github.com/NimbleMarkets/dbn-go/internal/file"
@@ -130,7 +131,14 @@ var writeParquetCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		// Convert all the files to Parquet
 		for _, sourceFile := range args {
-			if err := dbn_file.WriteDbnFileAsParquet(sourceFile, forceZstdInput, sourceFile+".parquet"); err != nil {
+			var destFile string
+			if strings.HasSuffix(sourceFile, ".zst") {
+				destFile = sourceFile[:len(sourceFile)-4] + ".parquet"
+			} else {
+				destFile = sourceFile + ".parquet"
+			}
+
+			if err := dbn_file.WriteDbnFileAsParquet(sourceFile, forceZstdInput, destFile); err != nil {
 				fmt.Fprintf(os.Stderr, "error: parquet converting %s: %s\n", sourceFile, err.Error())
 			}
 		}
