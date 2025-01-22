@@ -293,9 +293,9 @@ func main() {
 	getRangeCmd.MarkFlagRequired("output")
 
 	rootCmd.AddCommand(resolveCmd)
-	resolveCmd.Flags().StringVarP(&dataset, "dataset", "d", "", "Dataset to get cost for")
-	resolveCmd.Flags().StringVarP(&schemaStr, "schema", "s", "", "Schema to get cost for")
-	resolveCmd.Flags().BoolVarP(&allSymbols, "all", "", false, "Get record count for all symbols")
+	resolveCmd.Flags().StringVarP(&dataset, "dataset", "d", "", "Dataset to resolve")
+	resolveCmd.Flags().StringVarP(&schemaStr, "schema", "s", "", "Schema to resolve")
+	resolveCmd.Flags().BoolVarP(&allSymbols, "all", "", false, "Resolve all symbols")
 	resolveCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD")
 	resolveCmd.Flags().VarP(&endYMD, "end", "e", "End date as YYYYMMDD")
 	resolveCmd.Flags().VarP(&stypeIn, "sin", "", "Set stype_in: one of instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms (default: 'raw')")

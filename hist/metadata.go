@@ -80,7 +80,7 @@ type MetadataQueryParams struct {
 	Dataset   string    `json:"dataset,omitempty"`  // The dataset code. Must be one of the values from ListDatasets.
 	Symbols   []string  `json:"symbols"`            // The product symbols to filter for. Takes up to 2,000 symbols per request. If `ALL_SYMBOLS` or not specified then will be for all symbols.
 	Schema    string    `json:"schema,omitempty"`   // The data record schema. Must be one of the values from ListSchemas.
-	DateRange DateRange `json:"date_range"`         // The date range of the request to get the cost for.
+	DateRange DateRange `json:"date_range"`         // The date range of the request.
 	Mode      FeedMode  `json:"mode,omitempty"`     // The data feed mode of the request. Must be one of 'historical', 'historical-streaming', or 'live'.
 	StypeIn   dbn.SType `json:"stype_in,omitempty"` // The symbology type of input symbols. Must be one of 'raw_symbol', 'instrument_id', 'parent', or 'continuous'.
 	Limit     int32     `json:"limit,omitempty"`    // The maximum number of records to return. 0 and negative (-1) means no limit.

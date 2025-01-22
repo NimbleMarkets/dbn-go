@@ -66,7 +66,7 @@ func SplitFile(sourceFilename string, destDir string, forceZstdInput bool, verbo
 		// Get the RHeader
 		rheader, err := dbnScanner.GetLastHeader()
 		if err != nil {
-			return fmt.Errorf("failed to read rheader: %w", err)
+			return fmt.Errorf("failed to read RHeader: %w", err)
 		}
 		recordTime := time.Unix(0, int64(rheader.TsEvent)).UTC()
 		recordYMD := ymdflag.TimeToYMD(recordTime)

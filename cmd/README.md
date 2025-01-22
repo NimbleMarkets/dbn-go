@@ -195,6 +195,14 @@ $ docker run -it --rm \
 
 ```
 $ export DATABENTO_API_KEY=<your key>
+$ dbn-go-tui --help
+
+usage: ./bin/dbn-go-tui [options]
+
+  -h, --help         Show help
+  -k, --key string   Databento API key (or set 'DATABENTO_API_KEY' envvar)
+  -l, --limit int    Limit maximum concurrent downloads (default 4)
+  
 $ dbn-go-tui
 ```
 
