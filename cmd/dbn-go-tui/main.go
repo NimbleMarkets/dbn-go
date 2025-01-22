@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/pflag"
 )
 
+const defaultMaxActiveDownloads = 4
+
 ///////////////////////////////////////////////////////////////////////////////
 
 func main() {
@@ -18,6 +20,7 @@ func main() {
 
 	pflag.BoolVarP(&showHelp, "help", "h", false, "Show help")
 	pflag.StringVarP(&config.DatabentoApiKey, "key", "k", "", "Databento API key (or set 'DATABENTO_API_KEY' envvar)")
+	pflag.IntVarP(&config.MaxActiveDownloads, "limit", "l", defaultMaxActiveDownloads, "Limit maximum concurrent downloads")
 	pflag.Parse()
 
 	if showHelp {
@@ -32,6 +35,11 @@ func main() {
 			fmt.Fprintf(os.Stderr, "missing Databento API key, use --key or set DATABENTO_API_KEY envvar\n")
 			os.Exit(1)
 		}
+	}
+
+	if config.MaxActiveDownloads < 0 {
+		fmt.Fprintf(os.Stderr, "--limit cannot be negative\n")
+		return
 	}
 
 	err := dbn_tui.Run(config)

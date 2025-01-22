@@ -24,6 +24,8 @@ import (
 
 ///////////////////////////////////////////////////////////////////////////////
 
+const defaultMaxActiveDownloads = 4
+
 var (
 	databentoApiKey string
 
@@ -41,6 +43,8 @@ var (
 
 	encoding    dbn.Encoding    = dbn.Encoding_Dbn
 	compression dbn.Compression = dbn.Compress_ZStd
+
+	maxActiveDownloads int = defaultMaxActiveDownloads
 
 	jobID       string
 	stateFilter string
@@ -301,6 +305,7 @@ func main() {
 	resolveCmd.MarkFlagRequired("start")
 
 	rootCmd.AddCommand(tuiCmd)
+	tuiCmd.Flags().IntVarP(&maxActiveDownloads, "limit", "l", defaultMaxActiveDownloads, "Limit maximum concurrent downloads")
 
 	err := rootCmd.Execute()
 	requireNoError(err)
@@ -640,8 +645,14 @@ var tuiCmd = &cobra.Command{
 	Args:    cobra.ArbitraryArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		config := dbn_tui.Config{
-			DatabentoApiKey: requireDatabentoApiKey(),
+			DatabentoApiKey:    requireDatabentoApiKey(),
+			MaxActiveDownloads: maxActiveDownloads,
 		}
+		if config.MaxActiveDownloads < 0 {
+			fmt.Fprintf(os.Stderr, "--limit cannot be negative\n")
+			return
+		}
+
 		err := dbn_tui.Run(config)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s\n", err.Error())

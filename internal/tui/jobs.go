@@ -398,7 +398,7 @@ func (m *JobsPageModel) updateWidths() {
 	m.jobsTable.SetWidth(availbleWidth)
 
 	m.filesTable.SetWidth(availbleWidth)
-	const leftOfURLWidth = columnFilesFilenameWidth + columnFilesSizeWidth + columnFilesHashWidth + 8 // +9 for left borders/padding
+	const leftOfURLWidth = columnFilesFilenameWidth + columnFilesSizeWidth + columnFilesHashWidth + 8 // +8 for left borders/padding
 	m.filesTable.Columns()[columnFilesUrlsIndex].Width = availbleWidth - leftOfURLWidth
 	m.filesTable.UpdateViewport()
 }

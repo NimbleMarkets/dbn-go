@@ -5,6 +5,7 @@ go 1.23.3
 toolchain go1.23.4
 
 require (
+	github.com/76creates/stickers v1.4.1
 	github.com/apache/arrow-go/v18 v18.1.0
 	github.com/charmbracelet/bubbles v0.20.0
 	github.com/charmbracelet/bubbletea v1.2.4
@@ -30,6 +31,7 @@ require (
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/catppuccin/go v0.2.0 // indirect
+	github.com/charmbracelet/harmonica v0.2.0 // indirect
 	github.com/charmbracelet/x/ansi v0.4.5 // indirect
 	github.com/charmbracelet/x/exp/strings v0.0.0-20241022174419-46d9bb99a691 // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect

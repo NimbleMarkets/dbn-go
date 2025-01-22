@@ -40,6 +40,12 @@ func minInt[I int | uint | int8 | uint8 | int16 | uint16 | int32 | uint32 | int6
 	return b
 }
 
+func clampInt[I int | uint | int8 | uint8 | int16 | uint16 | int32 | uint32 | int64 | uint64](v, low, high I) I {
+	return minInt(maxInt(v, low), high)
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
 func minFloat[F float32 | float64](a, b F) F {
 	if a < b {
 		return a
@@ -47,9 +53,35 @@ func minFloat[F float32 | float64](a, b F) F {
 	return b
 }
 
+func maxFloat[F float32 | float64](a, b F) F {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func clampFloat[F float32 | float64](v, low, high F) F {
+	return minFloat(maxFloat(v, low), high)
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
 // cmdize is a utility function to convert a given value into a `tea.Cmd`
 func teaCmdize[T any](t T) tea.Cmd {
 	return func() tea.Msg {
 		return t
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+// TrySendChannel attempts to send a msg to a channel, returning true if successful.
+func TrySendChannel[T any](msg T, ch chan T) bool {
+	// non-blocking send
+	select {
+	case ch <- msg:
+		return true
+	default:
+		return false
 	}
 }

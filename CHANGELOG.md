@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## v0.2.2 (2025-01-21)
+
+ * `dbn-go-tui` improvements:
+   * Add `--limit` argument to control concurrent downloads
+   * Add pretty progress bars and table
+   * Fix queueing of duplicate files
+   * Fix honoring of max active downloads
+
 ## v0.2.1 (2025-01-15)
 
  * Fix `dbn-go-file` was not included in relase.

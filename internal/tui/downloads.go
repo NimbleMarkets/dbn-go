@@ -3,47 +3,23 @@
 package tui
 
 import (
-	"context"
-	"encoding/base64"
 	"fmt"
-	"io"
-	"log"
-	"net/http"
-	"net/url"
-	"os"
+	"strings"
 
 	dbn_hist "github.com/NimbleMarkets/dbn-go/hist"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/dustin/go-humanize"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/dustin/go-humanize"
-	"github.com/hashicorp/go-retryablehttp"
 )
 
-type DownloadItemState string
-
-const (
-	DownloadNone     DownloadItemState = ""
-	DownloadQueued   DownloadItemState = "queued"
-	DownloadActive   DownloadItemState = "active"
-	DownloadComplete DownloadItemState = "complete"
-	DownloadFailed   DownloadItemState = "failed"
-
-	MaxActiveDownloads = 2
-)
-
-type DownloadItem struct {
-	JobID         string
-	Url           string
-	Filename      string
-	FileHash      string
-	DestFile      string
-	State         DownloadItemState
-	ExpectedSize  uint64
-	Progress      float64
-	ContextCancel context.CancelFunc
+type QueueDownloadMsg struct {
+	JobID string
+	Files []dbn_hist.BatchFileDesc
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -52,53 +28,72 @@ type DownloadItem struct {
 type DownloadsPageModel struct {
 	config Config
 
-	downloads   []DownloadItem
-	queuedCount int
-	activeCount int
-
-	progressCh chan DownloadProgressMsg
+	downloadManager *DownloadManager
 
 	width  int
 	height int
 
 	downloadsTable table.Model
-	lastError      error
-	help           help.Model
-	keyMap         DownloadsPageKeyMap
+
+	progressBar progress.Model // We use this in the table via ViewAs
+
+	lastError error
+	help      help.Model
+	keyMap    DownloadsPageKeyMap
 }
 
 const (
-	downloadsJobColumn      = 0
-	downloadsFileColumn     = 1
-	downloadsSizeColumn     = 2
-	downloadsStateColumn    = 3
-	downloadsProgressColumn = 4
+	columnDownloadsJobKey      = "Job"
+	columnDownloadsFileKey     = "File"
+	columnDownloadsSizeKey     = "Size"
+	columnDownloadsStateKey    = "State"
+	columnDownloadsProgressKey = "Progress"
 
-	downloadsSizeColumnSize  = 12
-	downloadsStateColumnSize = 10
+	columnDownloadsJobIndex      = 0
+	columnDownloadsFileIndex     = 1
+	columnDownloadsSizeIndex     = 2
+	columnDownloadsStateIndex    = 3
+	columnDownloadsProgressIndex = 4
+
+	columnDownloadsJobWidth      = 24
+	columnDownloadsFileWidth     = 35
+	columnDownloadsSizeWidth     = 12
+	columnDownloadsStateWidth    = 10
+	columnDownloadsProgressWidth = 20
+
+	columnDownloadsJobMinWidth      = 10
+	columnDownloadsFileMinWidth     = 10
+	columnDownloadsSizeMinWidth     = 12
+	columnDownloadsStateMinWidth    = 10
+	columnDownloadsProgressMinWidth = 12
+
+	countsReportFormat = "Finished %d of %d (%d active)"
+	countsReportWidth  = 40 // "%d done of %d (%d active)"
 )
 
 func NewDownloadsPage(config Config) DownloadsPageModel {
 	downloadsTable := table.New(table.WithColumns([]table.Column{
-		{Title: "Job", Width: 24},
-		{Title: "File", Width: 35},
-		{Title: "Size", Width: downloadsSizeColumnSize},
-		{Title: "State", Width: downloadsStateColumnSize},
-		{Title: "Progress", Width: 10},
+		{Title: "Job", Width: columnDownloadsJobWidth},
+		{Title: "File", Width: columnDownloadsFileWidth},
+		{Title: "Size", Width: columnDownloadsSizeWidth},
+		{Title: "State", Width: columnDownloadsStateWidth},
+		{Title: "Progress", Width: columnDownloadsProgressWidth},
 	}), table.WithStyles(nimbleTableStyles),
 		table.WithFocused(true))
 
+	progressBar := progress.New(
+		progress.WithGradient(rgbaNimbleLightPurple, rgbaNimbleGrue),
+		progress.WithWidth(20))
+
 	m := DownloadsPageModel{
-		config:         config,
-		downloads:      nil,
-		queuedCount:    0,
-		activeCount:    0,
-		progressCh:     make(chan DownloadProgressMsg, 100),
-		width:          20,
-		height:         10,
-		downloadsTable: downloadsTable,
-		help:           help.New(),
-		keyMap:         DefaultDownloadsPageKeyMap(),
+		config:          config,
+		downloadManager: NewDownloadManager(config.DatabentoApiKey, config.MaxActiveDownloads),
+		width:           20,
+		height:          10,
+		downloadsTable:  downloadsTable,
+		progressBar:     progressBar,
+		help:            help.New(),
+		keyMap:          DefaultDownloadsPageKeyMap(),
 	}
 	return m
 }
@@ -108,12 +103,22 @@ func NewDownloadsPage(config Config) DownloadsPageModel {
 
 // DownloadsPageKeyMap is the all the [key.Binding] for the DownloadsPageModel
 type DownloadsPageKeyMap struct {
+	CursorUp   key.Binding
+	CursorDown key.Binding
 	// Cancel key.Binding
 }
 
 // DefaultDownloadsPageKeyMap returns a default set of key bindings for DownloadsPageModel
 func DefaultDownloadsPageKeyMap() DownloadsPageKeyMap {
 	return DownloadsPageKeyMap{
+		CursorUp: key.NewBinding(
+			key.WithKeys("up"),
+			key.WithHelp("up", "cursor up"),
+		),
+		CursorDown: key.NewBinding(
+			key.WithKeys("down"),
+			key.WithHelp("down", "cursor down"),
+		),
 		// Cancel: key.NewBinding(
 		// 	key.WithKeys("x"),
 		// 	key.WithHelp("x", "cancel"),
@@ -125,7 +130,8 @@ func DefaultDownloadsPageKeyMap() DownloadsPageKeyMap {
 // Implements bubble's [help.KeyMap] interface.
 func (m *DownloadsPageKeyMap) FullHelp() [][]key.Binding {
 	kb := [][]key.Binding{{
-		// m.Cancel,
+		m.CursorUp,
+		m.CursorDown,
 	}}
 	return kb
 }
@@ -134,7 +140,8 @@ func (m *DownloadsPageKeyMap) FullHelp() [][]key.Binding {
 // of the help.KeyMap interface.
 func (m DownloadsPageKeyMap) ShortHelp() []key.Binding {
 	kb := []key.Binding{
-		// m.Cancel,
+		m.CursorUp,
+		m.CursorDown,
 	}
 	return kb
 }
@@ -163,12 +170,10 @@ func (m DownloadsPageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case QueueDownloadMsg:
-		cmd := m.onQueueDownload(msg)
-		return m, cmd
-
-	case PerformDownloadMsg:
-		cmd := m.onPerformDownload()
-		return m, cmd
+		for _, file := range msg.Files {
+			m.downloadManager.QueueDownload(msg.JobID, file)
+		}
+		return m, nil
 
 	case DownloadProgressMsg:
 		cmd := m.onDownloadProgress(msg)
@@ -180,11 +185,17 @@ func (m DownloadsPageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // View renders the DownloadsPageModel's view.
 func (m DownloadsPageModel) View() string {
 	viewStr := nimbleBorderStyle.Render(m.downloadsTable.View()) + "\n"
-
 	if m.lastError != nil {
 		viewStr += fmt.Sprintf("Error: %s ", m.lastError)
 	}
-	viewStr += m.help.View(&m.keyMap)
+
+	helpStr := m.help.View(&m.keyMap)
+	countsWidth := m.width - lipgloss.Width(helpStr)
+	queued, active, past := m.downloadManager.Counts()
+	countsStr := lipgloss.NewStyle().Width(countsWidth).Align(lipgloss.Right).
+		Render(fmt.Sprintf(countsReportFormat, past, (past + queued + active), active))
+
+	viewStr += lipgloss.JoinHorizontal(lipgloss.Top, helpStr, countsStr)
 	return viewStr
 }
 
@@ -194,278 +205,75 @@ func (m DownloadsPageModel) View() string {
 func (m *DownloadsPageModel) updateSizes() {
 	availHeight := m.height - 2 - 2 - 2 // 2xAppHeaderFooter 2xPaneBorder
 	m.downloadsTable.SetHeight(availHeight)
-	m.downloadsTable.SetWidth(m.width - 2)
 
 	availWidth := m.width - 2 // 2xPaneBorder
+	m.downloadsTable.SetWidth(availWidth)
+
 	if m.lastError != nil {
 		availWidth -= lipgloss.Width(fmt.Sprintf("Error: %s ", m.lastError))
 	}
 	m.help.Width = availWidth
 }
 
+// renderProgressBar renders a string progress bar with a given [0, 1] times width
+func renderProgressBar(width int, progress float64) string {
+	progress = clampFloat(progress, 0.0, 1.0)
+	fullLen := maxInt(0, width-6) // 5 = len(" 100% ")
+	barLen := int(float64(fullLen) * progress)
+	return fmt.Sprintf("%s%s % 3.0f%%",
+		strings.Repeat("█", barLen),
+		strings.Repeat(".", fullLen-barLen),
+		progress*100)
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 // listenForProgress is a command that waits for the responses on the channel
 func (m *DownloadsPageModel) listenForProgress() tea.Cmd {
 	return func() tea.Msg {
-		return DownloadProgressMsg(<-m.progressCh)
+		return DownloadProgressMsg(<-m.downloadManager.ProgressChannel())
 	}
 }
 
-// checkDownloadQueue is a command that waits for the download queue and begins downloads
-func (m *DownloadsPageModel) checkDownloadQueue() tea.Cmd {
-	return func() tea.Msg {
-		// count the number of active downloads
-		if m.queuedCount > 0 && m.activeCount < MaxActiveDownloads {
-			// start the first queued download
-			return PerformDownloadMsg{}
-		}
-		return nil
-	}
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// HTTP Download Queue
-
-type QueueDownloadMsg struct {
-	JobID string
-	Files []dbn_hist.BatchFileDesc
-}
-
-type PerformDownloadMsg struct{}
-
-type DownloadProgressMsg struct {
-	JobID        string
-	File         string
-	Url          string
-	ExpectedSize uint64
-	CurrentSize  uint64
-	Error        error
-}
-
-// DownloadProgressWriter is an io.Writer that reports download progress via a channel
-// An instance is fed to TeeWriter to track the HTTP download progress
-type DownloadProgressWriter struct {
-	JobID        string
-	File         string
-	Url          string
-	ExpectedSize uint64
-	CurrentSize  uint64
-	ProgressCh   chan DownloadProgressMsg
-}
-
-// Write implements the io.Writer interface, tracking and reporting bytes read on the channel
-func (w *DownloadProgressWriter) Write(p []byte) (int, error) {
-	if p == nil {
-		return 0, nil
-	}
-	n := len(p)
-	w.CurrentSize += uint64(n)
-	w.ProgressCh <- DownloadProgressMsg{
-		JobID:        w.JobID,
-		File:         w.File,
-		Url:          w.Url,
-		ExpectedSize: w.ExpectedSize,
-		CurrentSize:  w.CurrentSize,
-		Error:        nil,
-	}
-	return n, nil
-}
-
-// onQueueDownload handles a QueueDownloadMsg, enqueueing all the download items
-func (m *DownloadsPageModel) onQueueDownload(msg QueueDownloadMsg) tea.Cmd {
-	var cmds []tea.Cmd
-	for _, file := range msg.Files {
-		// extract https url
-		httpsUrl := file.Urls["https"]
-		if httpsUrl == "" {
-			continue
-		}
-		// check if already queued
-		for _, download := range m.downloads {
-			if download.JobID == msg.JobID && download.Url == httpsUrl {
-				continue
-			}
-		}
-		// queue download
-		downloadItem := DownloadItem{
-			JobID:         msg.JobID,
-			Filename:      file.Filename,
-			FileHash:      file.Hash,
-			DestFile:      file.Filename, // TODO: dest path, right now is cwd
-			Url:           httpsUrl,
-			ExpectedSize:  file.Size,
-			State:         DownloadQueued,
-			ContextCancel: nil,
-		}
-		m.downloads = append(m.downloads, downloadItem)
-		m.queuedCount++
-
-		m.downloadsTable.SetRows(append(m.downloadsTable.Rows(), table.Row{
-			downloadItem.JobID,
-			downloadItem.Filename,
-			lipgloss.NewStyle().Width(downloadsSizeColumnSize).Align(lipgloss.Right).
-				Render(humanize.Comma(int64(downloadItem.ExpectedSize))),
-			lipgloss.NewStyle().Width(downloadsStateColumnSize).Align(lipgloss.Center).
-				Render(string(downloadItem.State)),
-			"0.0%",
-		}))
-		cmds = append(cmds, m.checkDownloadQueue())
-	}
-	return tea.Batch(cmds...)
-}
-
-// onPerformDownload handles a PerformDownloadMsg, performing the download
-func (m *DownloadsPageModel) onPerformDownload() tea.Cmd {
-	// find the first queeud download and activate it
-	for i, download := range m.downloads {
-		if download.State == DownloadQueued {
-			m.activeCount++
-			m.queuedCount--
-			m.downloads[i].State = DownloadActive
-			return m.startPerformDownload(m.downloads[i])
-		}
-	}
-	return nil
-}
-
-// onDownloadProgress handles a DownloadProgressMsg, updating the state of DownloadItems
+// onDownloadProgress handles a DownloadProgressMsg, updating the tables for the DownloadItems
 func (m *DownloadsPageModel) onDownloadProgress(msg DownloadProgressMsg) tea.Cmd {
-	// Find the download
-	cmds := []tea.Cmd{m.listenForProgress()}
-	for i, download := range m.downloads {
-		if download.JobID == msg.JobID || download.Url == msg.Url {
-			thisDownload := &m.downloads[i]
-			// Update the download
-			if msg.Error != nil {
-				thisDownload.State = DownloadFailed
-				m.activeCount--
-				m.lastError = msg.Error
-				cmds = append(cmds, m.checkDownloadQueue()) // start the next download
-			} else {
-				thisDownload.Progress = minFloat(1.0, float64(msg.CurrentSize)/float64(msg.ExpectedSize))
-				if thisDownload.Progress >= 1.0 {
-					thisDownload.Progress = 1.0
-					thisDownload.State = DownloadComplete
-					m.activeCount--
-					cmds = append(cmds, m.checkDownloadQueue()) // start the next download
-				}
-			}
+	// Render progress or report an error
+	var progressStr string
+	if msg.Error != nil {
+		progressStr = fmt.Sprintf("%s", msg.Error.Error())
+		m.lastError = msg.Error
+	} else {
+		progress := clampFloat(float64(msg.CurrentSize)/float64(msg.Desc.Size), 0, 1)
+		progressStr = renderProgressBar(columnDownloadsProgressWidth, progress)
+	}
 
-			// Update the row in the table
-			for _, row := range m.downloadsTable.Rows() {
-				if row[downloadsJobColumn] == msg.JobID && row[downloadsFileColumn] == msg.File {
-					row[downloadsStateColumn] = string(thisDownload.State)
-					row[downloadsProgressColumn] = fmt.Sprintf("%.2f%%", thisDownload.Progress*100)
-					m.downloadsTable.UpdateViewport()
-					break
-				}
-			}
+	// Update the download's row
+	found := false
+	downloadsRows := m.downloadsTable.Rows()
+	for i := 0; i < len(downloadsRows); i++ {
+		row := downloadsRows[i]
+		if row[columnDownloadsJobIndex] == msg.Desc.JobID && row[columnDownloadsFileIndex] == msg.Desc.Filename {
+			row[columnDownloadsStateIndex] = lipgloss.NewStyle().Width(columnDownloadsStateWidth).Align(lipgloss.Center).
+				Render(string(msg.State))
+			row[columnDownloadsProgressIndex] = progressStr
+			downloadsRows[i] = row
+			m.downloadsTable.UpdateViewport()
+			found = true
 			break
 		}
 	}
-	return tea.Batch(cmds...)
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-// startPerformDownload is a tea.Msg wrapper for perfomDownload
-func (m *DownloadsPageModel) startPerformDownload(item DownloadItem) tea.Cmd {
-	return func() tea.Msg {
-		return m.performDownload(item)
-	}
-}
-
-// performDownload downlaods the specified file and reports progress
-// Adapted from: https://github.com/joncrlsn/go-examples/blob/master/http-download-with-progress.go#L15
-func (m *DownloadsPageModel) performDownload(item DownloadItem) tea.Msg {
-	// Create a DownloadProgressMsg to propogate errors
-	progressMsg := DownloadProgressMsg{
-		JobID:        item.JobID,
-		File:         item.Filename,
-		Url:          item.Url,
-		ExpectedSize: item.ExpectedSize,
+	if !found {
+		m.downloadsTable.SetRows(append(m.downloadsTable.Rows(), table.Row{
+			msg.Desc.JobID,
+			msg.Desc.Filename,
+			lipgloss.NewStyle().Width(columnDownloadsSizeWidth).Align(lipgloss.Right).
+				Render(humanize.Comma(int64(msg.Desc.Size))),
+			lipgloss.NewStyle().Width(columnDownloadsStateWidth).Align(lipgloss.Center).
+				Render(string(msg.State)),
+			// lipgloss.NewStyle().Width(columnDownloadsStateWidth).Render(
+			progressStr,
+		}))
 	}
 
-	// Create the request
-	apiUrl, err := url.Parse(item.Url)
-	if err != nil {
-		progressMsg.Error = err
-		m.progressCh <- progressMsg
-		return nil
-	}
-
-	ctx, _ := context.WithCancel(context.Background()) // TODO: use cancelFunc
-	req, err := retryablehttp.NewRequestWithContext(ctx, "GET", apiUrl.String(), nil)
-	if err != nil {
-		progressMsg.Error = err
-		m.progressCh <- progressMsg
-		return nil
-	}
-
-	auth := base64.StdEncoding.EncodeToString([]byte(m.config.DatabentoApiKey + ":"))
-	req.Header.Add("Authorization", "Basic "+auth)
-
-	// Create the file, but give it a tmp file extension, this means we won't overwrite a
-	// file until it's downloaded, but we'll remove the tmp extension once downloaded.
-	tmpFile, err := os.Create(item.DestFile + ".tmp")
-	if err != nil {
-		progressMsg.Error = err
-		m.progressCh <- progressMsg
-		return nil
-	}
-	defer tmpFile.Close()
-
-	// Get the data
-	retryClient := retryablehttp.NewClient()
-	retryClient.RetryMax = 10
-	retryClient.Logger = log.New(io.Discard, "", log.LstdFlags)
-	resp, err := retryClient.Do(req)
-	if err != nil {
-		progressMsg.Error = err
-		m.progressCh <- progressMsg
-		return nil
-	}
-
-	if resp.StatusCode == http.StatusUnauthorized {
-		progressMsg.Error = fmt.Errorf("key not authorized")
-		m.progressCh <- progressMsg
-		return nil
-	} else if resp.StatusCode == http.StatusTooManyRequests {
-		progressMsg.Error = fmt.Errorf("%s", resp.Status)
-		m.progressCh <- progressMsg
-		return nil
-	} else if resp.StatusCode != http.StatusOK {
-		progressMsg.Error = fmt.Errorf("%s", resp.Status)
-		m.progressCh <- progressMsg
-		return nil
-	}
-	defer resp.Body.Close()
-
-	// Create our progress reporter and pass it to be used alongside our writer
-	progressWriter := &DownloadProgressWriter{
-		JobID:        item.JobID,
-		File:         item.Filename,
-		Url:          item.Url,
-		ExpectedSize: item.ExpectedSize,
-		CurrentSize:  0,
-		ProgressCh:   m.progressCh,
-	}
-	bytesCopied, err := io.Copy(tmpFile, io.TeeReader(resp.Body, progressWriter))
-	if err != nil {
-		progressMsg.Error = err
-		m.progressCh <- progressMsg
-		return nil
-	}
-
-	// Close the file without defer so it can happen before Rename()
-	tmpFile.Close()
-	if err = os.Rename(item.DestFile+".tmp", item.DestFile); err != nil {
-		progressMsg.Error = err
-		m.progressCh <- progressMsg
-		return nil
-	}
-
-	progressMsg.CurrentSize = uint64(bytesCopied)
-	m.progressCh <- progressMsg
-
-	return nil
+	return m.listenForProgress()
 }

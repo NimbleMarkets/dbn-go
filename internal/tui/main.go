@@ -12,7 +12,8 @@ import (
 )
 
 type Config struct {
-	DatabentoApiKey string
+	DatabentoApiKey    string
+	MaxActiveDownloads int // note that default would be 0, which is no downloads
 }
 
 func Run(config Config) error {

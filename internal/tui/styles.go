@@ -3,20 +3,31 @@
 package tui
 
 import (
+	stickersTable "github.com/76creates/stickers/table"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/lipgloss"
 )
 
 var (
+
 	// Nimble Color Pallete
-	colorDarkPurple  = lipgloss.Color("#3F3080")
-	colorLightPurple = lipgloss.Color("#655BA7")
-	colorRed         = lipgloss.Color("#E24F36")
-	colorGrue        = lipgloss.Color("#4495AA")
-	colorGreen       = lipgloss.Color("#AA7D7B1")
-	colorYellow      = lipgloss.Color("#FBF4A5")
-	colorWhite       = lipgloss.Color("#FFFFFF")
-	colorBlack       = lipgloss.Color("#000000")
+	rgbaNimbleDarkPurple  = "#3F3080"
+	rgbaNimbleLightPurple = "#655BA7"
+	rgbaNimbleRed         = "#E24F36"
+	rgbaNimbleGrue        = "#4495AA"
+	rgbaNimbleGreen       = "#AA7D7B1"
+	rgbaNimbleYellow      = "#FBF4A5"
+	rgbaNimbleWhite       = "#FFFFFF"
+	rgbaNimbleBlack       = "#000000"
+
+	colorDarkPurple  = lipgloss.Color(rgbaNimbleDarkPurple)
+	colorLightPurple = lipgloss.Color(rgbaNimbleLightPurple)
+	colorRed         = lipgloss.Color(rgbaNimbleRed)
+	colorGrue        = lipgloss.Color(rgbaNimbleGrue)
+	colorGreen       = lipgloss.Color(rgbaNimbleGreen)
+	colorYellow      = lipgloss.Color(rgbaNimbleYellow)
+	colorWhite       = lipgloss.Color(rgbaNimbleWhite)
+	colorBlack       = lipgloss.Color(rgbaNimbleBlack)
 
 	nimbleBorderStyle = lipgloss.NewStyle().
 				Border(lipgloss.NormalBorder(), true).
@@ -26,5 +37,23 @@ var (
 		Header:   lipgloss.NewStyle().Bold(true).Foreground(colorRed).Padding(0, 1),
 		Selected: lipgloss.NewStyle().Bold(true).Foreground(colorGrue),
 		Cell:     lipgloss.NewStyle().Padding(0, 1),
+	}
+
+	nimbleStickerTableStyles = map[stickersTable.TableStyleKey]lipgloss.Style{
+		stickersTable.TableHeaderStyleKey: lipgloss.NewStyle().
+			Foreground(colorRed),
+		stickersTable.TableFooterStyleKey: lipgloss.NewStyle().
+			Align(lipgloss.Right).
+			Height(1).
+			Foreground(colorRed).
+			Background(colorLightPurple),
+		stickersTable.TableRowsStyleKey: lipgloss.NewStyle().
+			Foreground(colorWhite),
+		stickersTable.TableRowsSubsequentStyleKey: lipgloss.NewStyle().
+			Foreground(colorWhite),
+		stickersTable.TableRowsCursorStyleKey: lipgloss.NewStyle().
+			Foreground(colorGrue),
+		stickersTable.TableCellCursorStyleKey: lipgloss.NewStyle().
+			Foreground(colorGrue),
 	}
 )

@@ -219,7 +219,7 @@ func getSchemas(databentoApiKey string, dataset string) tea.Cmd {
 				(*destMap)[schema] = cost
 			}
 		}
-		for schema, _ := range schemasMap {
+		for schema := range schemasMap {
 			msg.Schemas = append(msg.Schemas, schema)
 		}
 		return msg
