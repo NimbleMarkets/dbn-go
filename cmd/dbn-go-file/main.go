@@ -138,6 +138,9 @@ var writeParquetCmd = &cobra.Command{
 				destFile = sourceFile + ".parquet"
 			}
 
+			if verbose {
+				fmt.Fprintf(os.Stderr, "Converting %s to %s\n", sourceFile, destFile)
+			}
 			if err := dbn_file.WriteDbnFileAsParquet(sourceFile, forceZstdInput, destFile); err != nil {
 				fmt.Fprintf(os.Stderr, "error: parquet converting %s: %s\n", sourceFile, err.Error())
 			}

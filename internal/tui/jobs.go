@@ -24,6 +24,7 @@ const (
 
 	columnJobsReceivedWidth  = 19
 	columnJobsDatasetWidth   = 10
+	columnJobsStateWidth     = 10
 	columnJobsStartDateWidth = 10
 	columnJobsEndDateWidth   = 10
 	columnJobsEncodingWidth  = 8
@@ -77,6 +78,7 @@ func NewJobsPage(config Config) JobsPageModel {
 	jobsTable := table.New(table.WithColumns([]table.Column{
 		{Title: "Received", Width: columnJobsReceivedWidth},
 		{Title: "Dataset", Width: columnJobsDatasetWidth},
+		{Title: "State", Width: columnJobsStateWidth},
 		{Title: "Start Date", Width: columnJobsStartDateWidth},
 		{Title: "End Date", Width: columnJobsEndDateWidth},
 		{Title: "Encoding", Width: columnJobsEncodingWidth},
@@ -257,6 +259,7 @@ func (m JobsPageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			rows = append(rows, table.Row{
 				job.TsReceived.Format(time.DateTime),
 				job.Dataset,
+				job.State.String(),
 				job.Start.Format(time.DateOnly),
 				job.End.Format(time.DateOnly),
 				job.Encoding.String(),

@@ -89,7 +89,7 @@ func NewDownloadManager(databentoApiKey string, maxActiveDownloads int) *Downloa
 		maxActiveDownloads: maxActiveDownloads,
 		progressCh:         make(chan DownloadProgressMsg, 500),
 		queueExitCh:        make(chan int, 10),
-		queueTicker:        time.NewTicker(500 * time.Millisecond),
+		queueTicker:        time.NewTicker(100 * time.Millisecond),
 	}
 	go dm.queueHandler()
 	return dm
@@ -226,12 +226,11 @@ func (dm *DownloadManager) sendProgress(progressMsg *DownloadProgressMsg) {
 // queueHandler is the main loop for the downloads manager
 // It is the only goroutine that should access the downloads slice
 func (dm *DownloadManager) queueHandler() {
-	ticker := time.NewTicker(500 * time.Millisecond)
 	for {
 		select {
 		case <-dm.queueExitCh:
 			return // all done!
-		case <-ticker.C:
+		case <-dm.queueTicker.C:
 			dm.sendProgress(nil)
 			for dm.checkQueue() { // loop till we can't queue anymore
 			}
