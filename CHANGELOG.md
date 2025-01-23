@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## v0.3.0 (unreleased)
+## v0.3.0 (2025-01-22)
 
  * Removed obsolete `Packaging` parameter from `dbn_hist.SubmitJob` and structs
  * `dbn-go-file`: Do not include `.zst` suffix in Parquet destination file names

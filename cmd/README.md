@@ -29,7 +29,7 @@ These tools are available as:
 
 ## `dbn-go-file`
 
-`dbn-go-file` is a command-line tool to process DBN files.  You can see an example of exercising it in [this script file](./tests/exercise_dbn-go-file.sh).
+`dbn-go-file` is a command-line tool to process DBN files.  You can see an example of exercising it in [this script file](../tests/exercise_dbn-go-file.sh).
 
 ```
 $ dbn-go-file --help
@@ -101,7 +101,7 @@ writing to 'tests/split/GLBX.MDP3/ESH1/2020/12/28/ESH1.20201228.ohlcv-1s.dbn.zst
 
 ## `dbn-go-hist`
 
-`dbn-go-hist` is a command-line tool to interact with the Databento Historical API.  You can see an example of exercising it in [this script file](./tests/exercise_dbn-go-hist.sh).  It requires your [Databento API Key](https://databento.com/portal/keys) to be set with `--key` or preferably via the `DATABENTO_API_KEY` environment variable.
+`dbn-go-hist` is a command-line tool to interact with the Databento Historical API.  You can see an example of exercising it in [this script file](../tests/exercise_dbn-go-hist.sh).  It requires your [Databento API Key](https://databento.com/portal/keys) to be set with `--key` or preferably via the `DATABENTO_API_KEY` environment variable.
 
 *CAUTION: This program may incur billing!*
 
@@ -147,6 +147,9 @@ IFEU.IMPACT
 NDEX.IMPACT
 OPRA.PILLAR
 XNAS.ITCH
+
+$ dbn-go-hist schemas -d DBEQ.BASIC --json
+["mbo","mbp-1","mbp-10","tbbo","trades","ohlcv-1s","ohlcv-1m","ohlcv-1h","ohlcv-1d","definition","status"]
 ```
 
 ----
@@ -215,6 +218,7 @@ It has four main pages.  See the bottom of each page for key bindings.
 | **Datasets** | List datasets, their schemas, and costs |
 | **Publishers** | List publishers and their datasets |
 
+Currently, downloads are placed in the current working directory.
 
 Here are some screenshots of each TUI page:
 
