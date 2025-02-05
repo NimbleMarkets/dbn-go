@@ -28,6 +28,7 @@ type Config struct {
 	Schemas     []string
 	Symbols     []string
 	StartTime   time.Time
+	Snapshot    bool
 	Verbose     bool
 }
 
@@ -48,6 +49,7 @@ func main() {
 	pflag.VarP(&config.STypeIn, "sin", "i", "Input SType of the symbols. One of instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms")
 	pflag.VarP(&config.Encoding, "encoding", "e", "Encoding of the output ('dbn', 'csv', 'json')")
 	pflag.StringVarP(&startTimeArg, "start", "t", "", "Start time to request as ISO 8601 format (default: now)")
+	pflag.BoolVarP(&config.Snapshot, "snapshot", "n", false, "Enable snapshot on subscription request")
 	pflag.BoolVarP(&config.Verbose, "verbose", "v", false, "Verbose logging")
 	pflag.BoolVarP(&showHelp, "help", "h", false, "Show help")
 	pflag.Parse()
@@ -136,7 +138,7 @@ func run(config Config) error {
 			StypeIn:  config.STypeIn,
 			Symbols:  config.Symbols,
 			Start:    config.StartTime,
-			Snapshot: false,
+			Snapshot: config.Snapshot,
 		}
 		if err = client.Subscribe(subRequest); err != nil {
 			return fmt.Errorf("failed to subscribe LiveClient: %w", err)
