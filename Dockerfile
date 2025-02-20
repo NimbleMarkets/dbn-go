@@ -31,7 +31,6 @@ RUN curl -fSL "https://github.com/go-task/task/releases/download/${TASKFILE_VERS
 ARG GINKO_VERSION="v2.22.2"
 RUN go install "github.com/onsi/ginkgo/v2/ginkgo@${GINKO_VERSION}"
 
-RUN env
 ADD . /src
 WORKDIR /src
 

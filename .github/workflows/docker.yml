@@ -15,19 +15,18 @@ on:
     - 'main'
     - 'v*.*.*'
 
-permissions: 
+permissions:
   contents: read
   packages: write
 
 jobs:
   build-dbn-go:
-
     runs-on: ubuntu-latest
     steps:
     # Get the repositery's code
     - name: Checkout
       uses: actions/checkout@v4
-      
+
     # https://github.com/docker/setup-qemu-action
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
@@ -60,9 +59,9 @@ jobs:
           type=semver,pattern={{major}}.{{minor}}
           type=semver,pattern={{major}}
           type=sha
- 
+
     - name: Build and push
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v6
       with:
         context: .
         platforms: linux/amd64,linux/arm64
