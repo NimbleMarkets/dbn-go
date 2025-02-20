@@ -4,9 +4,11 @@
 
 *“The two most powerful warriors are patience and time” – Leo Tolstoy*
 
- * Many Hist API calls were passing Dates, rather than full DateTimes, to the backend.   Now date+time is used where appropriate.
+ * Many Hist API calls were passing Dates, rather than full DateTimes, to the backend.   Now date+time is used where appropriate. (#8)
  * Bugfix incorrect end time in `dbn_hist.ListDatasets`.
  * **BREAKING** `dbn-go-hist` time flags (`--start`, `--end`) now uses [ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html) `YYYY-MM-DD` instead of `YYYYMMDD`.  Times and timezones may now be included: `YYYY-MM-DDTHH:MM:SS±HH:MM`.
+
+  * Unfortunately, `arm64` Docker images are currently disabled due to infrastructure issues (?)
 
 ## v0.3.0 (2025-01-22)
 
