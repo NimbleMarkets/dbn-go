@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/NimbleMarkets/dbn-go"
 )
@@ -100,10 +101,10 @@ func (metaParams *MetadataQueryParams) ApplyToURLValues(params *url.Values) erro
 	if metaParams.DateRange.Start.IsZero() {
 		return errors.New("DateRange.Start must be defined")
 	} else {
-		params.Add("start", metaParams.DateRange.Start.Format("2006-01-02"))
+		params.Add("start", metaParams.DateRange.Start.Format(time.RFC3339))
 	}
 	if !metaParams.DateRange.End.IsZero() {
-		params.Add("end", metaParams.DateRange.End.Format("2006-01-02"))
+		params.Add("end", metaParams.DateRange.End.Format(time.RFC3339))
 	}
 
 	csvSymbols := strings.Join(metaParams.Symbols, ",")
@@ -193,10 +194,10 @@ func ListDatasets(apiKey string, dateRange DateRange) ([]string, error) {
 
 	params := url.Values{}
 	if !dateRange.Start.IsZero() {
-		params.Add("start_date", dateRange.Start.Format("2006-01-02"))
+		params.Add("start_date", dateRange.Start.Format(time.RFC3339))
 	}
-	if !dateRange.Start.IsZero() {
-		params.Add("end_date", dateRange.Start.Format("2006-01-02"))
+	if !dateRange.End.IsZero() {
+		params.Add("end_date", dateRange.End.Format(time.RFC3339))
 	}
 	baseUrl.RawQuery = params.Encode()
 
@@ -317,10 +318,10 @@ func GetDatasetCondition(apiKey string, dataset string, dateRange DateRange) ([]
 	params := url.Values{}
 	params.Add("dataset", dataset)
 	if !dateRange.Start.IsZero() {
-		params.Add("start_date", dateRange.Start.Format("2006-01-02"))
+		params.Add("start_date", dateRange.Start.Format(time.RFC3339))
 	}
 	if !dateRange.End.IsZero() {
-		params.Add("end_date", dateRange.End.Format("2006-01-02"))
+		params.Add("end_date", dateRange.End.Format(time.RFC3339))
 	}
 	baseUrl.RawQuery = params.Encode()
 

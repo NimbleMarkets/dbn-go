@@ -235,10 +235,10 @@ func (jobParams *SubmitJobParams) ApplyToURLValues(params *url.Values) error {
 	if jobParams.DateRange.Start.IsZero() {
 		return errors.New("DateRange.Start is required")
 	} else {
-		params.Add("start", jobParams.DateRange.Start.Format("2006-01-02"))
+		params.Add("start", jobParams.DateRange.Start.Format(time.RFC3339))
 	}
 	if !jobParams.DateRange.End.IsZero() {
-		params.Add("end", jobParams.DateRange.End.Format("2006-01-02"))
+		params.Add("end", jobParams.DateRange.End.Format(time.RFC3339))
 	}
 	if encodingStr := jobParams.Encoding.String(); encodingStr == "" {
 		return fmt.Errorf("missing require Encoding")

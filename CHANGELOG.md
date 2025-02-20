@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## v0.4.0 (2025-02-20)
+
+*“The two most powerful warriors are patience and time” – Leo Tolstoy*
+
+ * Many Hist API calls were passing Dates, rather than full DateTimes, to the backend.   Now date+time is used where appropriate.
+ * Bugfix incorrect end time in `dbn_hist.ListDatasets`.
+ * **BREAKING** `dbn-go-hist` time flags (`--start`, `--end`) now uses [ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html) `YYYY-MM-DD` instead of `YYYYMMDD`.  Times and timezones may now be included: `YYYY-MM-DDTHH:MM:SS±HH:MM`.
+
 ## v0.3.0 (2025-01-22)
 
  * Removed obsolete `Packaging` parameter from `dbn_hist.SubmitJob` and structs

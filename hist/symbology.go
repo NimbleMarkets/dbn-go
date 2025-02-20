@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/NimbleMarkets/dbn-go"
 )
@@ -69,10 +70,10 @@ func SymbologyResolve(apiKey string, params ResolveParams) (*Resolution, error) 
 	if params.DateRange.Start.IsZero() {
 		return nil, fmt.Errorf("DateRange.Start is required")
 	} else {
-		formData.Add("start_date", params.DateRange.Start.Format("2006-01-02"))
+		formData.Add("start_date", params.DateRange.Start.Format(time.RFC3339))
 	}
 	if !params.DateRange.End.IsZero() {
-		formData.Add("end_date", params.DateRange.End.Format("2006-01-02"))
+		formData.Add("end_date", params.DateRange.End.Format(time.RFC3339))
 	}
 
 	body, err := databentoPostFormRequest(apiUrl, apiKey, formData, "")

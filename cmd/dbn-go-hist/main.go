@@ -12,13 +12,14 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/NimbleMarkets/dbn-go"
 	dbn_hist "github.com/NimbleMarkets/dbn-go/hist"
 	dbn_tui "github.com/NimbleMarkets/dbn-go/internal/tui"
 	"github.com/charmbracelet/huh"
 	"github.com/dustin/go-humanize"
-	"github.com/neomantra/ymdflag"
+	"github.com/relvacode/iso8601"
 	"github.com/segmentio/encoding/json"
 	"github.com/spf13/cobra"
 )
@@ -50,22 +51,11 @@ var (
 	jobID       string
 	stateFilter string
 
-	startYMD ymdflag.YMDFlag
-	endYMD   ymdflag.YMDFlag
+	startTimeArg string
+	endTimeArg   string
 
 	useForce bool
 )
-
-func getDateRangeArg() dbn_hist.DateRange {
-	dateRange := dbn_hist.DateRange{}
-	if !startYMD.IsZero() {
-		dateRange.Start = startYMD.AsTime()
-	}
-	if !endYMD.IsZero() {
-		dateRange.End = endYMD.AsTime()
-	}
-	return dateRange
-}
 
 // getMetadataQueryParams returns a MetadataQueryParams struct based on CLI globals and the given symbols.
 func getMetadataQueryParams(symbols []string) dbn_hist.MetadataQueryParams {
@@ -73,7 +63,7 @@ func getMetadataQueryParams(symbols []string) dbn_hist.MetadataQueryParams {
 		Dataset:   dataset,
 		Symbols:   symbols,
 		Schema:    schemaStr,
-		DateRange: getDateRangeArg(),
+		DateRange: requireDateRange(),
 		Mode:      dbn_hist.FeedMode_Historical,
 		StypeIn:   stypeIn,
 		Limit:     -1,
@@ -88,7 +78,7 @@ func getSubmitJobParams(symbols []string) dbn_hist.SubmitJobParams {
 		Dataset:     dataset,
 		Symbols:     symbolsStr,
 		Schema:      schema,
-		DateRange:   getDateRangeArg(),
+		DateRange:   requireDateRange(),
 		Encoding:    encoding,
 		Compression: compression,
 		Delivery:    dbn_hist.Delivery_Download,
@@ -158,6 +148,26 @@ func requireDatabentoApiKey() string {
 	return databentoApiKey
 }
 
+func requireDateRange() dbn_hist.DateRange {
+	var err error
+	dateRange := dbn_hist.DateRange{}
+	if startTimeArg != "" {
+		dateRange.Start, err = iso8601.ParseString(startTimeArg)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to parse --start as ISO 8601 time: %s\n", err.Error())
+			os.Exit(1)
+		}
+	}
+	if endTimeArg != "" {
+		dateRange.End, err = iso8601.ParseString(endTimeArg)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to parse --end as ISO 8601 time: %s\n", err.Error())
+			os.Exit(1)
+		}
+	}
+	return dateRange
+}
+
 func requireNoError(err error) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
@@ -201,8 +211,8 @@ func main() {
 	rootCmd.PersistentFlags().StringVarP(&databentoApiKey, "key", "k", "", "Databento API key (or use DATABENT_API_KEY envvar)")
 
 	rootCmd.AddCommand(listDatasetsCmd)
-	listDatasetsCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD")
-	listDatasetsCmd.Flags().VarP(&endYMD, "end", "e", "End date as YYYYMMDD")
+	listDatasetsCmd.Flags().StringVarP(&startTimeArg, "start", "t", "", "Start time in ISO 8601 format")
+	listDatasetsCmd.Flags().StringVarP(&endTimeArg, "end", "e", "", "End time in ISO 8601 format")
 	listDatasetsCmd.Flags().BoolVarP(&emitJSON, "json", "j", false, "Emit JSON instead of simple summary")
 
 	rootCmd.AddCommand(listPublishersCmd)
@@ -226,8 +236,8 @@ func main() {
 
 	rootCmd.AddCommand(getDatasetConditionCmd)
 	getDatasetConditionCmd.Flags().StringVarP(&dataset, "dataset", "d", "", "Dataset to get condition for")
-	getDatasetConditionCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD")
-	getDatasetConditionCmd.Flags().VarP(&endYMD, "end", "e", "End date as YYYYMMDD")
+	getDatasetConditionCmd.Flags().StringVarP(&startTimeArg, "start", "t", "", "Start time in ISO 8601 format")
+	getDatasetConditionCmd.Flags().StringVarP(&endTimeArg, "end", "e", "", "End time in ISO 8601 format")
 	getDatasetConditionCmd.Flags().BoolVarP(&emitJSON, "json", "j", false, "Emit JSON instead of simple summary")
 	getDatasetConditionCmd.MarkFlagRequired("dataset")
 
@@ -240,8 +250,8 @@ func main() {
 	getCostCmd.Flags().StringVarP(&schemaStr, "schema", "s", "", "Schema to get cost for")
 	getCostCmd.Flags().StringVarP(&symbolsFile, "file", "f", "", "Newline delimited file to read symbols from (# is comment)")
 	getCostCmd.Flags().BoolVarP(&allSymbols, "all", "", false, "Get record count for all symbols")
-	getCostCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD")
-	getCostCmd.Flags().VarP(&endYMD, "end", "e", "End date as YYYYMMDD")
+	getCostCmd.Flags().StringVarP(&startTimeArg, "start", "t", "", "Start time in ISO 8601 format")
+	getCostCmd.Flags().StringVarP(&endTimeArg, "end", "e", "", "End time in ISO 8601 format")
 	getCostCmd.Flags().BoolVarP(&emitJSON, "json", "j", false, "Emit JSON instead of simple summary")
 	getCostCmd.Flags().VarP(&stypeIn, "sin", "", "Set stype_in: one of instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms (default: 'raw')")
 	getCostCmd.Flags().VarP(&stypeOut, "sout", "", "Set stype_out: one of instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms (default: 'id')")
@@ -251,7 +261,7 @@ func main() {
 	rootCmd.AddCommand(listJobsCmd)
 	listJobsCmd.Flags().StringVarP(&stateFilter, "state", "", "", "Comma-separated Filter for job states. Can include 'received', 'queued', 'processing', 'done', and 'expired'.")
 	listJobsCmd.Flags().BoolVarP(&emitJSON, "json", "j", false, "Emit JSON instead of simple summary")
-	listJobsCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD (optional)")
+	listJobsCmd.Flags().StringVarP(&startTimeArg, "start", "t", "", "Start time in ISO 8601 format (optional)")
 
 	rootCmd.AddCommand(listFilesCmd)
 	listFilesCmd.Flags().StringVarP(&jobID, "job", "", "", "Job ID to list files for")
@@ -266,8 +276,8 @@ func main() {
 	submitJobCmd.Flags().StringVarP(&symbolsFile, "file", "f", "", "Newline delimited file to read symbols from (# is comment)")
 	submitJobCmd.Flags().BoolVarP(&allSymbols, "all", "", false, "Request data for all symbols")
 	submitJobCmd.Flags().BoolVarP(&useForce, "force", "", false, "Do not warn about all symbols or cost")
-	submitJobCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD.")
-	submitJobCmd.Flags().VarP(&endYMD, "end", "e", "End date as YYYYMMDD")
+	submitJobCmd.Flags().StringVarP(&startTimeArg, "start", "t", "", "Start time in ISO 8601 format")
+	submitJobCmd.Flags().StringVarP(&endTimeArg, "end", "e", "", "End time in ISO 8601 format")
 	submitJobCmd.Flags().VarP(&stypeIn, "sin", "", "Set stype_in: one of instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms (default: 'raw')")
 	submitJobCmd.Flags().VarP(&stypeOut, "sout", "", "Set stype_out: one of instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms (default: 'id')")
 	submitJobCmd.MarkFlagRequired("dataset")
@@ -282,8 +292,8 @@ func main() {
 	getRangeCmd.Flags().StringVarP(&symbolsFile, "file", "f", "", "Newline delimited file to read symbols from (# is comment)")
 	getRangeCmd.Flags().BoolVarP(&allSymbols, "all", "", false, "Request data for all symbols")
 	getRangeCmd.Flags().BoolVarP(&useForce, "force", "", false, "Do not warn about all symbols or cost")
-	getRangeCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD.")
-	getRangeCmd.Flags().VarP(&endYMD, "end", "e", "End date as YYYYMMDD")
+	getRangeCmd.Flags().StringVarP(&startTimeArg, "start", "t", "", "Start time in ISO 8601 format")
+	getRangeCmd.Flags().StringVarP(&endTimeArg, "end", "e", "", "End time in ISO 8601 format")
 	getRangeCmd.Flags().VarP(&stypeIn, "sin", "", "Set stype_in: one of instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms (default: 'raw')")
 	getRangeCmd.Flags().VarP(&stypeOut, "sout", "", "Set stype_out: one of instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms (default: 'id')")
 	getRangeCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file for data ('-' is stdout)")
@@ -296,8 +306,8 @@ func main() {
 	resolveCmd.Flags().StringVarP(&dataset, "dataset", "d", "", "Dataset to resolve")
 	resolveCmd.Flags().StringVarP(&schemaStr, "schema", "s", "", "Schema to resolve")
 	resolveCmd.Flags().BoolVarP(&allSymbols, "all", "", false, "Resolve all symbols")
-	resolveCmd.Flags().VarP(&startYMD, "start", "t", "Start date as YYYYMMDD")
-	resolveCmd.Flags().VarP(&endYMD, "end", "e", "End date as YYYYMMDD")
+	resolveCmd.Flags().StringVarP(&startTimeArg, "start", "t", "", "Start time in ISO 8601 format")
+	resolveCmd.Flags().StringVarP(&endTimeArg, "end", "e", "", "End time in ISO 8601 format")
 	resolveCmd.Flags().VarP(&stypeIn, "sin", "", "Set stype_in: one of instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms (default: 'raw')")
 	resolveCmd.Flags().VarP(&stypeOut, "sout", "", "Set stype_out: one of instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms (default: 'id')")
 	resolveCmd.Flags().BoolVarP(&emitJSON, "json", "j", false, "Emit JSON instead of simple summary")
@@ -326,7 +336,7 @@ var listDatasetsCmd = &cobra.Command{
 	Args:    cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		apiKey := requireDatabentoApiKey()
-		dateRange := getDateRangeArg()
+		dateRange := requireDateRange()
 
 		datasets, err := dbn_hist.ListDatasets(apiKey, dateRange)
 		requireNoError(err)
@@ -436,7 +446,7 @@ var getDatasetConditionCmd = &cobra.Command{
 	Args:    cobra.ArbitraryArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		apiKey := requireDatabentoApiKey()
-		conditions, err := dbn_hist.GetDatasetCondition(apiKey, dataset, getDateRangeArg())
+		conditions, err := dbn_hist.GetDatasetCondition(apiKey, dataset, requireDateRange())
 		requireNoError(err)
 
 		if emitJSON {
@@ -461,8 +471,8 @@ var getDatasetRangeCmd = &cobra.Command{
 
 		fmt.Fprintf(os.Stdout, "%s start:%s end: %s\n",
 			dataset,
-			datasetRange.Start.Format("2006-01-02"),
-			datasetRange.End.Format("2006-01-02"),
+			datasetRange.Start.Format(time.RFC3339),
+			datasetRange.End.Format(time.RFC3339),
 		)
 	},
 }
@@ -506,7 +516,7 @@ var listJobsCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		apiKey := requireDatabentoApiKey()
 
-		jobs, err := dbn_hist.ListJobs(apiKey, stateFilter, getDateRangeArg().Start)
+		jobs, err := dbn_hist.ListJobs(apiKey, stateFilter, requireDateRange().Start)
 		requireNoError(err)
 
 		if emitJSON {
@@ -613,7 +623,7 @@ var resolveCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		apiKey := requireDatabentoApiKey()
 		symbols := requireSymbolArgs(args)
-		dateRange := getDateRangeArg()
+		dateRange := requireDateRange()
 
 		resolveParams := dbn_hist.ResolveParams{
 			Dataset:   dataset,
