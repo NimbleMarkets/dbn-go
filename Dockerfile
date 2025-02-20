@@ -18,7 +18,6 @@ ARG DBNGO_BUILD_TAG="1.23-bullseye"
 
 # Extract TARGETARCH from BuildKit
 ARG TARGETARCH
-ARG TARGETOS TARGETARCH
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -62,6 +61,9 @@ ARG DBNGO_BUILD_TAG="1.22-bullseye"
 
 ARG DBNGO_RUNTIME_BASE="debian"
 ARG DBNGO_RUNTIME_TAG="bullseye-slim"
+
+# Extract TARGETARCH from BuildKit
+ARG TARGETARCH
 
 # Install dependencies and ops tools
 RUN DEBIAN_FRONTEND=noninteractive apt-get update \
