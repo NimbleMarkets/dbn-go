@@ -145,7 +145,7 @@ func (m AppKeyMap) ShortHelp() []key.Binding {
 //////////////////////////////////////////////////////////////////////////////
 // BubbleTea interface
 
-// Init handles the initialization of an Session
+// Init handles the initialization of an AppModel
 func (m AppModel) Init() tea.Cmd {
 	var cmds []tea.Cmd
 	for _, page := range m.pages {
@@ -154,7 +154,7 @@ func (m AppModel) Init() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-// Update handles BubbleTea messages for the Session
+// Update handles BubbleTea messages for the AppModel
 // This is for starting/stopping/updating generation.
 func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -192,7 +192,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-// View renders the ModelChooser's view.
+// View renders the AppModels's view.
 func (m AppModel) View() string {
 	viewStr := m.headerView() + "\n"
 	if m.currentPage < 0 || m.currentPage >= len(m.pages) {
