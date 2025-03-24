@@ -232,6 +232,9 @@ func (s *DbnScanner) Visit(visitor Visitor) error {
 		}
 	// SymbolMapping
 	case RType_SymbolMapping:
+		if s.metadata == nil {
+			return ErrNoMetadata
+		}
 		record := SymbolMappingMsg{}
 		if err := record.Fill_Raw(s.lastRecord[:s.lastSize], s.metadata.SymbolCstrLen); err != nil {
 			return err // TODO: OnError()

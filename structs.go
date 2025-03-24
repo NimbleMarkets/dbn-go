@@ -1167,14 +1167,3 @@ func (r *InstrumentDefMsg) Fill_Json(val *fastjson.Value, header *RHeader) error
 	r.TickRule = uint8(val.GetUint("tick_rule"))
 	return nil
 }
-
-func fillBytesFromStringValue(t []byte, val *fastjson.Value, key string) {
-	b := val.GetStringBytes(key)
-	for i := 0; i < len(t); i++ {
-		if i < len(b) {
-			t[i] = b[i]
-		} else {
-			t[i] = 0
-		}
-	}
-}

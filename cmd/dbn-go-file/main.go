@@ -23,13 +23,6 @@ var (
 	forceZstdInput = false // force input to be zstd, irrespective of filename suffix
 )
 
-func requireNoError(err error) {
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
-		os.Exit(1)
-	}
-}
-
 func requireNoErrorWithoutPrint(err error) {
 	if err != nil {
 		os.Exit(1)
@@ -87,6 +80,9 @@ var printMetadataCmd = &cobra.Command{
 
 func printMetadata(sourceFile string, forceZstd bool) error {
 	dbnFile, dbnCloser, err := dbn.MakeCompressedReader(sourceFile, forceZstd)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
 	defer dbnCloser.Close()
 
 	dbnScanner := dbn.NewDbnScanner(dbnFile)
@@ -134,6 +130,8 @@ var writeParquetCmd = &cobra.Command{
 			var destFile string
 			if strings.HasSuffix(sourceFile, ".zst") {
 				destFile = sourceFile[:len(sourceFile)-4] + ".parquet"
+			} else if strings.HasSuffix(sourceFile, ".zstd") {
+				destFile = sourceFile[:len(sourceFile)-5] + ".parquet"
 			} else {
 				destFile = sourceFile + ".parquet"
 			}

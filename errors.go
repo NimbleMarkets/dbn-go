@@ -15,6 +15,7 @@ var (
 	ErrUnknownRType          = fmt.Errorf("unknown rtype")
 	ErrDateOutsideQueryRange = fmt.Errorf("date outside the query range")
 	ErrWrongStypesForMapping = fmt.Errorf("wrong stypes for mapping")
+	ErrNoMetadata            = fmt.Errorf("no metadata")
 )
 
 func unexpectedBytesError(got int, want int) error {

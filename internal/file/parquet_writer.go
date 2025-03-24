@@ -3,6 +3,7 @@
 package file
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -16,6 +17,9 @@ import (
 func WriteDbnFileAsParquet(sourceFile string, forceZstdInput bool, destFile string) error {
 	// Build the reader, grab the metadata, build a symbol map
 	dbnFile, dbnCloser, err := dbn.MakeCompressedReader(sourceFile, forceZstdInput)
+	if err != nil {
+		return err
+	}
 	defer dbnCloser.Close()
 
 	dbnScanner := dbn.NewDbnScanner(dbnFile)
@@ -52,15 +56,12 @@ func WriteDbnFileAsParquet(sourceFile string, forceZstdInput bool, destFile stri
 
 	rgw := pw.AppendBufferedRowGroup()
 
-	err = scanAndWriteParquet(dbnScanner, rgw, dbnSymbolMap)
+	errWrite := scanAndWriteParquet(dbnScanner, rgw, dbnSymbolMap)
 
 	// Flush and close the parquet writer
-	rgw.Close()
-	err = pw.FlushWithFooter()
-	if err != nil {
-		return fmt.Errorf("failed to flush: %w", err)
-	}
-	return nil
+	errClose := rgw.Close()
+	errFlush := pw.FlushWithFooter()
+	return errors.Join(errWrite, errClose, errFlush)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
