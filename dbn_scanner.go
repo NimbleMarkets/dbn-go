@@ -153,6 +153,38 @@ func DbnScannerDecode[R Record, RP RecordPtr[R]](s *DbnScanner) (*R, error) {
 	return rp, nil
 }
 
+// DecodeSymbolMappingMsg parses the Scanner's current record as a `SymbolMappingMsg`.
+// This is outside the DbnScannerDecode function because SymbolMappingMsg.Fill_Raw
+// is two-argum,ent, depending on the DbnScanner's metadata's SymbolCstrLen.
+func (s *DbnScanner) DecodeSymbolMappingMsg() (*SymbolMappingMsg, error) {
+	// Ensure there's a record to decode
+	if s.lastSize <= RHeader_Size {
+		return nil, ErrNoRecord
+	}
+	recordLen := 4 * int(s.lastRecord[0])
+	if s.lastSize < recordLen {
+		return nil, ErrMalformedRecord
+	}
+	if s.metadata == nil { // we need valid metadata
+		return nil, ErrNoMetadata
+	}
+
+	// Object to return, instantiating an R and putting it in an RP
+	var rp *SymbolMappingMsg = new(SymbolMappingMsg)
+
+	// Make sure it's the right record type
+	rtype := RType(s.lastRecord[1])
+	if !rtype.IsCompatibleWith(rp.RType()) {
+		return nil, unexpectedRTypeError(rtype, rp.RType())
+	}
+
+	err := rp.Fill_Raw(s.lastRecord[0:s.lastSize], s.metadata.SymbolCstrLen)
+	if err != nil {
+		return nil, err
+	}
+	return rp, nil
+}
+
 // Parses the current Record and passes it to the Visitor.
 func (s *DbnScanner) Visit(visitor Visitor) error {
 	// Ensure there's a record to decode

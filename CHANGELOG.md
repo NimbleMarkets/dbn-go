@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.4.1 (2025-03-24)
+
+ * Add `DbnScanner.DecodeSymbolMappingMsg`
+
 ## v0.4.0 (2025-02-20)
 
 *“The two most powerful warriors are patience and time” – Leo Tolstoy*
