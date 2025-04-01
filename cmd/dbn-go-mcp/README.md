@@ -28,6 +28,178 @@ Currenty, the following tools are supported by the `dbn` MCP server:
 | `get_cost` | `dataset`, `schema`, `start`, `end`, `symbol` | Returns the estimated cost of all records of a DBN schema for a given date range. |
 | `get_range` |`dataset`, `schema`, `start`, `end`, `symbol` | Returns all records of a DBN dataset/schema for a given date range. |
 
+You can run a CLI test using the `STDIO` mode to list available tools:
+
+```bash
+echo '{"method":"tools/list","params":{},"jsonrpc":"2.0","id":1}' | dbn-go-mcp | jq
+```
+
+<details>
+<summary>Results are the dbn-go-mcp schema in JSON. Click to expand.</summary>
+
+```
+time=2025-04-01T14:13:28.436-04:00 level=INFO msg="MCP STDIO server started"
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "tools": [
+      {
+        "description": "Returns the estimated cost of all records of a DBN schema for a given symbol and date range",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "dataset": {
+              "description": "Dataset to query",
+              "enum": [
+                "ARCX.PILLAR",
+                "DBEQ.BASIC",
+                "EPRL.DOM",
+                "EQUS.MINI",
+                "EQUS.SUMMARY",
+                "GLBX.MDP3",
+                "IEXG.TOPS",
+                "IFEU.IMPACT",
+                "MEMX.MEMOIR",
+                "NDEX.IMPACT",
+                "OPRA.PILLAR",
+                "XASE.PILLAR",
+                "XBOS.ITCH",
+                "XCHI.PILLAR",
+                "XCIS.TRADESBBO",
+                "XNAS.BASIC",
+                "XNAS.ITCH",
+                "XNYS.PILLAR",
+                "XPSX.ITCH"
+              ],
+              "type": "string"
+            },
+            "end": {
+              "description": "end of range, as ISO 8601 datetime",
+              "type": "string"
+            },
+            "schema": {
+              "description": "Schema to query",
+              "enum": [
+                "mbo",
+                "mbp-1",
+                "mbp-10",
+                "bbo-1s",
+                "bbo-1m",
+                "tbbo",
+                "trades",
+                "ohlcv-1s",
+                "ohlcv-1m",
+                "ohlcv-1h",
+                "ohlcv-1d",
+                "definition",
+                "statistics",
+                "status",
+                "imbalance"
+              ],
+              "type": "string"
+            },
+            "start": {
+              "description": "start of range, as ISO 8601 datetime",
+              "type": "string"
+            },
+            "symbol": {
+              "description": "Symbol to query",
+              "type": "string"
+            }
+          },
+          "required": [
+            "dataset",
+            "schema",
+            "symbol",
+            "start",
+            "end"
+          ]
+        },
+        "name": "get_cost"
+      },
+      {
+        "description": "Returns all records of a DBN dataset/schema for a given symbol and date range",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "dataset": {
+              "description": "Dataset to query",
+              "enum": [
+                "ARCX.PILLAR",
+                "DBEQ.BASIC",
+                "EPRL.DOM",
+                "EQUS.MINI",
+                "EQUS.SUMMARY",
+                "GLBX.MDP3",
+                "IEXG.TOPS",
+                "IFEU.IMPACT",
+                "MEMX.MEMOIR",
+                "NDEX.IMPACT",
+                "OPRA.PILLAR",
+                "XASE.PILLAR",
+                "XBOS.ITCH",
+                "XCHI.PILLAR",
+                "XCIS.TRADESBBO",
+                "XNAS.BASIC",
+                "XNAS.ITCH",
+                "XNYS.PILLAR",
+                "XPSX.ITCH"
+              ],
+              "type": "string"
+            },
+            "end": {
+              "description": "end of range, as ISO 8601 datetime",
+              "type": "string"
+            },
+            "schema": {
+              "description": "Schema to query",
+              "enum": [
+                "mbo",
+                "mbp-1",
+                "mbp-10",
+                "bbo-1s",
+                "bbo-1m",
+                "tbbo",
+                "trades",
+                "ohlcv-1s",
+                "ohlcv-1m",
+                "ohlcv-1h",
+                "ohlcv-1d",
+                "definition",
+                "statistics",
+                "status",
+                "imbalance"
+              ],
+              "type": "string"
+            },
+            "start": {
+              "description": "start of range, as ISO 8601 datetime",
+              "type": "string"
+            },
+            "symbol": {
+              "description": "Symbol to query",
+              "type": "string"
+            }
+          },
+          "required": [
+            "dataset",
+            "schema",
+            "symbol",
+            "start",
+            "end"
+          ]
+        },
+        "name": "get_range"
+      }
+    ]
+  }
+}
+```
+</details>
+
+## MCP Host Tool Configuration
+
 To use this the MCP server, you must configure your host program to use it.  We will illustrate with Claude Desktop and Ollama with `mcphost` as they have the same configuration format.   We must find the `dbn-go-mcp` program on our system; the example below shows where `dbn-go` is installed with MacOS Homebrew (perhaps build your own and point at that!).  We also store our Databento API key in a plain text file.  The [configuration JSON](./claude_desktop_config.json) points the host to that and also sets a per-call budget of $1.50.
 
 ```json
