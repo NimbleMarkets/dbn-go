@@ -32,6 +32,14 @@ builds:
       - darwin
       - windows
 
+  - id: "dbn-go-mcp"
+    main: ./cmd/dbn-go-mcp
+    binary: bin/dbn-go-mcp
+    goos:
+      - linux
+      - darwin
+      - windows
+
   - id: "dbn-go-tui"
     main: ./cmd/dbn-go-tui
     binary: bin/dbn-go-tui
@@ -83,4 +91,5 @@ brews:
       bin.install "./bin/dbn-go-file"
       bin.install "./bin/dbn-go-hist"
       bin.install "./bin/dbn-go-live"
+      bin.install "./bin/dbn-go-mcp"
       bin.install "./bin/dbn-go-tui"

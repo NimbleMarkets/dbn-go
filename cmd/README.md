@@ -6,6 +6,7 @@ It includes:
  * [`dbn-go-file`](#dbn-go-file): a CLI to process DBN files
  * [`dbn-go-hist`](#dbn-go-hist): a CLI to use the Historical API
  * [`dbn-go-live`](#dbn-go-live): a simple Live API feed handler
+ * [`dbn-go-mcp`](#dbn-go-mcp): a LLM Model Context Protocol (MCP) server
  * [`dbn-go-tui`](#dbn-go-tui): a TUI for your Databento account
 
 ----
@@ -202,6 +203,14 @@ $ docker run -it --rm \
     ghcr.io/nimblemarkets/dbn-go:0.0.11 \
     /usr/local/bin/dbn-go-live -d DBEQ.MINI -s ohlcv-1h -o /dbn/foo.dbn -v -t QQQ SPY 
 ```
+
+----
+
+## `dbn-go-mcp`
+
+`dbn-go-mcp` is a [Model Context Protocol (MCP)](https://www.anthropic.com/news/model-context-protocol) for Databento services.  This allows tools like [Claude Desktop](https://claude.ai/download) to query Databento in LLM tasks. 
+
+This tool has [it's own README](./dbn-go-mcp/README.md) which describes it and explores some usage.
 
 ----
 

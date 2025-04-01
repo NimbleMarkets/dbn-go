@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.5.0 (2025-04-01)
+
+ * Added `dbn-go-mcp` [MCP server](./cmd/dbn-go-mcp/README.md)
+
 ## v0.4.1 (2025-03-24)
 
  * Add `DbnScanner.DecodeSymbolMappingMsg`

@@ -149,10 +149,11 @@ The source for `dbn-go-live` illustrates [using this `dbn_live` module](https://
 
 We include [some tools](./cmd/README.md) to make our lives easier. [Installation instructions](./cmd/README.md#installation)
 
- * [`dbn-go-file`](./cmd/README.md#dbn-go-file)
- * [`dbn-go-hist`](./cmd/README.md#dbn-go-hist)
- * [`dbn-go-live`](./cmd/README.md#dbn-go-live)
- * [`dbn-go-tui`](./cmd/README.md#dbn-go-tui)
+ * [`dbn-go-file`](./cmd/README.md#dbn-go-file): a CLI to process DBN files
+ * [`dbn-go-hist`](./cmd/README.md#dbn-go-hist): a CLI to use the Historical API
+ * [`dbn-go-live`](./cmd/README.md#dbn-go-live): a simple Live API feed handler
+ * [`dbn-go-mcp`](./cmd/README.md#dbn-go-mcp): a LLM Model Context Protocol (MCP) server
+ * [`dbn-go-tui`](./cmd/README.md#dbn-go-tui): a TUI for your Databento account
 
 ## Open Collaboration
 

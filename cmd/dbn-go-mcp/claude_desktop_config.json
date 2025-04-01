@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "dbn": {
+      "command": "/opt/homebrew/bin/dbn-go-hist",
+      "args": [
+        "--key-file", "/etc/dbn_api.txt",
+        "--max-cost", "1.50"
+      ]
+    }
+  }
+}
