@@ -146,6 +146,7 @@ const (
 	Condition_Degraded  = "degraded"
 	Condition_Pending   = "pending"
 	Condition_Missing   = "missing"
+	Condition_Intraday  = "intraday"
 )
 
 type ConditionDetail struct {

@@ -9,10 +9,18 @@ package dbn
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 )
 
-// Side
+///////////////////////////////////////////////////////////////////////////////
+
+// The sentinel value for an unset or null timestamp.
+const UNDEF_TIMESTAMP uint64 = math.MaxUint64
+
+///////////////////////////////////////////////////////////////////////////////
+
+// Side is a side of the market. The side of the market for resting orders, or the side of the aggressor for trades.
 type Side uint8
 
 const (
@@ -24,7 +32,11 @@ const (
 	Side_None Side = 'N'
 )
 
-// Action
+// Action is an order event or order book operation.
+//
+// For example usage see:
+// - https://databento.com/docs/examples/order-book/order-actions
+// - https://databento.com/docs/examples/order-book/order-tracking
 type Action uint8
 
 const (
@@ -40,6 +52,8 @@ const (
 	Action_Add Action = 'A'
 	// Reset the book; clear all orders for an instrument.
 	Action_Clear Action = 'R'
+	// Has no effect on the book, but may carry `flags` or other information.
+	Action_None Action = 'N'
 )
 
 // InstrumentClass
@@ -64,6 +78,8 @@ const (
 	InstrumentClass_OptionSpread InstrumentClass = 'T'
 	// A foreign exchange spot.
 	InstrumentClass_FxSpot InstrumentClass = 'X'
+	// A commodity spot.
+	InstrumentClass_CommoditySpot InstrumentClass = 'Y'
 )
 
 func (i InstrumentClass) IsOption() bool {
@@ -97,9 +113,15 @@ const (
 	MatchAlgorithm_FifoTopLmm MatchAlgorithm = 'S'
 	// Like [`Self::ThresholdProRata`] but includes a special priority to LMMs.
 	MatchAlgorithm_ThresholdProRataLmm MatchAlgorithm = 'Q'
-	// Special variant used only for Eurodollar futures on CME. See
-	// [CME documentation](https://www.cmegroup.com/confluence/display/EPICSANDBOX/Supported+Matching+Algorithms#SupportedMatchingAlgorithms-Pro-RataAllocationforEurodollarFutures).
+	// Special variant used only for Eurodollar futures on CME.
 	MatchAlgorithm_EurodollarFutures MatchAlgorithm = 'Y'
+	// Trade quantity is shared between all orders at the best price. Orders with the
+	// highest time priority receive a higher matched quantity.
+	MatchAlgorithm_TimeProRata MatchAlgorithm = 'P'
+	// A two-pass FIFO algorithm. The first pass fills the Institutional Group the aggressing
+	// order is associated with. The second pass matches orders without an Institutional Group
+	// association. See [CME documentation](https://cmegroupclientsite.atlassian.net/wiki/spaces/EPICSANDBOX/pages/457217267#InstitutionalPrioritizationMatchAlgorithm).
+	MatchAlgorithm_InstitutionalPrioritization MatchAlgorithm = 'V'
 )
 
 // UserDefinedInstrument
@@ -693,6 +715,7 @@ type StatType uint8
 
 const (
 	/// The price of the first trade of an instrument. `price` will be set.
+	/// `quantity` will be set when provided by the venue.
 	StatType_OpeningPrice StatType = 1
 	/// The probable price of the first trade of an instrument published during pre-
 	/// open. Both `price` and `quantity` will be set.
@@ -724,6 +747,7 @@ const (
 	/// set.
 	StatType_FixingPrice StatType = 10
 	/// The last trade price during a trading session. `price` will be set.
+	/// `quantity` will be set when provided by the venue.
 	StatType_ClosePrice StatType = 11
 	/// The change in price from the close price of the previous trading session to the
 	/// most recent trading session. `price` will be set.
@@ -732,6 +756,15 @@ const (
 	/// `price` will be set to the VWAP while `quantity` will be the traded
 	/// volume.
 	StatType_Vwap StatType = 13
+	// The implied volatility associated with the settlement price. `price` will
+	// be set with the standard precision.
+	StatType_Volatility StatType = 14
+	// The option delta associated with the settlement price. `price` will be set
+	// with the standard precision.
+	StatType_Delta StatType = 15
+	// The auction uncrossing price. This is used for auctions that are neither the official opening auction nor the official closing auction. `price` will be
+	// `quantity` will be set when provided by the venue.
+	StatType_UncrossingPrice StatType = 16
 )
 
 // / The type of [`StatMsg`](crate::record::StatMsg) update.
