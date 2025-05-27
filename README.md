@@ -124,7 +124,7 @@ Support for the [Databento Historical API](https://databento.com/docs/api-refere
 
 ```
 databentoApiKey := os.Getenv("DATABENTO_API_KEY")
-schemas, err := dbn_hist.ListSchemas(databentoApiKey, "DBEQ.MINI")
+schemas, err := dbn_hist.ListSchemas(databentoApiKey, "EQUS.MINI")
 ```
 
 The source for `dbn-go-hist` illustrates [using this `dbn_hist` module](https://github.com/NimbleMarkets/dbn-go/blob/main/cmd/dbn-go-hist/main.go#L104).

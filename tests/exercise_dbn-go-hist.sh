@@ -9,7 +9,7 @@ fi
 
 DBN_GO_HIST=${DBN_GO_HIST:-dbn-go-hist}
 
-DATASET=${DATASET:-DBEQ.MINI}
+DATASET=${DATASET:-EQUS.MINI}
 
 SCHEMA=${SCHEMA:-ohlcv-1h}
 

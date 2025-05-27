@@ -22,7 +22,7 @@ These tools are available as:
 
  * Docker multi-architecture images on [GitHub's Container Registry](https://github.com/NimbleMarkets/dbn-go/pkgs/container/dbn-go) at `ghcr.io/nimblemarkets/dbn-go`: 
    * Hist query: `docker run -e DATABENTO_API_KEY --rm ghcr.io/nimblemarkets/dbn-go:0.0.12 /usr/local/bin/dbn-go-hist datasets` 
-   * Simple Live feed handler: `docker run -e DATABENTO_API_KEY -v ${pwd}/dbn --rm ghcr.io/nimblemarkets/dbn-go:0.0.12 /usr/local/bin/dbn-go-live -d DBEQ.MINI -s ohlcv-1h -o /dbn/foo.dbn -v -t QQQ SPY`
+   * Simple Live feed handler: `docker run -e DATABENTO_API_KEY -v ${pwd}/dbn --rm ghcr.io/nimblemarkets/dbn-go:0.0.12 /usr/local/bin/dbn-go-live -d EQUS.MINI -s ohlcv-1h -o /dbn/foo.dbn -v -t QQQ SPY`
 
  * Built-from-source to the `./bin` folder with the command `task go-build` (install [Taskfile](https://taskfile.dev)).  
 
@@ -162,7 +162,7 @@ XNAS.ITCH
 XNYS.PILLAR
 XPSX.ITCH
 
-$ dbn-go-hist schemas -d DBEQ.MINI --json
+$ dbn-go-hist schemas -d EQUS.MINI --json
 ["mbo","mbp-1","mbp-10","tbbo","trades","ohlcv-1s","ohlcv-1m","ohlcv-1h","ohlcv-1d","definition","status"]
 ```
 
@@ -191,7 +191,7 @@ usage: dbn-go-live -d <dataset> -s <schema> [opts] symbol1 symbol2 ...
 
 Simple invocation:
 ```
-$ dbn-go-live -d DBEQ.MINI -s ohlcv-1h -o foo.dbn -v -t QQQ SPY 
+$ dbn-go-live -d EQUS.MINI -s ohlcv-1h -o foo.dbn -v -t QQQ SPY 
 ```
 
 Simple Docker invocation:
@@ -201,7 +201,7 @@ $ docker run -it --rm \
     -e DATABENTO_API_KEY \
     -v ${pwd}/dbn \
     ghcr.io/nimblemarkets/dbn-go:0.0.11 \
-    /usr/local/bin/dbn-go-live -d DBEQ.MINI -s ohlcv-1h -o /dbn/foo.dbn -v -t QQQ SPY 
+    /usr/local/bin/dbn-go-live -d EQUS.MINI -s ohlcv-1h -o /dbn/foo.dbn -v -t QQQ SPY 
 ```
 
 ----

@@ -2,11 +2,13 @@
 
 ## v0.6.0 (unreleased)
 
-* Updated for DBN `0.34.0` API changes
-  * Added new constants and enums:
-    * `UNDEF_TIMESTAMP`, `Action_None`, `InstrumentClass_CommoditySpot`, `Condition_Intraday`
-    * `MatchAlgorithm_TimeProRata`, `MatchAlgorithm_InstitutionalPrioritization`
-    * `StatType_Volatility`, `StatType_Delta`, `StatType_UncrossingPrice`
+  * Updated for DBN `0.34.0` API changes:
+    * Added new constants and enums:
+      * `UNDEF_TIMESTAMP`, `Action_None`, `InstrumentClass_CommoditySpot`, `Condition_Intraday`
+      * `MatchAlgorithm_TimeProRata`, `MatchAlgorithm_InstitutionalPrioritization`
+      * `StatType_Volatility`, `StatType_Delta`, `StatType_UncrossingPrice`
+  * Update from `DBEQ.MINI` to `EQUS.MINI`
+  * Added `task test-all`
 
 ## v0.5.0 (2025-04-01)
 

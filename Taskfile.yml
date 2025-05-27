@@ -18,9 +18,16 @@ tasks:
       - go-build
 
   test:
+    desc: 'Test most'
+    deps:
+      - go-test
+
+  test-all:
     desc: 'Test all'
     deps:
       - go-test
+      - test-dbn-go-file
+      - test-dbn-go-hist
 
   clean:
     desc: 'Clean all'
