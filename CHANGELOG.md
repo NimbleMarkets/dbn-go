@@ -1,14 +1,19 @@
 # CHANGELOG
 
-## v0.6.0 (unreleased)
+## v0.6.0 (2025-05-27)
 
-  * Updated for DBN `0.34.0` API changes:
-    * Added new constants and enums:
-      * `UNDEF_TIMESTAMP`, `Action_None`, `InstrumentClass_CommoditySpot`, `Condition_Intraday`
-      * `MatchAlgorithm_TimeProRata`, `MatchAlgorithm_InstitutionalPrioritization`
-      * `StatType_Volatility`, `StatType_Delta`, `StatType_UncrossingPrice`
+  * **BREAKING** Rename `Cbbo` to `Cmbp1` per upstream SDK
+    * `RType_Cbbo` becomes `RType_Cmbp1`
+    * `Schema_Cbbo` becomes `Schema_Cmbp1` which requests `cmbp-1`
+    * `CbboMsg` becomes `Cmbp1Msg`
+    * `Visitor.OnCbbo` becomes `Visitor.OnCmbp1`
+
   * Update from `DBEQ.MINI` to `EQUS.MINI`
   * Added `task test-all`
+  * Added new constants and enums up to DBN `0.34.0`:
+    * `UNDEF_TIMESTAMP`, `Action_None`, `InstrumentClass_CommoditySpot`, `Condition_Intraday`
+    * `MatchAlgorithm_TimeProRata`, `MatchAlgorithm_InstitutionalPrioritization`
+    * `StatType_Volatility`, `StatType_Delta`, `StatType_UncrossingPrice`
 
 ## v0.5.0 (2025-04-01)
 

@@ -20,7 +20,7 @@ var _ = Describe("Struct", func() {
 			Expect(unsafe.Sizeof(dbn.Mbp0Msg{})).To(Equal(uintptr(dbn.Mbp0Msg_Size)))
 			Expect(unsafe.Sizeof(dbn.Mbp1Msg{})).To(Equal(uintptr(dbn.Mbp1Msg_Size)))
 			Expect(unsafe.Sizeof(dbn.Mbp10Msg{})).To(Equal(uintptr(dbn.Mbp10Msg_Size)))
-			Expect(unsafe.Sizeof(dbn.CbboMsg{})).To(Equal(uintptr(dbn.CbboMsg_Size)))
+			Expect(unsafe.Sizeof(dbn.Cmbp1Msg{})).To(Equal(uintptr(dbn.Cmbp1Msg_Size)))
 			Expect(unsafe.Sizeof(dbn.OhlcvMsg{})).To(Equal(uintptr(dbn.OhlcvMsg_Size)))
 			Expect(unsafe.Sizeof(dbn.ImbalanceMsg{})).To(Equal(uintptr(dbn.ImbalanceMsg_Size)))
 			Expect(unsafe.Sizeof(dbn.ErrorMsg{})).To(Equal(uintptr(dbn.ErrorMsg_Size)))
@@ -32,7 +32,7 @@ var _ = Describe("Struct", func() {
 			Expect(int((&dbn.Mbp0Msg{}).RSize())).To(Equal(dbn.Mbp0Msg_Size))
 			Expect(int((&dbn.Mbp1Msg{}).RSize())).To(Equal(dbn.Mbp1Msg_Size))
 			Expect(int((&dbn.Mbp10Msg{}).RSize())).To(Equal(dbn.Mbp10Msg_Size))
-			Expect(int((&dbn.CbboMsg{}).RSize())).To(Equal(dbn.CbboMsg_Size))
+			Expect(int((&dbn.Cmbp1Msg{}).RSize())).To(Equal(dbn.Cmbp1Msg_Size))
 			Expect(int((&dbn.OhlcvMsg{}).RSize())).To(Equal(dbn.OhlcvMsg_Size))
 			Expect(int((&dbn.ImbalanceMsg{}).RSize())).To(Equal(dbn.ImbalanceMsg_Size))
 			Expect(int((&dbn.ErrorMsg{}).RSize())).To(Equal(dbn.ErrorMsg_Size))
@@ -441,3 +441,17 @@ var _ = Describe("Struct", func() {
 		})
 	})
 })
+
+/*
+   #[test]
+   fn test_bbo_alignment_matches_mbp1() {
+       assert_eq!(offset_of!(BboMsg, hd), offset_of!(Mbp1Msg, hd));
+       assert_eq!(offset_of!(BboMsg, price), offset_of!(Mbp1Msg, price));
+       assert_eq!(offset_of!(BboMsg, size), offset_of!(Mbp1Msg, size));
+       assert_eq!(offset_of!(BboMsg, side), offset_of!(Mbp1Msg, side));
+       assert_eq!(offset_of!(BboMsg, flags), offset_of!(Mbp1Msg, flags));
+       assert_eq!(offset_of!(BboMsg, ts_recv), offset_of!(Mbp1Msg, ts_recv));
+       assert_eq!(offset_of!(BboMsg, sequence), offset_of!(Mbp1Msg, sequence));
+       assert_eq!(offset_of!(BboMsg, levels), offset_of!(Mbp1Msg, levels));
+   }
+*/

@@ -295,7 +295,7 @@ const (
 	RType_System          RType = 0x17 // Denotes a non-error message from the gateway. Also used for heartbeats.
 	RType_Statistics      RType = 0x18 // Denotes a statistics record from the publisher (not calculated by Databento).
 	RType_Mbo             RType = 0xA0 // Denotes a market by order record.
-	RType_Cbbo            RType = 0xB1 // Denotes a consolidated best bid and offer record.
+	RType_Cmbp1           RType = 0xB1 // Denotes a consolidated best bid and offer record.
 	RType_Cbbo1S          RType = 0xC0 // Denotes a consolidated best bid and offer record subsampled on a one-second interval.
 	RType_Cbbo1M          RType = 0xC1 // Denotes a consolidated best bid and offer record subsampled on a one-minute interval.
 	RType_Tcbbo           RType = 0xC2 // Denotes a consolidated best bid and offer trade record containing the consolidated BBO before the trade.
@@ -341,8 +341,8 @@ func (s RType) String() string {
 		return "statistics"
 	case RType_Mbo:
 		return "mbo"
-	case RType_Cbbo:
-		return "cbbo"
+	case RType_Cmbp1:
+		return "cmbp-1"
 	case RType_Cbbo1S:
 		return "cbbo-1s"
 	case RType_Cbbo1M:
@@ -395,7 +395,7 @@ const (
 	/// Open, high, low, close, and volume at a daily cadence based on the end of the trading session.
 	Schema_OhlcvEod Schema = 13
 	/// Consolidated best bid and offer.
-	Schema_Cbbo Schema = 14
+	Schema_Cmbp1 Schema = 14
 	/// Consolidated best bid and offer subsampled at one-second intervals, in addition to trades.
 	Schema_Cbbo1S Schema = 15
 	/// Consolidated best bid and offer subsampled at one-minute intervals, in addition to trades.
@@ -441,8 +441,8 @@ func (s Schema) String() string {
 		return "imbalance"
 	case Schema_OhlcvEod:
 		return "ohlcv-eod"
-	case Schema_Cbbo:
-		return "cbbo"
+	case Schema_Cmbp1:
+		return "cmbp-1"
 	case Schema_Cbbo1S:
 		return "cbbo-1s"
 	case Schema_Cbbo1M:
@@ -493,8 +493,8 @@ func SchemaFromString(str string) (Schema, error) {
 		return Schema_Imbalance, nil
 	case "ohlcv-eod":
 		return Schema_OhlcvEod, nil
-	case "cbbo":
-		return Schema_Cbbo, nil
+	case "cmbp-1":
+		return Schema_Cmbp1, nil
 	case "cbbo-1s":
 		return Schema_Cbbo1S, nil
 	case "cbbo-1m":

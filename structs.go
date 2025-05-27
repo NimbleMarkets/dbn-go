@@ -251,10 +251,10 @@ type MboMsg struct {
 	Price     int64   `json:"price" csv:"price"`             // The order price expressed as a signed integer where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 	Size      uint32  `json:"size" csv:"size"`               // The order quantity.
 	Flags     uint8   `json:"flags" csv:"flags"`             // A bit field indicating event end, message characteristics, and data quality. See [`enums::flags`](crate::enums::flags) for possible values.
-	ChannelID uint8   `json:"channel_id" csv:"channel_id"`   // A channel ID within the venue.
-	Action    byte    `json:"action" csv:"action"`           // The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**,  **T**rade, or **F**ill.
+	ChannelID uint8   `json:"channel_id" csv:"channel_id"`   // The channel ID assigned by Databento as an incrementing integer starting at zero.
+	Action    byte    `json:"action" csv:"action"`           // The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**,  **T**rade, **F**ill, or **NN**one.
 	Side      byte    `json:"side" csv:"side"`               // The side that initiates the event. Can be **A**sk for a sell order (or sell aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or **N**one where no side is specified by the original source.
-	TsRecv    uint64  `json:"ts_recv" csv:"ts_recv"`         // The capture-server-received timestamp expressed as number of nanoseconds since the UNIX epoch.
+	TsRecv    uint64  `json:"ts_recv" csv:"ts_recv"`         // The capture-server-received timestamp expressed as the number of nanoseconds since the UNIX epoch.
 	TsInDelta int32   `json:"ts_in_delta" csv:"ts_in_delta"` // The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
 	Sequence  uint32  `json:"sequence" csv:"sequence"`       // The message sequence number assigned at the venue.
 }
@@ -377,7 +377,9 @@ func (r *Mbp1Msg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-type CbboMsg struct {
+// Consolidated market by price implementation with a known book depth of 1. The record of the
+// [`Cmbp1`](crate::Schema::Cmbp1) schema.
+type Cmbp1Msg struct {
 	Header    RHeader                `json:"hd" csv:"hd"`                         // The record header.
 	Price     int64                  `json:"price" csv:"price"`                   // The order price expressed as a signed integer where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 	Size      uint32                 `json:"size" csv:"size"`                     // The order quantity.
@@ -391,19 +393,19 @@ type CbboMsg struct {
 	Level     ConsolidatedBidAskPair `json:"levels" csv:"levels"`                 // The top of the order book.
 }
 
-const CbboMsg_Size = RHeader_Size + 32 + ConsolidatedBidAskPair_Size
+const Cmbp1Msg_Size = RHeader_Size + 32 + ConsolidatedBidAskPair_Size
 
-func (*CbboMsg) RType() RType {
-	return RType_Cbbo // TODO
+func (*Cmbp1Msg) RType() RType {
+	return RType_Cmbp1 // TODO
 }
 
-func (*CbboMsg) RSize() uint16 {
-	return CbboMsg_Size
+func (*Cmbp1Msg) RSize() uint16 {
+	return Cmbp1Msg_Size
 }
 
-func (r *CbboMsg) Fill_Raw(b []byte) error {
-	if len(b) < CbboMsg_Size {
-		return unexpectedBytesError(len(b), CbboMsg_Size)
+func (r *Cmbp1Msg) Fill_Raw(b []byte) error {
+	if len(b) < Cmbp1Msg_Size {
+		return unexpectedBytesError(len(b), Cmbp1Msg_Size)
 	}
 	err := r.Header.Fill_Raw(b[0:RHeader_Size])
 	if err != nil {
@@ -422,7 +424,7 @@ func (r *CbboMsg) Fill_Raw(b []byte) error {
 	return nil
 }
 
-func (r *CbboMsg) Fill_Json(val *fastjson.Value, header *RHeader) error {
+func (r *Cmbp1Msg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 	r.Header = *header
 	r.Price = fastjson_GetInt64FromString(val, "price")
 	r.Size = uint32(val.GetUint("size"))
@@ -742,7 +744,7 @@ func (r *SymbolMappingMsg) Fill_Json(val *fastjson.Value, header *RHeader) error
 type ErrorMsg struct {
 	Header RHeader                `json:"hd" csv:"hd"`           // The common header.
 	Error  [ErrorMsg_ErrSize]byte `json:"err" csv:"err"`         // The error message.
-	Code   uint8                  `json:"code" csv:"code"`       // The error code. Currently unused.
+	Code   uint8                  `json:"code" csv:"code"`       // The error code.
 	IsLast uint8                  `json:"is_last" csv:"is_last"` // Sometimes multiple errors are sent together. This field will be non-zero for the last error.
 }
 
@@ -785,7 +787,7 @@ func (r *ErrorMsg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 type SystemMsg struct {
 	Header  RHeader                 `json:"hd" csv:"hd"`     // The common header.
 	Message [SystemMsg_MsgSize]byte `json:"msg" csv:"msg"`   // The message from the Databento Live Subscription Gateway (LSG).
-	Code    uint8                   `json:"code" csv:"code"` // The type of system message. Currently unused.
+	Code    uint8                   `json:"code" csv:"code"` // The type of system message.
 }
 
 const SystemMsg_MsgSize = 303
@@ -833,7 +835,7 @@ type StatMsg struct {
 	Sequence     uint32   `json:"sequence" csv:"sequence"`           // The message sequence number assigned at the venue.
 	TsInDelta    int32    `json:"ts_in_delta" csv:"ts_in_delta"`     // The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
 	StatType     uint16   `json:"stat_type" csv:"stat_type"`         // The type of statistic value contained in the message. Refer to the [`StatType`](crate::enums::StatType) for variants.
-	ChannelID    uint16   `json:"channel_id" csv:"channel_id"`       // A channel ID within the venue.
+	ChannelID    uint16   `json:"channel_id" csv:"channel_id"`       // The channel ID assigned by Databento as an incrementing integer starting at zero.
 	UpdateAction uint8    `json:"update_action" csv:"update_action"` // Indicates if the statistic is newly added (1) or deleted (2). (Deleted is only used with some stat types)
 	StatFlags    uint8    `json:"stat_flags" csv:"stat_flags"`       // Additional flags associate with certain stat types.
 	Reserved     [6]uint8 // Filler for alignment
@@ -952,8 +954,8 @@ type InstrumentDefMsg struct {
 	TsRecv                  uint64                         `json:"ts_recv" csv:"ts_recv"`                                       // The capture-server-received timestamp expressed as the number of nanoseconds since the UNIX epoch.
 	MinPriceIncrement       int64                          `json:"min_price_increment" csv:"min_price_increment"`               // Fixed price The minimum constant tick for the instrument in units of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 	DisplayFactor           int64                          `json:"display_factor" csv:"display_factor"`                         // The multiplier to convert the venue’s display price to the conventional price, in units of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
-	Expiration              uint64                         `json:"expiration" csv:"expiration"`                                 // The last eligible trade time expressed as a number of nanoseconds since the UNIX epoch. Will be [`crate::UNDEF_TIMESTAMP`] when null, such as for equities.
-	Activation              uint64                         `json:"activation" csv:"activation"`                                 // The time of instrument activation expressed as a number of nanoseconds since the UNIX epoch. Will be [`crate::UNDEF_TIMESTAMP`] when null, such as for equities.
+	Expiration              uint64                         `json:"expiration" csv:"expiration"`                                 // The last eligible trade time expressed as a number of nanoseconds since the UNIX epoch. Will be [`crate::UNDEF_TIMESTAMP`] when null, such as for equities.  Some publishers only provide date-level granularity.
+	Activation              uint64                         `json:"activation" csv:"activation"`                                 // The time of instrument activation expressed as a number of nanoseconds since the UNIX epoch. Will be [`crate::UNDEF_TIMESTAMP`] when null, such as for equities.  Some publishers only provide date-level granularity.
 	HighLimitPrice          int64                          `json:"high_limit_price" csv:"high_limit_price"`                     // The allowable high limit price for the trading day in units of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 	LowLimitPrice           int64                          `json:"low_limit_price" csv:"low_limit_price"`                       // The allowable low limit price for the trading day in units of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 	MaxPriceVariation       int64                          `json:"max_price_variation" csv:"max_price_variation"`               // The differential value for price banding in units of 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
@@ -989,7 +991,7 @@ type InstrumentDefMsg struct {
 	Exchange                [5]byte                        `json:"exchange" csv:"exchange"`                                     // The exchange used to identify the instrument.
 	Asset                   [7]byte                        `json:"asset" csv:"asset"`                                           // The underlying asset code (product code) of the instrument.
 	Cfi                     [7]byte                        `json:"cfi" csv:"cfi"`                                               // The ISO standard instrument categorization code.
-	SecurityType            [7]byte                        `json:"security_type" csv:"security_type"`                           // The type of the instrument, e.g. FUT for future or future spread.
+	SecurityType            [7]byte                        `json:"security_type" csv:"security_type"`                           // The [Security type](https://databento.com/docs/schemas-and-data-formats/instrument-definitions#security-type) of the instrument, e.g. FUT for future or future spread.
 	UnitOfMeasure           [31]byte                       `json:"unit_of_measure" csv:"unit_of_measure"`                       // The unit of measure for the instrument’s original contract size, e.g. USD or LBS.
 	Underlying              [21]byte                       `json:"underlying" csv:"underlying"`                                 // The symbol of the first underlying instrument.
 	StrikePriceCurrency     [4]byte                        `json:"strike_price_currency" csv:"strike_price_currency"`           // The currency of [`strike_price`](Self::strike_price).

@@ -82,7 +82,7 @@ func (v *JsonWriterVisitor) OnOhlcv(record *dbn.OhlcvMsg) error {
 	return WriteAsJson(record, v.writer)
 }
 
-func (v *JsonWriterVisitor) OnCbbo(record *dbn.CbboMsg) error {
+func (v *JsonWriterVisitor) OnCmbp1(record *dbn.Cmbp1Msg) error {
 	return WriteAsJson(record, v.writer)
 }
 

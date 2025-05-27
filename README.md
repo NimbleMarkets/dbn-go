@@ -38,7 +38,7 @@ Most `dbn-go` [types](./structs.go) and [enums](./consts.go) parallel Databento'
   * [`Mbp0Msg`](https://pkg.go.dev/github.com/NimbleMarkets/dbn-go#Mbp0Msg)
   * [`MboMsg`](https://pkg.go.dev/github.com/NimbleMarkets/dbn-go#MboMsg)
   * [`Mbp1Msg`](https://pkg.go.dev/github.com/NimbleMarkets/dbn-go#Mbp1Msg)
-  * [`CbboMsg`](https://pkg.go.dev/github.com/NimbleMarkets/dbn-go#CbboMsg)
+  * [`Cmbp1Msg`](https://pkg.go.dev/github.com/NimbleMarkets/dbn-go#Cmbp1Msg)
   * [`Mbp10Msg`](https://pkg.go.dev/github.com/NimbleMarkets/dbn-go#Mbp10Msg)
   * [`OhlcvMsg`](https://pkg.go.dev/github.com/NimbleMarkets/dbn-go#OhlcvMsg)
   * [`ImbalanceMsg`](https://pkg.go.dev/github.com/NimbleMarkets/dbn-go#ImbalanceMsg)

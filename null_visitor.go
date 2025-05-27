@@ -27,7 +27,7 @@ func (v *NullVisitor) OnOhlcv(record *OhlcvMsg) error {
 	return nil
 }
 
-func (v *NullVisitor) OnCbbo(record *CbboMsg) error {
+func (v *NullVisitor) OnCmbp1(record *Cmbp1Msg) error {
 	return nil
 }
 
