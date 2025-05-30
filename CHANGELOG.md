@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.6.1 (2025-05-30)
+
+ * Update Go dependencies, including fixes for latest  `go-mcp`
+
 ## v0.6.0 (2025-05-27)
 
   * **BREAKING** Rename `Cbbo` to `Cmbp1` per upstream SDK

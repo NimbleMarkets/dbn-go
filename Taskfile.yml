@@ -54,7 +54,6 @@ tasks:
       - live/*.go
       - cmd/**/*.go
 
-
   go-update:
     desc: 'Update Go dependencies'
     cmds:

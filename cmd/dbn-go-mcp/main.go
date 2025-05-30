@@ -285,10 +285,8 @@ func getCostHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 	var dataset, schemaStr, symbol, startStr, endStr string
 	var startTime, endTime time.Time
 	var err error
-	var ok bool
-	args := request.Params.Arguments
 
-	if dataset, ok = args["dataset"].(string); !ok {
+	if dataset, err = request.RequireString("dataset"); err != nil {
 		return nil, errors.New("dataset must be set")
 	} else {
 		dataset = strings.ToUpper(dataset)
@@ -296,7 +294,7 @@ func getCostHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 			return nil, errors.New("unknown dataset")
 		}
 	}
-	if schemaStr, ok = args["schema"].(string); !ok {
+	if schemaStr, err = request.RequireString("schema"); err != nil {
 		return nil, errors.New("schema must be set")
 	} else {
 		schemaStr = strings.ToLower(schemaStr)
@@ -304,17 +302,17 @@ func getCostHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 			return nil, errors.New("unknown schema")
 		}
 	}
-	if symbol, ok = args["symbol"].(string); !ok {
+	if symbol, err = request.RequireString("symbol"); err != nil {
 		return nil, errors.New("symbol must be valid")
 	}
-	if startStr, ok = args["start"].(string); !ok {
+	if startStr, err = request.RequireString("start"); err != nil {
 		return nil, errors.New("start must be valid")
 	} else {
 		if startTime, err = iso8601.ParseString(startStr); err != nil {
 			return nil, fmt.Errorf("start was invalid: %w", err)
 		}
 	}
-	if endStr, ok = args["end"].(string); !ok {
+	if endStr, err = request.RequireString("end"); err != nil {
 		return nil, errors.New("end must be valid")
 	} else {
 		if endTime, err = iso8601.ParseString(endStr); err != nil {
@@ -365,10 +363,8 @@ func getRangeHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.Cal
 	var schema dbn.Schema
 	var startTime, endTime time.Time
 	var err error
-	var ok bool
-	args := request.Params.Arguments
 
-	if dataset, ok = args["dataset"].(string); !ok {
+	if dataset, err = request.RequireString("dataset"); err != nil {
 		return nil, errors.New("dataset must be set")
 	} else {
 		dataset = strings.ToUpper(dataset)
@@ -376,28 +372,28 @@ func getRangeHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.Cal
 			return nil, errors.New("unknown dataset")
 		}
 	}
-	if schemaStr, ok = args["schema"].(string); !ok {
+	if schemaStr, err = request.RequireString("schema"); err != nil {
 		return nil, errors.New("schema must be set")
 	} else {
 		schemaStr = strings.ToLower(schemaStr)
 		if !slices.Contains(validSchemas, schemaStr) {
 			return nil, errors.New("unknown schema")
 		}
-		if schema, err = dbn.SchemaFromString(schemaStr); !ok {
+		if schema, err = dbn.SchemaFromString(schemaStr); err != nil {
 			return nil, fmt.Errorf("schema was invalid: %w", err)
 		}
 	}
-	if symbol, ok = args["symbol"].(string); !ok {
+	if symbol, err = request.RequireString("symbol"); err != nil {
 		return nil, errors.New("symbol must be valid")
 	}
-	if startStr, ok = args["start"].(string); !ok {
+	if startStr, err = request.RequireString("start"); err != nil {
 		return nil, errors.New("start must be valid")
 	} else {
 		if startTime, err = iso8601.ParseString(startStr); err != nil {
 			return nil, fmt.Errorf("start was invalid: %w", err)
 		}
 	}
-	if endStr, ok = args["end"].(string); !ok {
+	if endStr, err = request.RequireString("end"); err != nil {
 		return nil, errors.New("end must be valid")
 	} else {
 		if endTime, err = iso8601.ParseString(endStr); err != nil {
