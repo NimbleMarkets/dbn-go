@@ -1,8 +1,9 @@
 # CHANGELOG
 
-## v0.6.1 (2025-05-30)
+## v0.6.1 (2025-06-02)
 
  * Update Go dependencies, including fixes for latest  `go-mcp`
+ * Fix `StatMsg` decoding and add tests for it (#14)
 
 ## v0.6.0 (2025-05-27)
 

@@ -867,7 +867,7 @@ func (r *StatMsg) Fill_Raw(b []byte) error {
 	r.Sequence = binary.LittleEndian.Uint32(body[28:32])
 	r.TsInDelta = int32(binary.LittleEndian.Uint32(body[32:36]))
 	r.StatType = binary.LittleEndian.Uint16(body[36:38])
-	r.ChannelID = binary.LittleEndian.Uint16(body[39:40])
+	r.ChannelID = binary.LittleEndian.Uint16(body[38:40])
 	r.UpdateAction = body[40]
 	r.StatFlags = body[41]
 	return nil

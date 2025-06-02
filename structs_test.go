@@ -440,6 +440,100 @@ var _ = Describe("Struct", func() {
 			Expect(r1.TickRule).To(Equal(uint8(255)))
 		})
 	})
+
+	Context("statistics testing", func() {
+		It("should read a v1 statistics correctly", func() {
+			file, closer, err := dbn.MakeCompressedReader("./tests/data/test_data.statistics.v1.dbn.zst", false)
+			Expect(err).To(BeNil())
+			defer closer.Close()
+
+			records, metadata, err := dbn.ReadDBNToSlice[dbn.StatMsg](file)
+			Expect(err).To(BeNil())
+			Expect(metadata).ToNot(BeNil())
+			Expect(len(records)).To(Equal(2))
+
+			// dbn -J ./tests/data/test_data.statistics.v1.dbn.zst
+			// {"ts_recv":"1682269536040124325","hd":{"ts_event":"1682269536030443135","rtype":24,"publisher_id":1,"instrument_id":146945},"ts_ref":"18446744073709551615","price":"100000000000","quantity":2147483647,"sequence":2,"ts_in_delta":26961,"stat_type":7,"channel_id":13,"update_action":1,"stat_flags":255}
+			// {"ts_recv":"1682269536121890092","hd":{"ts_event":"1682269536071497081","rtype":24,"publisher_id":1,"instrument_id":146945},"ts_ref":"18446744073709551615","price":"100000000000","quantity":2147483647,"sequence":7,"ts_in_delta":28456,"stat_type":5,"channel_id":13,"update_action":1,"stat_flags":255}
+			r0, r0h := records[0], records[0].Header
+			Expect(r0h.TsEvent).To(Equal(uint64(1682269536030443135)))
+			Expect(r0h.RType).To(Equal(dbn.RType(24)))
+			Expect(r0h.PublisherID).To(Equal(uint16(1)))
+			Expect(r0h.InstrumentID).To(Equal(uint32(146945)))
+			Expect(r0.TsRecv).To(Equal(uint64(1682269536040124325)))
+			Expect(r0.TsRef).To(Equal(uint64(18446744073709551615)))
+			Expect(r0.Price).To(Equal(int64(100000000000)))
+			Expect(r0.Quantity).To(Equal(int32(2147483647)))
+			Expect(r0.Sequence).To(Equal(uint32(2)))
+			Expect(r0.TsInDelta).To(Equal(int32(26961)))
+			Expect(r0.StatType).To(Equal(uint16(7)))
+			Expect(r0.ChannelID).To(Equal(uint16(13)))
+			Expect(r0.UpdateAction).To(Equal(uint8(1)))
+			Expect(r0.StatFlags).To(Equal(uint8(255)))
+
+			r1, r1h := records[1], records[1].Header
+			Expect(r1h.TsEvent).To(Equal(uint64(1682269536071497081)))
+			Expect(r1h.RType).To(Equal(dbn.RType(24)))
+			Expect(r1h.PublisherID).To(Equal(uint16(1)))
+			Expect(r1h.InstrumentID).To(Equal(uint32(146945)))
+			Expect(r1.TsRecv).To(Equal(uint64(1682269536121890092)))
+			Expect(r1.TsRef).To(Equal(uint64(18446744073709551615)))
+			Expect(r1.Price).To(Equal(int64(100000000000)))
+			Expect(r1.Quantity).To(Equal(int32(2147483647)))
+			Expect(r1.Sequence).To(Equal(uint32(7)))
+			Expect(r1.TsInDelta).To(Equal(int32(28456)))
+			Expect(r1.StatType).To(Equal(uint16(5)))
+			Expect(r1.ChannelID).To(Equal(uint16(13)))
+			Expect(r1.UpdateAction).To(Equal(uint8(1)))
+			Expect(r1.StatFlags).To(Equal(uint8(255)))
+		})
+
+		It("should read a v2 statistics correctly", func() {
+			file, closer, err := dbn.MakeCompressedReader("./tests/data/test_data.statistics.v2.dbn.zst", false)
+			Expect(err).To(BeNil())
+			defer closer.Close()
+
+			records, metadata, err := dbn.ReadDBNToSlice[dbn.StatMsg](file)
+			Expect(err).To(BeNil())
+			Expect(metadata).ToNot(BeNil())
+			Expect(len(records)).To(Equal(2))
+
+			// dbn -J ./tests/data/test_data.statistics.v2.dbn.zst
+			// {"ts_recv":"1682269536040124325","hd":{"ts_event":"1682269536030443135","rtype":24,"publisher_id":1,"instrument_id":146945},"ts_ref":"18446744073709551615","price":"100000000000","quantity":2147483647,"sequence":2,"ts_in_delta":26961,"stat_type":7,"channel_id":13,"update_action":1,"stat_flags":255}
+			// {"ts_recv":"1682269536121890092","hd":{"ts_event":"1682269536071497081","rtype":24,"publisher_id":1,"instrument_id":146945},"ts_ref":"18446744073709551615","price":"100000000000","quantity":2147483647,"sequence":7,"ts_in_delta":28456,"stat_type":5,"channel_id":13,"update_action":1,"stat_flags":255}
+			r0, r0h := records[0], records[0].Header
+			Expect(r0h.TsEvent).To(Equal(uint64(1682269536030443135)))
+			Expect(r0h.RType).To(Equal(dbn.RType(24)))
+			Expect(r0h.PublisherID).To(Equal(uint16(1)))
+			Expect(r0h.InstrumentID).To(Equal(uint32(146945)))
+			Expect(r0.TsRecv).To(Equal(uint64(1682269536040124325)))
+			Expect(r0.TsRef).To(Equal(uint64(18446744073709551615)))
+			Expect(r0.Price).To(Equal(int64(100000000000)))
+			Expect(r0.Quantity).To(Equal(int32(2147483647)))
+			Expect(r0.Sequence).To(Equal(uint32(2)))
+			Expect(r0.TsInDelta).To(Equal(int32(26961)))
+			Expect(r0.StatType).To(Equal(uint16(7)))
+			Expect(r0.ChannelID).To(Equal(uint16(13)))
+			Expect(r0.UpdateAction).To(Equal(uint8(1)))
+			Expect(r0.StatFlags).To(Equal(uint8(255)))
+
+			r1, r1h := records[1], records[1].Header
+			Expect(r1h.TsEvent).To(Equal(uint64(1682269536071497081)))
+			Expect(r1h.RType).To(Equal(dbn.RType(24)))
+			Expect(r1h.PublisherID).To(Equal(uint16(1)))
+			Expect(r1h.InstrumentID).To(Equal(uint32(146945)))
+			Expect(r1.TsRecv).To(Equal(uint64(1682269536121890092)))
+			Expect(r1.TsRef).To(Equal(uint64(18446744073709551615)))
+			Expect(r1.Price).To(Equal(int64(100000000000)))
+			Expect(r1.Quantity).To(Equal(int32(2147483647)))
+			Expect(r1.Sequence).To(Equal(uint32(7)))
+			Expect(r1.TsInDelta).To(Equal(int32(28456)))
+			Expect(r1.StatType).To(Equal(uint16(5)))
+			Expect(r1.ChannelID).To(Equal(uint16(13)))
+			Expect(r1.UpdateAction).To(Equal(uint8(1)))
+			Expect(r1.StatFlags).To(Equal(uint8(255)))
+		})
+	})
 })
 
 /*
