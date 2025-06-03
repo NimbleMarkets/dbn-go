@@ -321,7 +321,6 @@ type Mbp1Msg struct {
 	TsInDelta int32      `json:"ts_in_delta" csv:"ts_in_delta"` // The delta of `ts_recv - ts_exchange_send`, max 2 seconds.
 	Sequence  uint32     `json:"sequence" csv:"sequence"`       // The message sequence number assigned at the venue.
 	Level     BidAskPair `json:"levels" csv:"levels"`           // The top of the order book.
-
 }
 
 const Mbp1Msg_Size = RHeader_Size + 64
@@ -923,12 +922,12 @@ func (r *StatusMsg) Fill_Raw(b []byte) error {
 	}
 	body := b[RHeader_Size:] // slice of just the body
 	r.TsRecv = binary.LittleEndian.Uint64(body[0:8])
-	r.Action = binary.LittleEndian.Uint16(body[8:9])
-	r.Reason = binary.LittleEndian.Uint16(body[9:10])
-	r.TradingEvent = binary.LittleEndian.Uint16(body[10:11])
-	r.IsTrading = body[11]
-	r.IsQuoting = body[12]
-	r.IsShortSellRestricted = body[13]
+	r.Action = binary.LittleEndian.Uint16(body[8:10])
+	r.Reason = binary.LittleEndian.Uint16(body[10:12])
+	r.TradingEvent = binary.LittleEndian.Uint16(body[12:14])
+	r.IsTrading = body[14]
+	r.IsQuoting = body[15]
+	r.IsShortSellRestricted = body[16]
 	return nil
 }
 

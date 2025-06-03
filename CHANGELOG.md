@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v0.6.2 (2025-06-03)
+
+ * Fix `StatusMsg` decoding.
+ * Added more message structure tests (#6)
+
 ## v0.6.1 (2025-06-02)
 
  * Update Go dependencies, including fixes for latest  `go-mcp`
