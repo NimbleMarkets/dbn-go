@@ -27,6 +27,7 @@ var _ = Describe("Struct", func() {
 			Expect(unsafe.Sizeof(dbn.SystemMsg{})).To(Equal(uintptr(dbn.SystemMsg_Size)))
 			Expect(unsafe.Sizeof(dbn.StatMsg{})).To(Equal(uintptr(dbn.StatMsg_Size)))
 			Expect(unsafe.Sizeof(dbn.StatusMsg{})).To(Equal(uintptr(dbn.StatusMsg_Size)))
+			Expect(unsafe.Sizeof(dbn.BboMsg{})).To(Equal(uintptr(dbn.BboMsg_Size)))
 			Expect(unsafe.Sizeof(dbn.InstrumentDefMsg{})).To(Equal(uintptr(dbn.InstrumentDefMsg_Size)))
 			Expect(int((&dbn.RHeader{}).RSize())).To(Equal(dbn.RHeader_Size))
 			Expect(int((&dbn.Mbp0Msg{}).RSize())).To(Equal(dbn.Mbp0Msg_Size))
@@ -38,6 +39,7 @@ var _ = Describe("Struct", func() {
 			Expect(int((&dbn.ErrorMsg{}).RSize())).To(Equal(dbn.ErrorMsg_Size))
 			Expect(int((&dbn.StatMsg{}).RSize())).To(Equal(dbn.StatMsg_Size))
 			Expect(int((&dbn.StatusMsg{}).RSize())).To(Equal(dbn.StatusMsg_Size))
+			Expect(int((&dbn.BboMsg{}).RSize())).To(Equal(dbn.BboMsg_Size))
 			Expect(int((&dbn.InstrumentDefMsg{}).RSize())).To(Equal(dbn.InstrumentDefMsg_Size))
 		})
 	})
@@ -1154,6 +1156,170 @@ var _ = Describe("Struct", func() {
 			Expect(r3.IsTrading).To(Equal(uint8('Y')))
 			Expect(r3.IsQuoting).To(Equal(uint8('Y')))
 			Expect(r3.IsShortSellRestricted).To(Equal(uint8('~')))
+		})
+	})
+
+	Context("BBO interval messages", func() {
+		It("should read v1 bbo-1s correctly", func() {
+			file, err := os.Open("./tests/data/test_data.bbo-1s.dbn")
+			Expect(err).To(BeNil())
+			defer file.Close()
+
+			// dbn -J ./tests/data/test_data.bbo-1s.dbn
+			// {"ts_recv":"1609113600000000000","hd":{"ts_event":"1609113599045849637","rtype":195,"publisher_id":1,"instrument_id":5482},"side":"A","price":"3702500000000","size":2,"flags":168,"sequence":145799,"levels":[{"bid_px":"3702250000000","ask_px":"3702750000000","bid_sz":18,"ask_sz":13,"bid_ct":10,"ask_ct":13}]}
+			// {"ts_recv":"1609113601000000000","hd":{"ts_event":"1609113600986911551","rtype":195,"publisher_id":1,"instrument_id":5482},"side":"B","price":"3702500000000","size":2,"flags":130,"sequence":145998,"levels":[{"bid_px":"3702500000000","ask_px":"3702750000000","bid_sz":2,"ask_sz":10,"bid_ct":1,"ask_ct":10}]}
+
+			records, metadata, err := dbn.ReadDBNToSlice[dbn.BboMsg](file)
+			Expect(err).To(BeNil())
+			Expect(metadata).ToNot(BeNil())
+			Expect(len(records)).To(Equal(4))
+
+			r0, r0h := records[0], records[0].Header
+			Expect(r0h.TsEvent).To(Equal(uint64(1609113599045849637)))
+			Expect(r0h.RType).To(Equal(dbn.RType(195)))
+			Expect(r0h.PublisherID).To(Equal(uint16(1)))
+			Expect(r0h.InstrumentID).To(Equal(uint32(5482)))
+			Expect(r0.TsRecv).To(Equal(uint64(1609113600000000000)))
+			Expect(r0.Side).To(Equal(byte('A')))
+			Expect(r0.Price).To(Equal(int64(3702500000000)))
+			Expect(r0.Size).To(Equal(uint32(2)))
+			Expect(r0.Flags).To(Equal(uint8(168)))
+			Expect(r0.Sequence).To(Equal(uint32(145799)))
+			Expect(r0.Level.BidPx).To(Equal(int64(3702250000000)))
+			Expect(r0.Level.AskPx).To(Equal(int64(3702750000000)))
+			Expect(r0.Level.BidSz).To(Equal(uint32(18)))
+			Expect(r0.Level.AskSz).To(Equal(uint32(13)))
+			Expect(r0.Level.BidCt).To(Equal(uint32(10)))
+			Expect(r0.Level.AskCt).To(Equal(uint32(13)))
+
+			r1, r1h := records[1], records[1].Header
+			Expect(r1h.TsEvent).To(Equal(uint64(1609113600986911551)))
+			Expect(r1h.RType).To(Equal(dbn.RType(195)))
+			Expect(r1h.PublisherID).To(Equal(uint16(1)))
+			Expect(r1h.InstrumentID).To(Equal(uint32(5482)))
+			Expect(r1.TsRecv).To(Equal(uint64(1609113601000000000)))
+			Expect(r1.Side).To(Equal(byte('B')))
+			Expect(r1.Price).To(Equal(int64(3702500000000)))
+			Expect(r1.Size).To(Equal(uint32(2)))
+			Expect(r1.Flags).To(Equal(uint8(130)))
+			Expect(r1.Sequence).To(Equal(uint32(145998)))
+			Expect(r1.Level.BidPx).To(Equal(int64(3702500000000)))
+			Expect(r1.Level.AskPx).To(Equal(int64(3702750000000)))
+			Expect(r1.Level.BidSz).To(Equal(uint32(2)))
+			Expect(r1.Level.AskSz).To(Equal(uint32(10)))
+			Expect(r1.Level.BidCt).To(Equal(uint32(1)))
+			Expect(r1.Level.AskCt).To(Equal(uint32(10)))
+		})
+
+		It("should read v2 bbo-1s correctly", func() {
+			file, closer, err := dbn.MakeCompressedReader("./tests/data/test_data.bbo-1s.v2.dbn.zst", false)
+			Expect(err).To(BeNil())
+			defer closer.Close()
+
+			records, metadata, err := dbn.ReadDBNToSlice[dbn.BboMsg](file)
+			Expect(err).To(BeNil())
+			Expect(metadata).ToNot(BeNil())
+			Expect(len(records)).To(Equal(4))
+
+			// Same data as v1
+			r0, r0h := records[0], records[0].Header
+			Expect(r0h.TsEvent).To(Equal(uint64(1609113599045849637)))
+			Expect(r0h.RType).To(Equal(dbn.RType(195)))
+			Expect(r0h.PublisherID).To(Equal(uint16(1)))
+			Expect(r0h.InstrumentID).To(Equal(uint32(5482)))
+			Expect(r0.TsRecv).To(Equal(uint64(1609113600000000000)))
+			Expect(r0.Side).To(Equal(byte('A')))
+			Expect(r0.Price).To(Equal(int64(3702500000000)))
+			Expect(r0.Size).To(Equal(uint32(2)))
+			Expect(r0.Flags).To(Equal(uint8(168)))
+			Expect(r0.Sequence).To(Equal(uint32(145799)))
+			Expect(r0.Level.BidPx).To(Equal(int64(3702250000000)))
+			Expect(r0.Level.AskPx).To(Equal(int64(3702750000000)))
+			Expect(r0.Level.BidSz).To(Equal(uint32(18)))
+			Expect(r0.Level.AskSz).To(Equal(uint32(13)))
+			Expect(r0.Level.BidCt).To(Equal(uint32(10)))
+			Expect(r0.Level.AskCt).To(Equal(uint32(13)))
+		})
+
+		It("should read v1 bbo-1m correctly", func() {
+			file, err := os.Open("./tests/data/test_data.bbo-1m.dbn")
+			Expect(err).To(BeNil())
+			defer file.Close()
+
+			// dbn -J ./tests/data/test_data.bbo-1m.dbn
+			// {"ts_recv":"1609113600000000000","hd":{"ts_event":"1609113599045849637","rtype":196,"publisher_id":1,"instrument_id":5482},"side":"A","price":"3702500000000","size":2,"flags":168,"sequence":145799,"levels":[{"bid_px":"3702250000000","ask_px":"3702750000000","bid_sz":18,"ask_sz":13,"bid_ct":10,"ask_ct":13}]}
+			// {"ts_recv":"1609113660000000000","hd":{"ts_event":"1609113659578979253","rtype":196,"publisher_id":1,"instrument_id":5482},"side":"B","price":"3704750000000","size":1,"flags":130,"sequence":149903,"levels":[{"bid_px":"3704500000000","ask_px":"3705000000000","bid_sz":15,"ask_sz":22,"bid_ct":10,"ask_ct":22}]}
+
+			records, metadata, err := dbn.ReadDBNToSlice[dbn.BboMsg](file)
+			Expect(err).To(BeNil())
+			Expect(metadata).ToNot(BeNil())
+			Expect(len(records)).To(Equal(4))
+
+			r0, r0h := records[0], records[0].Header
+			Expect(r0h.TsEvent).To(Equal(uint64(1609113599045849637)))
+			Expect(r0h.RType).To(Equal(dbn.RType(196)))
+			Expect(r0h.PublisherID).To(Equal(uint16(1)))
+			Expect(r0h.InstrumentID).To(Equal(uint32(5482)))
+			Expect(r0.TsRecv).To(Equal(uint64(1609113600000000000)))
+			Expect(r0.Side).To(Equal(byte('A')))
+			Expect(r0.Price).To(Equal(int64(3702500000000)))
+			Expect(r0.Size).To(Equal(uint32(2)))
+			Expect(r0.Flags).To(Equal(uint8(168)))
+			Expect(r0.Sequence).To(Equal(uint32(145799)))
+			Expect(r0.Level.BidPx).To(Equal(int64(3702250000000)))
+			Expect(r0.Level.AskPx).To(Equal(int64(3702750000000)))
+			Expect(r0.Level.BidSz).To(Equal(uint32(18)))
+			Expect(r0.Level.AskSz).To(Equal(uint32(13)))
+			Expect(r0.Level.BidCt).To(Equal(uint32(10)))
+			Expect(r0.Level.AskCt).To(Equal(uint32(13)))
+
+			r1, r1h := records[1], records[1].Header
+			Expect(r1h.TsEvent).To(Equal(uint64(1609113659578979253)))
+			Expect(r1h.RType).To(Equal(dbn.RType(196)))
+			Expect(r1h.PublisherID).To(Equal(uint16(1)))
+			Expect(r1h.InstrumentID).To(Equal(uint32(5482)))
+			Expect(r1.TsRecv).To(Equal(uint64(1609113660000000000)))
+			Expect(r1.Side).To(Equal(byte('B')))
+			Expect(r1.Price).To(Equal(int64(3704750000000)))
+			Expect(r1.Size).To(Equal(uint32(1)))
+			Expect(r1.Flags).To(Equal(uint8(130)))
+			Expect(r1.Sequence).To(Equal(uint32(149903)))
+			Expect(r1.Level.BidPx).To(Equal(int64(3704500000000)))
+			Expect(r1.Level.AskPx).To(Equal(int64(3705000000000)))
+			Expect(r1.Level.BidSz).To(Equal(uint32(15)))
+			Expect(r1.Level.AskSz).To(Equal(uint32(22)))
+			Expect(r1.Level.BidCt).To(Equal(uint32(10)))
+			Expect(r1.Level.AskCt).To(Equal(uint32(22)))
+		})
+
+		It("should read v2 bbo-1m correctly", func() {
+			file, closer, err := dbn.MakeCompressedReader("./tests/data/test_data.bbo-1m.v2.dbn.zst", false)
+			Expect(err).To(BeNil())
+			defer closer.Close()
+
+			records, metadata, err := dbn.ReadDBNToSlice[dbn.BboMsg](file)
+			Expect(err).To(BeNil())
+			Expect(metadata).ToNot(BeNil())
+			Expect(len(records)).To(Equal(4))
+
+			// Same data as v1
+			r0, r0h := records[0], records[0].Header
+			Expect(r0h.TsEvent).To(Equal(uint64(1609113599045849637)))
+			Expect(r0h.RType).To(Equal(dbn.RType(196)))
+			Expect(r0h.PublisherID).To(Equal(uint16(1)))
+			Expect(r0h.InstrumentID).To(Equal(uint32(5482)))
+			Expect(r0.TsRecv).To(Equal(uint64(1609113600000000000)))
+			Expect(r0.Side).To(Equal(byte('A')))
+			Expect(r0.Price).To(Equal(int64(3702500000000)))
+			Expect(r0.Size).To(Equal(uint32(2)))
+			Expect(r0.Flags).To(Equal(uint8(168)))
+			Expect(r0.Sequence).To(Equal(uint32(145799)))
+			Expect(r0.Level.BidPx).To(Equal(int64(3702250000000)))
+			Expect(r0.Level.AskPx).To(Equal(int64(3702750000000)))
+			Expect(r0.Level.BidSz).To(Equal(uint32(18)))
+			Expect(r0.Level.AskSz).To(Equal(uint32(13)))
+			Expect(r0.Level.BidCt).To(Equal(uint32(10)))
+			Expect(r0.Level.AskCt).To(Equal(uint32(13)))
 		})
 	})
 })

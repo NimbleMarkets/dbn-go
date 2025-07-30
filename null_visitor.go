@@ -31,6 +31,10 @@ func (v *NullVisitor) OnCmbp1(record *Cmbp1Msg) error {
 	return nil
 }
 
+func (v *NullVisitor) OnBbo(record *BboMsg) error {
+	return nil
+}
+
 func (v *NullVisitor) OnImbalance(record *ImbalanceMsg) error {
 	return nil
 }

@@ -57,13 +57,22 @@ func (rtype RType) IsCompatibleWith(rtype2 RType) bool {
 	if rtype == rtype2 {
 		return true
 	}
-	// Otherwise they are compatible if they are both candles
-	return rtype.IsCandle() && rtype2.IsCandle()
+	// Otherwise they are compatible if they are both candles or both BBO
+	return (rtype.IsCandle() && rtype2.IsCandle()) || (rtype.IsBbo() && rtype2.IsBbo())
 }
 
 func (rtype RType) IsCandle() bool {
 	switch rtype {
 	case RType_Ohlcv1S, RType_Ohlcv1M, RType_Ohlcv1H, RType_Ohlcv1D, RType_OhlcvEod, RType_OhlcvDeprecated:
+		return true
+	default:
+		return false
+	}
+}
+
+func (rtype RType) IsBbo() bool {
+	switch rtype {
+	case RType_Bbo1S, RType_Bbo1M:
 		return true
 	default:
 		return false
@@ -940,6 +949,76 @@ func (r *StatusMsg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 	r.IsTrading = uint8(val.GetUint("is_trading"))
 	r.IsQuoting = uint8(val.GetUint("is_quoting"))
 	r.IsShortSellRestricted = uint8(val.GetUint("is_short_sell_restricted"))
+	return nil
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+// BboMsg is a Best Bid and Offer record subsampled on a 1-second or 1-minute interval.
+// It provides the last best bid, best offer, and sale at the specified interval.
+type BboMsg struct {
+	Header   RHeader    `json:"hd" csv:"hd"`             // The common header.
+	Price    int64      `json:"price" csv:"price"`       // The last trade price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be UNDEF_PRICE if there was no last trade in the session.
+	Size     uint32     `json:"size" csv:"size"`         // The last trade quantity. Will be 0 if there was no last trade in the session.
+	Side     byte       `json:"side" csv:"side"`         // The side that initiated the last trade. Can be Ask for a sell aggressor in a trade, Bid for a buy aggressor in a trade, or None where no side is specified.
+	Flags    uint8      `json:"flags" csv:"flags"`       // A bit field indicating event end, message characteristics, and data quality.
+	TsRecv   uint64     `json:"ts_recv" csv:"ts_recv"`   // The end timestamp of the interval, clamped to the second/minute boundary, expressed as the number of nanoseconds since the UNIX epoch.
+	Sequence uint32     `json:"sequence" csv:"sequence"` // The message sequence number assigned at the venue of the last update.
+	Level    BidAskPair `json:"levels" csv:"levels"`     // The bid and ask prices and sizes at the top level.
+}
+
+const BboMsg_Size = RHeader_Size + 64
+
+func (*BboMsg) RType() RType {
+	// Return a generic BBO RType, similar to how OhlcvMsg returns RType_OhlcvEod
+	return RType_Bbo1S
+}
+
+func (*BboMsg) RSize() uint16 {
+	return BboMsg_Size
+}
+
+func (r *BboMsg) Fill_Raw(b []byte) error {
+	if len(b) < BboMsg_Size {
+		return unexpectedBytesError(len(b), BboMsg_Size)
+	}
+	err := r.Header.Fill_Raw(b[0:RHeader_Size])
+	if err != nil {
+		return err
+	}
+	body := b[RHeader_Size:]
+
+	r.Price = int64(binary.LittleEndian.Uint64(body[0:8]))
+	r.Size = binary.LittleEndian.Uint32(body[8:12])
+	// 1 byte padding
+	r.Side = body[13]
+	r.Flags = body[14]
+	// 1 byte padding
+	r.TsRecv = binary.LittleEndian.Uint64(body[16:24])
+	// 4 bytes padding
+	r.Sequence = binary.LittleEndian.Uint32(body[28:32])
+	r.Level.Fill_Raw(body[32 : 32+BidAskPair_Size])
+	return nil
+}
+
+func (r *BboMsg) Fill_Json(val *fastjson.Value, header *RHeader) error {
+	r.Header = *header
+	r.Price = fastjson_GetInt64FromString(val, "price")
+	r.Size = uint32(val.GetUint("size"))
+	r.Side = byte(val.Get("side").String()[1]) // Get the first character from the JSON string
+	r.Flags = uint8(val.GetUint("flags"))
+	r.TsRecv = fastjson_GetUint64FromString(val, "ts_recv")
+	r.Sequence = uint32(val.GetUint("sequence"))
+
+	levels := val.Get("levels")
+	if levels != nil {
+		r.Level.BidPx = fastjson_GetInt64FromString(levels, "bid_px")
+		r.Level.AskPx = fastjson_GetInt64FromString(levels, "ask_px")
+		r.Level.BidSz = uint32(levels.GetUint("bid_sz"))
+		r.Level.AskSz = uint32(levels.GetUint("ask_sz"))
+		r.Level.BidCt = uint32(levels.GetUint("bid_ct"))
+		r.Level.AskCt = uint32(levels.GetUint("ask_ct"))
+	}
 	return nil
 }
 
