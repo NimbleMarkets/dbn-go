@@ -297,6 +297,14 @@ func (s *DbnScanner) Visit(visitor Visitor) error {
 		} else {
 			return visitor.OnStatusMsg(&record)
 		}
+	// BBO schemas
+	case RType_Bbo1S, RType_Bbo1M:
+		record := BboMsg{}
+		if err := record.Fill_Raw(s.lastRecord[:BboMsg_Size]); err != nil {
+			return err // TODO: OnError()
+		} else {
+			return visitor.OnBbo(&record)
+		}
 
 	// InstrumentDef
 	case RType_InstrumentDef:
