@@ -957,14 +957,17 @@ func (r *StatusMsg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 // BboMsg is a Best Bid and Offer record subsampled on a 1-second or 1-minute interval.
 // It provides the last best bid, best offer, and sale at the specified interval.
 type BboMsg struct {
-	Header   RHeader    `json:"hd" csv:"hd"`             // The common header.
-	Price    int64      `json:"price" csv:"price"`       // The last trade price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be UNDEF_PRICE if there was no last trade in the session.
-	Size     uint32     `json:"size" csv:"size"`         // The last trade quantity. Will be 0 if there was no last trade in the session.
-	Side     byte       `json:"side" csv:"side"`         // The side that initiated the last trade. Can be Ask for a sell aggressor in a trade, Bid for a buy aggressor in a trade, or None where no side is specified.
-	Flags    uint8      `json:"flags" csv:"flags"`       // A bit field indicating event end, message characteristics, and data quality.
-	TsRecv   uint64     `json:"ts_recv" csv:"ts_recv"`   // The end timestamp of the interval, clamped to the second/minute boundary, expressed as the number of nanoseconds since the UNIX epoch.
-	Sequence uint32     `json:"sequence" csv:"sequence"` // The message sequence number assigned at the venue of the last update.
-	Level    BidAskPair `json:"levels" csv:"levels"`     // The bid and ask prices and sizes at the top level.
+	Header    RHeader    `json:"hd" csv:"hd"`                 // The common header.
+	Price     int64      `json:"price" csv:"price"`           // The last trade price where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001. Will be UNDEF_PRICE if there was no last trade in the session.
+	Size      uint32     `json:"size" csv:"size"`             // The last trade quantity. Will be 0 if there was no last trade in the session.
+	Reserved1 byte       `json:"_reserved1" csv:"_reserved1"` // Reserved for future use.
+	Side      byte       `json:"side" csv:"side"`             // The side that initiated the last trade. Can be Ask for a sell aggressor in a trade, Bid for a buy aggressor in a trade, or None where no side is specified.
+	Flags     uint8      `json:"flags" csv:"flags"`           // A bit field indicating event end, message characteristics, and data quality.
+	Reserved2 byte       `json:"_reserved2" csv:"_reserved2"` // Reserved for future use.
+	TsRecv    uint64     `json:"ts_recv" csv:"ts_recv"`       // The end timestamp of the interval, clamped to the second/minute boundary, expressed as the number of nanoseconds since the UNIX epoch.
+	Reserved3 [4]byte    `json:"_reserved3" csv:"_reserved3"` // Reserved for future use.
+	Sequence  uint32     `json:"sequence" csv:"sequence"`     // The message sequence number assigned at the venue of the last update.
+	Level     BidAskPair `json:"levels" csv:"levels"`         // The bid and ask prices and sizes at the top level.
 }
 
 const BboMsg_Size = RHeader_Size + 64
@@ -990,12 +993,12 @@ func (r *BboMsg) Fill_Raw(b []byte) error {
 
 	r.Price = int64(binary.LittleEndian.Uint64(body[0:8]))
 	r.Size = binary.LittleEndian.Uint32(body[8:12])
-	// 1 byte padding
+	// Reserved1 12
 	r.Side = body[13]
 	r.Flags = body[14]
-	// 1 byte padding
+	// Reserved2 15
 	r.TsRecv = binary.LittleEndian.Uint64(body[16:24])
-	// 4 bytes padding
+	// Reserved3 24:28
 	r.Sequence = binary.LittleEndian.Uint32(body[28:32])
 	r.Level.Fill_Raw(body[32 : 32+BidAskPair_Size])
 	return nil

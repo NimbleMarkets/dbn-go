@@ -1168,6 +1168,8 @@ var _ = Describe("Struct", func() {
 			// dbn -J ./tests/data/test_data.bbo-1s.dbn
 			// {"ts_recv":"1609113600000000000","hd":{"ts_event":"1609113599045849637","rtype":195,"publisher_id":1,"instrument_id":5482},"side":"A","price":"3702500000000","size":2,"flags":168,"sequence":145799,"levels":[{"bid_px":"3702250000000","ask_px":"3702750000000","bid_sz":18,"ask_sz":13,"bid_ct":10,"ask_ct":13}]}
 			// {"ts_recv":"1609113601000000000","hd":{"ts_event":"1609113600986911551","rtype":195,"publisher_id":1,"instrument_id":5482},"side":"B","price":"3702500000000","size":2,"flags":130,"sequence":145998,"levels":[{"bid_px":"3702500000000","ask_px":"3702750000000","bid_sz":2,"ask_sz":10,"bid_ct":1,"ask_ct":10}]}
+			// {"ts_recv":"1609113602000000000","hd":{"ts_event":"1609113601149205775","rtype":195,"publisher_id":1,"instrument_id":5482},"side":"A","price":"3702500000000","size":1,"flags":130,"sequence":146034,"levels":[{"bid_px":"3702250000000","ask_px":"3702750000000","bid_sz":20,"ask_sz":11,"bid_ct":12,"ask_ct":11}]}
+			// {"ts_recv":"1609113603000000000","hd":{"ts_event":"1609113602738022089","rtype":195,"publisher_id":1,"instrument_id":5482},"side":"B","price":"3702500000000","size":1,"flags":130,"sequence":146167,"levels":[{"bid_px":"3702500000000","ask_px":"3702750000000","bid_sz":2,"ask_sz":11,"bid_ct":2,"ask_ct":11}]}
 
 			records, metadata, err := dbn.ReadDBNToSlice[dbn.BboMsg](file)
 			Expect(err).To(BeNil())
@@ -1209,6 +1211,42 @@ var _ = Describe("Struct", func() {
 			Expect(r1.Level.AskSz).To(Equal(uint32(10)))
 			Expect(r1.Level.BidCt).To(Equal(uint32(1)))
 			Expect(r1.Level.AskCt).To(Equal(uint32(10)))
+
+			r2, r2h := records[2], records[2].Header
+			Expect(r2h.TsEvent).To(Equal(uint64(1609113601149205775)))
+			Expect(r2h.RType).To(Equal(dbn.RType(195)))
+			Expect(r2h.PublisherID).To(Equal(uint16(1)))
+			Expect(r2h.InstrumentID).To(Equal(uint32(5482)))
+			Expect(r2.TsRecv).To(Equal(uint64(1609113602000000000)))
+			Expect(r2.Side).To(Equal(byte('A')))
+			Expect(r2.Price).To(Equal(int64(3702500000000)))
+			Expect(r2.Size).To(Equal(uint32(1)))
+			Expect(r2.Flags).To(Equal(uint8(130)))
+			Expect(r2.Sequence).To(Equal(uint32(146034)))
+			Expect(r2.Level.BidPx).To(Equal(int64(3702250000000)))
+			Expect(r2.Level.AskPx).To(Equal(int64(3702750000000)))
+			Expect(r2.Level.BidSz).To(Equal(uint32(20)))
+			Expect(r2.Level.AskSz).To(Equal(uint32(11)))
+			Expect(r2.Level.BidCt).To(Equal(uint32(12)))
+			Expect(r2.Level.AskCt).To(Equal(uint32(11)))
+
+			r3, r3h := records[3], records[3].Header
+			Expect(r3h.TsEvent).To(Equal(uint64(1609113602738022089)))
+			Expect(r3h.RType).To(Equal(dbn.RType(195)))
+			Expect(r3h.PublisherID).To(Equal(uint16(1)))
+			Expect(r3h.InstrumentID).To(Equal(uint32(5482)))
+			Expect(r3.TsRecv).To(Equal(uint64(1609113603000000000)))
+			Expect(r3.Side).To(Equal(byte('B')))
+			Expect(r3.Price).To(Equal(int64(3702500000000)))
+			Expect(r3.Size).To(Equal(uint32(1)))
+			Expect(r3.Flags).To(Equal(uint8(130)))
+			Expect(r3.Sequence).To(Equal(uint32(146167)))
+			Expect(r3.Level.BidPx).To(Equal(int64(3702500000000)))
+			Expect(r3.Level.AskPx).To(Equal(int64(3702750000000)))
+			Expect(r3.Level.BidSz).To(Equal(uint32(2)))
+			Expect(r3.Level.AskSz).To(Equal(uint32(11)))
+			Expect(r3.Level.BidCt).To(Equal(uint32(2)))
+			Expect(r3.Level.AskCt).To(Equal(uint32(11)))
 		})
 
 		It("should read v2 bbo-1s correctly", func() {
