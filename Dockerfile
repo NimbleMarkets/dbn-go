@@ -23,12 +23,12 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     git
 
-ARG TASKFILE_VERSION="v3.40.1"
+ARG TASKFILE_VERSION="v3.44.1"
 RUN curl -fSL "https://github.com/go-task/task/releases/download/${TASKFILE_VERSION}/task_linux_${TARGETARCH}.deb" -o /tmp/task_linux.deb \
     && dpkg -i /tmp/task_linux.deb \
     && rm /tmp/task_linux.deb
 
-ARG GINKO_VERSION="v2.22.2"
+ARG GINKO_VERSION="v2.23.4"
 RUN go install "github.com/onsi/ginkgo/v2/ginkgo@${GINKO_VERSION}"
 
 ADD . /src
