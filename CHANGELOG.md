@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v0.6.3 (2025-08-11)
+
+ * Add BBO schema support (#15)
+ * Add list of datafile checksums in [`tests/data/checksums.txt`](./tests/data/checksums.txt)
+
 ## v0.6.2 (2025-06-03)
 
  * Fix `StatusMsg` decoding.
