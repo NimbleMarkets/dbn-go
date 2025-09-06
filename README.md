@@ -16,7 +16,7 @@ This repository contains Golang bindings to [Databento's](https://databento.com)
  * [Historical API](#historical-api)
  * [Live API](#live-api)
  * [Tools](#tools)
-   * [Installation](#tools-installation)
+   * [Tool Installation](./cmd/README.md#installation)
 
 **NOTE:** This library is **not** affiliated with Databento.  Please be careful with commands which incur billing.  We are not responsible for any charges you incur.
 
