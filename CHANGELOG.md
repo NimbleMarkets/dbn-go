@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.6.4 (2025-09-05)
+
+ * Add Parquet export of publishers with `dbn-go-hist publishers --parquet <outfile>`.  Useful for some DuckDB queries.
+
 ## v0.6.3 (2025-08-11)
 
  * Add BBO schema support (#15)

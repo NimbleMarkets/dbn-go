@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/NimbleMarkets/dbn-go"
+	dbn_hist "github.com/NimbleMarkets/dbn-go/hist"
 	"github.com/apache/arrow-go/v18/parquet"
 	"github.com/apache/arrow-go/v18/parquet/compress"
 	pqfile "github.com/apache/arrow-go/v18/parquet/file"
@@ -66,7 +67,7 @@ func WriteDbnFileAsParquet(sourceFile string, forceZstdInput bool, destFile stri
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// ParquetSchemaForDbnSchema returns a GroupNode
+// ParquetSchemaForDbnSchema returns a GroupNode for the given dbnSchema
 func ParquetGroupNodeForDbnSchema(dbnSchema dbn.Schema) *pqschema.GroupNode {
 	switch dbnSchema {
 	case dbn.Schema_Ohlcv1S, dbn.Schema_Ohlcv1M, dbn.Schema_Ohlcv1H, dbn.Schema_Ohlcv1D:
@@ -81,6 +82,8 @@ func ParquetGroupNodeForDbnSchema(dbnSchema dbn.Schema) *pqschema.GroupNode {
 		return nil
 	}
 }
+
+///////////////////////////////////////////////////////////////////////////////
 
 func scanAndWriteParquet(scanner *dbn.DbnScanner, rgw pqfile.BufferedRowGroupWriter, dbnSymbolMap *dbn.TsSymbolMap) error {
 	metadata, _ := scanner.Metadata() // we already validated at caller
@@ -460,5 +463,68 @@ func ParquetWriteRow_ImbalanceMsg(rgw pqfile.BufferedRowGroupWriter, record *dbn
 	cw.(*pqfile.ByteArrayColumnChunkWriter).WriteBatch([]parquet.ByteArray{parquet.ByteArray(dbnSymbol)}, []int16{1}, nil)
 	cw, _ = rgw.Column(24)
 	cw.(*pqfile.Int64ColumnChunkWriter).WriteBatch([]int64{int64(record.TsRecv)}, []int16{1}, nil)
+	return nil
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+func WritePublishersAsParquet(publishers []dbn_hist.PublisherDetail, forceZstdInput bool, destFile string) error {
+	// Prepare file for writing
+	outfile, outfileCloser, err := dbn.MakeCompressedWriter(destFile, false)
+	if err != nil {
+		return fmt.Errorf("failed to create writer %w", err)
+	}
+	defer outfileCloser()
+
+	// Prepare parquet writer
+	pwProperties := parquet.NewWriterProperties(
+		parquet.WithVersion(parquet.V2_LATEST),
+		parquet.WithCompression(compress.Codecs.Snappy))
+	pqGroupNode := ParquetGroupNode_Publisher()
+	pw := pqfile.NewParquetWriter(outfile, pqGroupNode, pqfile.WithWriterProps(pwProperties))
+	defer pw.Close()
+
+	// Write the publishers
+	rgw := pw.AppendBufferedRowGroup()
+	var errWrite error
+	for _, publisher := range publishers {
+		if err := ParquetWriteRow_Publisher(rgw, &publisher); err != nil {
+			errWrite = fmt.Errorf("failed to write publisher row %w", err)
+			break
+		}
+	}
+
+	// Flush and close the parquet writer
+	errClose := rgw.Close()
+	errFlush := pw.FlushWithFooter()
+	return errors.Join(errWrite, errClose, errFlush)
+}
+
+// ParquetGroupNode_Publisher returns the Parquet Schema's Group Node for DBN Publishers.
+//
+// int32 field_id=-1 publisher_id (Int(bitWidth=16, isSigned=false));
+// byte_array field_id=-1 dataset (String);
+// byte_array field_id=-1 venue (String);
+// optional byte_array field_id=-1 description (String);
+func ParquetGroupNode_Publisher() *pqschema.GroupNode {
+	return pqschema.MustGroup(pqschema.NewGroupNode("publisher", parquet.Repetitions.Required, pqschema.FieldList{
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("publisher_id", parquet.Repetitions.Required, pqschema.NewIntLogicalType(16, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeConverted("dataset", parquet.Repetitions.Required, parquet.Types.ByteArray, pqschema.ConvertedTypes.UTF8, 0, 0, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeConverted("venue", parquet.Repetitions.Required, parquet.Types.ByteArray, pqschema.ConvertedTypes.UTF8, 0, 0, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeConverted("description", parquet.Repetitions.Optional, parquet.Types.ByteArray, pqschema.ConvertedTypes.UTF8, 0, 0, 0, -1)),
+	}, -1))
+}
+
+// ParquetWriteRow_Publisher writes a single publisherDetail to the given RowGroupWriter.
+func ParquetWriteRow_Publisher(rgw pqfile.BufferedRowGroupWriter, publisher *dbn_hist.PublisherDetail) error {
+	// TODO: handle errors
+	cw, _ := rgw.Column(0)
+	cw.(*pqfile.Int32ColumnChunkWriter).WriteBatch([]int32{int32(publisher.PublisherID)}, []int16{1}, nil)
+	cw, _ = rgw.Column(1)
+	cw.(*pqfile.ByteArrayColumnChunkWriter).WriteBatch([]parquet.ByteArray{parquet.ByteArray(publisher.Dataset)}, []int16{1}, nil)
+	cw, _ = rgw.Column(2)
+	cw.(*pqfile.ByteArrayColumnChunkWriter).WriteBatch([]parquet.ByteArray{parquet.ByteArray(publisher.Venue)}, []int16{1}, nil)
+	cw, _ = rgw.Column(3)
+	cw.(*pqfile.ByteArrayColumnChunkWriter).WriteBatch([]parquet.ByteArray{parquet.ByteArray(publisher.Description)}, []int16{1}, nil)
 	return nil
 }

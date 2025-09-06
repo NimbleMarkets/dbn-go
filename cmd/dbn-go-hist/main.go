@@ -16,6 +16,7 @@ import (
 
 	"github.com/NimbleMarkets/dbn-go"
 	dbn_hist "github.com/NimbleMarkets/dbn-go/hist"
+	dbn_file "github.com/NimbleMarkets/dbn-go/internal/file"
 	dbn_tui "github.com/NimbleMarkets/dbn-go/internal/tui"
 	"github.com/charmbracelet/huh"
 	"github.com/dustin/go-humanize"
@@ -217,6 +218,7 @@ func main() {
 
 	rootCmd.AddCommand(listPublishersCmd)
 	listPublishersCmd.Flags().BoolVarP(&emitJSON, "json", "j", false, "Emit JSON instead of simple summary")
+	listPublishersCmd.Flags().StringVarP(&outputFile, "parquet", "p", "", "Output PARQUET table to file ('-' is stdout)")
 
 	rootCmd.AddCommand(listSchemasCmd)
 	listSchemasCmd.Flags().StringVarP(&dataset, "dataset", "d", "", "Dataset to list schema for")
@@ -362,6 +364,11 @@ var listPublishersCmd = &cobra.Command{
 
 		if emitJSON {
 			printJSON(publishers)
+			return
+		}
+		if outputFile != "" {
+			err := dbn_file.WritePublishersAsParquet(publishers, false, outputFile)
+			requireNoError(err)
 			return
 		}
 		for _, publisher := range publishers {
