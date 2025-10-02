@@ -78,6 +78,8 @@ func ParquetGroupNodeForDbnSchema(dbnSchema dbn.Schema) *pqschema.GroupNode {
 		return ParquetGroupNode_Mbp1Msg()
 	case dbn.Schema_Imbalance:
 		return ParquetGroupNode_ImbalanceMsg()
+	case dbn.Schema_Statistics:
+		return ParquetGroupNode_StatMsg()
 	default:
 		return nil
 	}
@@ -118,6 +120,14 @@ func scanAndWriteParquet(scanner *dbn.DbnScanner, rgw pqfile.BufferedRowGroupWri
 				return err
 			} else {
 				ParquetWriteRow_ImbalanceMsg(rgw, r, dbnSymbolMap)
+			}
+		}
+	case dbn.Schema_Statistics:
+		for scanner.Next() {
+			if r, err := dbn.DbnScannerDecode[dbn.StatMsg](scanner); err != nil {
+				return err
+			} else {
+				ParquetWriteRow_StatMsg(rgw, r, dbnSymbolMap)
 			}
 		}
 	default:
@@ -463,6 +473,82 @@ func ParquetWriteRow_ImbalanceMsg(rgw pqfile.BufferedRowGroupWriter, record *dbn
 	cw.(*pqfile.ByteArrayColumnChunkWriter).WriteBatch([]parquet.ByteArray{parquet.ByteArray(dbnSymbol)}, []int16{1}, nil)
 	cw, _ = rgw.Column(24)
 	cw.(*pqfile.Int64ColumnChunkWriter).WriteBatch([]int64{int64(record.TsRecv)}, []int16{1}, nil)
+	return nil
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+// ParquetGroupNode_StatMsg returns the Parquet Schema's Group Node for StatMsg.
+//
+// optional int64 field_id=-1 ts_event (Timestamp(isAdjustedToUTC=true, timeUnit=nanoseconds, is_from_converted_type=false, force_set_converted_type=false));
+// optional int32 field_id=-1 rtype (Int(bitWidth=8, isSigned=false));
+// optional int32 field_id=-1 publisher_id (Int(bitWidth=16, isSigned=false));
+// optional int32 field_id=-1 instrument_id (Int(bitWidth=32, isSigned=false));
+// optional double field_id=-1 price;
+// optional int64 field_id=-1 quantity (Int(bitWidth=32, isSigned=true));
+// optional int32 field_id=-1 sequence (Int(bitWidth=32, isSigned=false));
+// optional int32 field_id=-1 stat_type (Int(bitWidth=16, isSigned=false));
+// optional int32 field_id=-1 channel_id (Int(bitWidth=16, isSigned=false));
+// optional int32 field_id=-1 update_action (Int(bitWidth=8, isSigned=false));
+// optional int32 field_id=-1 stat_flags (Int(bitWidth=8, isSigned=false));
+// optional binary field_id=-1 symbol (String);
+// optional int32 field_id=-1 ts_in_delta;
+// optional int64 field_id=-1 ts_recv (Timestamp(isAdjustedToUTC=true, timeUnit=nanoseconds, is_from_converted_type=false, force_set_converted_type=false));
+// optional int64 field_id=-1 ts_ref (Timestamp(isAdjustedToUTC=true, timeUnit=nanoseconds, is_from_converted_type=false, force_set_converted_type=false));
+func ParquetGroupNode_StatMsg() *pqschema.GroupNode {
+	return pqschema.MustGroup(pqschema.NewGroupNode("schema", parquet.Repetitions.Required, pqschema.FieldList{
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("ts_event", parquet.Repetitions.Optional, pqschema.NewTimestampLogicalType(true, pqschema.TimeUnitNanos), parquet.Types.Int64, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("rtype", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(8, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("publisher_id", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(16, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("instrument_id", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(32, false), parquet.Types.Int32, 0, -1)),
+		pqschema.NewFloat64Node("price", parquet.Repetitions.Optional, -1),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("quantity", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(32, true), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("sequence", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(16, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("stat_type", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(16, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("channel_id", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(16, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("update_action", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(8, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("stat_flags", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(8, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeConverted("symbol", parquet.Repetitions.Optional, parquet.Types.ByteArray, pqschema.ConvertedTypes.UTF8, 0, 0, 0, -1)),
+		pqschema.NewInt32Node("ts_in_delta", parquet.Repetitions.Optional, -1),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("ts_recv", parquet.Repetitions.Optional, pqschema.NewTimestampLogicalType(true, pqschema.TimeUnitNanos), parquet.Types.Int64, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("ts_ref", parquet.Repetitions.Optional, pqschema.NewTimestampLogicalType(true, pqschema.TimeUnitNanos), parquet.Types.Int64, 0, -1)),
+	}, -1))
+}
+
+func ParquetWriteRow_StatMsg(rgw pqfile.BufferedRowGroupWriter, record *dbn.StatMsg, dbnSymbolMap *dbn.TsSymbolMap) error {
+	// TODO: handle errors
+	cw, _ := rgw.Column(0)
+	cw.(*pqfile.Int64ColumnChunkWriter).WriteBatch([]int64{int64(record.Header.TsEvent)}, []int16{1}, nil)
+	cw, _ = rgw.Column(1)
+	cw.(*pqfile.Int32ColumnChunkWriter).WriteBatch([]int32{int32(record.Header.RType)}, []int16{1}, nil)
+	cw, _ = rgw.Column(2)
+	cw.(*pqfile.Int32ColumnChunkWriter).WriteBatch([]int32{int32(record.Header.PublisherID)}, []int16{1}, nil)
+	cw, _ = rgw.Column(3)
+	cw.(*pqfile.Int32ColumnChunkWriter).WriteBatch([]int32{int32(record.Header.InstrumentID)}, []int16{1}, nil)
+	cw, _ = rgw.Column(4)
+	cw.(*pqfile.Float64ColumnChunkWriter).WriteBatch([]float64{dbn.Fixed9ToFloat64(record.Price)}, []int16{1}, nil)
+	cw, _ = rgw.Column(5)
+	cw.(*pqfile.Int32ColumnChunkWriter).WriteBatch([]int32{int32(record.Quantity)}, []int16{1}, nil)
+	cw, _ = rgw.Column(6)
+	cw.(*pqfile.Int32ColumnChunkWriter).WriteBatch([]int32{int32(record.Sequence)}, []int16{1}, nil)
+	cw, _ = rgw.Column(7)
+	cw.(*pqfile.Int32ColumnChunkWriter).WriteBatch([]int32{int32(record.StatType)}, []int16{1}, nil)
+	cw, _ = rgw.Column(8)
+	cw.(*pqfile.Int32ColumnChunkWriter).WriteBatch([]int32{int32(record.ChannelID)}, []int16{1}, nil)
+	cw, _ = rgw.Column(9)
+	cw.(*pqfile.Int32ColumnChunkWriter).WriteBatch([]int32{int32(record.UpdateAction)}, []int16{1}, nil)
+	cw, _ = rgw.Column(10)
+	cw.(*pqfile.Int32ColumnChunkWriter).WriteBatch([]int32{int32(record.StatFlags)}, []int16{1}, nil)
+	cw, _ = rgw.Column(11)
+	recordTime := time.Unix(0, int64(record.Header.TsEvent)).UTC()
+	dbnSymbol := dbnSymbolMap.Get(recordTime, record.Header.InstrumentID)
+	cw.(*pqfile.ByteArrayColumnChunkWriter).WriteBatch([]parquet.ByteArray{parquet.ByteArray(dbnSymbol)}, []int16{1}, nil)
+	cw, _ = rgw.Column(12)
+	cw.(*pqfile.Int32ColumnChunkWriter).WriteBatch([]int32{int32(record.TsInDelta)}, []int16{1}, nil)
+	cw, _ = rgw.Column(13)
+	cw.(*pqfile.Int64ColumnChunkWriter).WriteBatch([]int64{int64(record.TsRecv)}, []int16{1}, nil)
+	cw, _ = rgw.Column(14)
+	cw.(*pqfile.Int64ColumnChunkWriter).WriteBatch([]int64{int64(record.TsRef)}, []int16{1}, nil)
 	return nil
 }
 

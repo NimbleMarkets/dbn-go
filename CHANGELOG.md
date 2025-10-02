@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.6.5 (2025-10-01)
+
+ * Add Parquet support for Statistics message `StatMsg`
+
 ## v0.6.4 (2025-09-05)
 
  * Add Parquet export of publishers with `dbn-go-hist publishers --parquet <outfile>`.  Useful for some DuckDB queries.
