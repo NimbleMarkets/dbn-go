@@ -494,15 +494,14 @@ var getCostCmd = &cobra.Command{
 		symbols := requireSymbolArgs(args)
 		metaParams := getMetadataQueryParams(symbols)
 
-		cost, err := dbn_hist.GetCost(apiKey, metaParams)
-		requireNoError(err)
-		dataSize, err := dbn_hist.GetBillableSize(apiKey, metaParams)
-		requireNoError(err)
-		recordCount, err := dbn_hist.GetRecordCount(apiKey, metaParams)
+		cost, dataSize, recordCount, err := getCostsChunked(apiKey, symbols)
 		requireNoError(err)
 
 		if emitJSON {
 			printJSON(map[string]interface{}{
+				"dataset":      metaParams.Dataset,
+				"schema":       metaParams.Schema,
+				"num_symbols":  len(metaParams.Symbols),
 				"query":        metaParams,
 				"cost":         cost,
 				"data_size":    dataSize,
@@ -693,12 +692,7 @@ func requireBudgetApproval(apiKey string, symbols []string, params *dbn_hist.Sub
 
 	// Request cost of this job
 	fmt.Fprintf(os.Stderr, "Getting cost estimates for job...\n")
-	metaParams := getMetadataQueryParams(symbols)
-	cost, err := dbn_hist.GetCost(apiKey, metaParams)
-	requireNoError(err)
-	dataSize, err := dbn_hist.GetBillableSize(apiKey, metaParams)
-	requireNoError(err)
-	recordCount, err := dbn_hist.GetRecordCount(apiKey, metaParams)
+	cost, dataSize, recordCount, err := getCostsChunked(apiKey, symbols)
 	requireNoError(err)
 
 	fmt.Fprintf(os.Stderr, "Estimated cost of $%.2f for %s records and %s of data.\n",
@@ -711,4 +705,39 @@ func printJSON[T any](val T) {
 	jstr, err := json.Marshal(val)
 	requireNoError(err)
 	fmt.Fprintf(os.Stdout, "%s\n", jstr)
+}
+
+// getCostsChunked returns the estimated costs and sizes for the given symbol list.
+// Since it is a GET request, too many symbols in the request can result in
+// a "414 Request-URI Too Large" error.  So we break it into smaller requests and sum the results.
+func getCostsChunked(apiKey string, symbols []string) (totalCost float64, totalSize int, totalRecords int, err error) {
+	// we break it into 200 symbol chunks
+	const chunkSize = 200
+	for i := 0; i < len(symbols); i += chunkSize {
+		end := i + chunkSize
+		if end > len(symbols) {
+			end = len(symbols)
+		}
+		chunk := symbols[i:end]
+		metaParams := getMetadataQueryParams(chunk)
+
+		var cost float64
+		var billableSize, recordCount int
+		cost, err = dbn_hist.GetCost(apiKey, metaParams)
+		if err != nil {
+			return
+		}
+		totalCost += cost
+		billableSize, err = dbn_hist.GetBillableSize(apiKey, metaParams)
+		if err != nil {
+			return
+		}
+		totalSize += billableSize
+		recordCount, err = dbn_hist.GetRecordCount(apiKey, metaParams)
+		if err != nil {
+			return
+		}
+		totalRecords += recordCount
+	}
+	return
 }

@@ -3,6 +3,8 @@
 ## v0.6.5 (2025-10-01)
 
  * Add Parquet support for Statistics message `StatMsg`
+ * `dbn-go-hist` now dispatches multiple smaller requests for cost estimates since
+    large numbers of tickers would overrun the URI limits.
 
 ## v0.6.4 (2025-09-05)
 
