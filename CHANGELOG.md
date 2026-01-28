@@ -5,6 +5,7 @@
  * Add `SystemCode` and `ErrorCode` enums.
  * `SystemMsg` and `ErrorMsg` use them now instead of raw values
  * Add `SystemMsg.IsHeartbeat`
+ * Add [`AGENTS.md`](./AGENTS.md)
 
 ## v0.6.5 (2025-10-01)
 
