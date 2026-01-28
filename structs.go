@@ -19,6 +19,7 @@
 package dbn
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 
@@ -752,7 +753,7 @@ func (r *SymbolMappingMsg) Fill_Json(val *fastjson.Value, header *RHeader) error
 type ErrorMsg struct {
 	Header RHeader                `json:"hd" csv:"hd"`           // The common header.
 	Error  [ErrorMsg_ErrSize]byte `json:"err" csv:"err"`         // The error message.
-	Code   uint8                  `json:"code" csv:"code"`       // The error code.
+	Code   ErrorCode              `json:"code" csv:"code"`       // The error code.
 	IsLast uint8                  `json:"is_last" csv:"is_last"` // Sometimes multiple errors are sent together. This field will be non-zero for the last error.
 }
 
@@ -777,7 +778,7 @@ func (r *ErrorMsg) Fill_Raw(b []byte) error {
 	}
 	body := b[RHeader_Size:] // slice of just the body
 	copy(r.Error[:], body[:ErrorMsg_ErrSize])
-	r.Code = body[ErrorMsg_ErrSize]
+	r.Code = ErrorCode(body[ErrorMsg_ErrSize])
 	r.IsLast = body[ErrorMsg_ErrSize+1]
 	return nil
 }
@@ -785,7 +786,7 @@ func (r *ErrorMsg) Fill_Raw(b []byte) error {
 func (r *ErrorMsg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 	r.Header = *header
 	copy(r.Error[:], val.GetStringBytes("err"))
-	r.Code = uint8(val.GetUint("code"))
+	r.Code = ErrorCode(uint8(val.GetUint("code")))
 	r.IsLast = uint8(val.GetUint("is_last"))
 	return nil
 }
@@ -795,7 +796,7 @@ func (r *ErrorMsg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 type SystemMsg struct {
 	Header  RHeader                 `json:"hd" csv:"hd"`     // The common header.
 	Message [SystemMsg_MsgSize]byte `json:"msg" csv:"msg"`   // The message from the Databento Live Subscription Gateway (LSG).
-	Code    uint8                   `json:"code" csv:"code"` // The type of system message.
+	Code    SystemCode              `json:"code" csv:"code"` // The type of system message.
 }
 
 const SystemMsg_MsgSize = 303
@@ -819,15 +820,28 @@ func (r *SystemMsg) Fill_Raw(b []byte) error {
 	}
 	body := b[RHeader_Size:] // slice of just the body
 	copy(r.Message[:], body[:SystemMsg_MsgSize])
-	r.Code = body[SystemMsg_MsgSize]
+	r.Code = SystemCode(body[SystemMsg_MsgSize])
 	return nil
 }
 
 func (r *SystemMsg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 	r.Header = *header
 	copy(r.Message[:], val.GetStringBytes("msg"))
-	r.Code = uint8(val.GetUint("code"))
+	r.Code = SystemCode(uint8(val.GetUint("code")))
 	return nil
+}
+
+// IsHeartbeat checks if the system message is a heartbeat.
+// For fullest compatibility, it falls back to a string check
+func (r *SystemMsg) IsHeartbeat() bool {
+	if r.Code == SystemCode_Heartbeat {
+		return true
+	}
+	// Fallback to string check for backwards compatibility
+	if bytes.Equal(r.Message[:], []byte(SystemCodeString_Heartbeat)) {
+		return true
+	}
+	return false
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1113,7 +1127,6 @@ func (*InstrumentDefMsg) RSize() uint16 {
 	return InstrumentDefMsg_Size
 }
 
-// func (r *InstrumentDefMsg) Fill_Raw(b []byte, cstrLength uint16) error {
 func (r *InstrumentDefMsg) Fill_Raw(b []byte) error {
 	if len(b) < StatMsg_Size {
 		return unexpectedBytesError(len(b), StatMsg_Size)

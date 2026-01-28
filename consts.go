@@ -923,7 +923,7 @@ const (
 	TriState_Yes TradingEvent = 'Y'
 )
 
-// / How to handle decoding DBN data from a prior version.
+// How to handle decoding DBN data from a prior version.
 type VersionUpgradePolicy uint8
 
 const (
@@ -934,3 +934,169 @@ const (
 	/// simpler.
 	VersionUpgradePolicy_Upgrade VersionUpgradePolicy = 1
 )
+
+///////////////////////////////////////////////////////////////////////////////
+
+// A [`SystemMsg`](crate::SystemMsg) code indicating the type of message from the live subscription gateway.
+type SystemCode uint8
+
+const (
+	/// A message sent in the absence of other records to indicate the connection remains open.
+	SystemCode_Heartbeat = 0
+	/// An acknowledgement of a subscription request.
+	SystemCode_SubscriptionAck = 1
+	/// The gateway has detected this session is falling behind real-time.
+	SystemCode_SlowReaderWarning = 2
+	/// Indicates a replay subscription has caught up with real-time data.
+	SystemCode_ReplayCompleted = 3
+	/// Signals that all records for interval-based schemas have been published for the given timestamp.
+	SystemCode_EndOfInterval = 4
+	/// No system code was specified or this record was upgraded from a version 1 struct where the code field didn't exist.
+	SystemCode_Unset = 255
+	// Heartbeat string
+	SystemCodeString_Heartbeat = "HEARTBEAT"
+)
+
+// Returns the string representation of the SystemCode, or empty string if unknown.
+func (s SystemCode) String() string {
+	switch s {
+	case SystemCode_Heartbeat:
+		return SystemCodeString_Heartbeat
+	case SystemCode_SubscriptionAck:
+		return "SUBSCRIPTION_ACK"
+	case SystemCode_SlowReaderWarning:
+		return "SLOW_READER_WARNING"
+	case SystemCode_ReplayCompleted:
+		return "REPLAY_COMPLETED"
+	case SystemCode_EndOfInterval:
+		return "END_OF_INTERVAL"
+	case SystemCode_Unset:
+		return "UNSET"
+	default:
+		return ""
+	}
+}
+
+// SystemCodeFromString converts a string to an SystemCode.
+// Returns an error if the string is unknown.
+func SystemCodeFromString(str string) (SystemCode, error) {
+	str = strings.ToUpper(str)
+	switch str {
+	case SystemCodeString_Heartbeat:
+		return SystemCode_Heartbeat, nil
+	case "SUBSCRIPTION_ACK":
+		return SystemCode_SubscriptionAck, nil
+	case "SLOW_READER_WARNING":
+		return SystemCode_SlowReaderWarning, nil
+	case "REPLAY_COMPLETED":
+		return SystemCode_ReplayCompleted, nil
+	case "END_OF_INTERVAL":
+		return SystemCode_EndOfInterval, nil
+	case "UNSET":
+		return SystemCode_Unset, nil
+	default:
+		return SystemCode_Unset, fmt.Errorf("unknown system code: '%s'", str)
+	}
+}
+
+func (s SystemCode) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.String())
+}
+
+func (s *SystemCode) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
+	}
+	js, err := SystemCodeFromString(str)
+	if err != nil {
+		return err
+	}
+	*s = js
+	return nil
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+// An error code from the live subscription gateway.
+type ErrorCode uint8
+
+const (
+	/// The authentication step failed.
+	ErrorCode_AuthFailed = 1
+	/// The user account or API key were deactivated.
+	ErrorCode_ApiKeyDeactivated = 2
+	/// The user has exceeded their open connection limit.
+	ErrorCode_ConnectionLimitExceeded = 3
+	/// One or more symbols failed to resolve.
+	ErrorCode_SymbolResolutionFailed = 4
+	/// There was an issue with a subscription request (other than symbol resolution).
+	ErrorCode_InvalidSubscription = 5
+	/// An error occurred in the gateway.
+	ErrorCode_InternalError = 6
+	/// No error code was specified or this record was upgraded from a version 1 struct where the code field didn't exist.
+	ErrorCode_Unset = 255
+)
+
+// Returns the string representation of the ErrorCode, or empty string if unknown.
+func (e ErrorCode) String() string {
+	switch e {
+	case ErrorCode_AuthFailed:
+		return "AUTH_FAILED"
+	case ErrorCode_ApiKeyDeactivated:
+		return "API_KEY_DEACTIVATED"
+	case ErrorCode_ConnectionLimitExceeded:
+		return "CONNECTION_LIMIT_EXCEEDED"
+	case ErrorCode_SymbolResolutionFailed:
+		return "SYMBOL_RESOLUTION_FAILED"
+	case ErrorCode_InvalidSubscription:
+		return "INVALID_SUBSCRIPTION"
+	case ErrorCode_InternalError:
+		return "INTERNAL_ERROR"
+	case ErrorCode_Unset:
+		return "UNSET"
+	default:
+		return ""
+	}
+}
+
+// ErrorCodeFromString converts a string to an ErrorCode.
+// Returns an error if the string is unknown.
+func ErrorCodeFromString(str string) (ErrorCode, error) {
+	str = strings.ToUpper(str)
+	switch str {
+	case "AUTH_FAILED":
+		return ErrorCode_AuthFailed, nil
+	case "API_KEY_DEACTIVATED":
+		return ErrorCode_ApiKeyDeactivated, nil
+	case "CONNECTION_LIMIT_EXCEEDED":
+		return ErrorCode_ConnectionLimitExceeded, nil
+	case "SYMBOL_RESOLUTION_FAILED":
+		return ErrorCode_SymbolResolutionFailed, nil
+	case "INVALID_SUBSCRIPTION":
+		return ErrorCode_InvalidSubscription, nil
+	case "INTERNAL_ERROR":
+		return ErrorCode_InternalError, nil
+	case "UNSET":
+		return ErrorCode_Unset, nil
+	default:
+		return ErrorCode_Unset, fmt.Errorf("unknown error code: '%s'", str)
+	}
+}
+
+func (e ErrorCode) MarshalJSON() ([]byte, error) {
+	return json.Marshal(e.String())
+}
+
+func (e *ErrorCode) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
+	}
+	js, err := ErrorCodeFromString(str)
+	if err != nil {
+		return err
+	}
+	*e = js
+	return nil
+}

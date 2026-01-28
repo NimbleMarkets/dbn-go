@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v0.7.0 (2026-01-28)
+
+ * Add `SystemCode` and `ErrorCode` enums.
+ * `SystemMsg` and `ErrorMsg` use them now instead of raw values
+ * Add `SystemMsg.IsHeartbeat`
+
 ## v0.6.5 (2025-10-01)
 
  * Add Parquet support for Statistics message `StatMsg`
