@@ -2,8 +2,9 @@
 
 ## v0.7.0 (2026-01-28)
 
+ * Add `Publisher`, `Dataset`, and `Venue` types
  * Add `SystemCode` and `ErrorCode` enums.
- * `SystemMsg` and `ErrorMsg` use them now instead of raw values
+   * `SystemMsg` and `ErrorMsg` use them now instead of raw values
  * Add `SystemMsg.IsHeartbeat`
  * Add [`AGENTS.md`](./AGENTS.md)
 
