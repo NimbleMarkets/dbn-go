@@ -6,3 +6,5 @@ bin/
 dist/
 
 /*.dbn.zst
+
+docs-corpus/

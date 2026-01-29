@@ -32,7 +32,8 @@ tasks:
   clean:
     desc: 'Clean all'
     cmds:
-      - rm -f bin/dbn-go-file bin/dbn-go-hist bin/dbn-go-live bin/dbn-go-mcp bin/dbn-go-tui
+      - rm -f bin/dbn-go-file bin/dbn-go-hist bin/dbn-go-live bin/dbn-go-mcp bin/dbn-go-tui bin/dbn-go-slurp-docs
+      - rm -rf docs-corpus slurped-docs
 
   docker-build:
     desc: 'Docker build'
@@ -67,6 +68,7 @@ tasks:
       - build-dbn-go-live
       - build-dbn-go-mcp
       - build-dbn-go-tui
+      - build-dbn-go-slurp-docs
 
   build-dbn-go-file:
     desc: 'Build dbn-go-file'
@@ -145,6 +147,16 @@ tasks:
     cmds:
       - go build -o bin/dbn-go-tui cmd/dbn-go-tui/*.go
 
+  build-dbn-go-slurp-docs:
+    desc: 'Build dbn-go-slurp-docs'
+    deps: [go-tidy]
+    sources:
+      - cmd/dbn-go-slurp-docs/*.go
+    generates:
+      - bin/dbn-go-slurp-docs
+    cmds:
+      - go build -o bin/dbn-go-slurp-docs cmd/dbn-go-slurp-docs/*.go
+
   go-test:
     desc: 'Test Go'
     deps: [go-tidy]
@@ -168,3 +180,36 @@ tasks:
       - go test && go test ./live
 
 ###############################################################################
+
+  docs-corpus-init:
+    desc: 'Generate docs corpus directory structure (requires Chrome to generate sitemap)'
+    deps: [build-dbn-go-slurp-docs]
+    cmds:
+      - ./bin/dbn-go-slurp-docs -generate-sitemap docs-corpus
+      - ./bin/dbn-go-slurp-docs docs-corpus
+
+  docs-corpus-fetch:
+    desc: 'Fetch all docs content with Chrome (slow, ~15 minutes)'
+    deps: [build-dbn-go-slurp-docs]
+    cmds:
+      - ./bin/dbn-go-slurp-docs -generate-sitemap -fetch docs-corpus
+
+  docs-corpus-fetch-fast:
+    desc: 'Fetch docs with shorter delays (may hit rate limits)'
+    deps: [build-dbn-go-slurp-docs]
+    cmds:
+      - ./bin/dbn-go-slurp-docs -generate-sitemap -fetch -delay=1s -v docs-corpus
+
+  docs-corpus-resume:
+    desc: 'Resume fetching docs from where it left off'
+    deps: [build-dbn-go-slurp-docs]
+    cmds:
+      - ./bin/dbn-go-slurp-docs -fetch docs-corpus
+
+  docs-corpus-reset:
+    desc: 'Reset docs corpus and start fresh (regenerates sitemap)'
+    deps: [build-dbn-go-slurp-docs]
+    cmds:
+      - rm -rf docs-corpus
+      - ./bin/dbn-go-slurp-docs -generate-sitemap -fetch -no-resume docs-corpus
+
