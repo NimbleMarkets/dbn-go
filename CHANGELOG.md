@@ -2,6 +2,7 @@
 
 ## v0.7.0 (2026-02-10)
 
+ * Add `dbn-go-slurp-docs` for [docs for LLMs](./cmd/README.md#dbn-go-slurp-docs)
  * Add `Publisher`, `Dataset`, and `Venue` types
  * Add `SystemCode` and `ErrorCode` enums.
    * `SystemMsg` and `ErrorMsg` use them now instead of raw values

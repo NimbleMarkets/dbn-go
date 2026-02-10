@@ -7,6 +7,7 @@ It includes:
  * [`dbn-go-hist`](#dbn-go-hist): a CLI to use the Historical API
  * [`dbn-go-live`](#dbn-go-live): a simple Live API feed handler
  * [`dbn-go-mcp`](#dbn-go-mcp): a LLM Model Context Protocol (MCP) server
+ * [`dbn-go-slurp-docs`](#dbn-go-slurp-docs): a tool to scrape Databento docs for offline use
  * [`dbn-go-tui`](#dbn-go-tui): a TUI for your Databento account
 
 ----
@@ -211,6 +212,97 @@ $ docker run -it --rm \
 `dbn-go-mcp` is a [Model Context Protocol (MCP)](https://www.anthropic.com/news/model-context-protocol) for Databento services.  This allows tools like [Claude Desktop](https://claude.ai/download) to query Databento in LLM tasks. 
 
 This tool has [it's own README](./dbn-go-mcp/README.md) which describes it and explores some usage.
+
+----
+
+## `dbn-go-slurp-docs`
+
+`dbn-go-slurp-docs` is a tool to scrape the Databento documentation website and generate a coding-agent-focused documentation corpus. It uses Chrome/Chromium to fetch pages and extract content including code examples in multiple languages (Python, Rust, C++, C).
+
+```
+$ dbn-go-slurp-docs --help
+
+Usage of dbn-go-slurp-docs:
+  -delay duration
+        Base delay between requests (default 3s)
+  -fetch
+        Fetch page content (requires Chrome)
+  -generate-sitemap
+        Generate sitemap from Databento docs (requires Chrome)
+  -no-resume
+        Don't resume from previous run
+  -output string
+        Output directory for documentation corpus (default "docs-corpus")
+  -v    Verbose logging
+```
+
+### Usage
+
+The tool works in two phases:
+
+**1. Generate the sitemap** (requires Chrome):
+```sh
+dbn-go-slurp-docs -generate-sitemap docs-corpus
+```
+
+**2. Fetch and process documentation** (requires Chrome):
+```sh
+dbn-go-slurp-docs -fetch docs-corpus
+```
+
+Or combine both steps:
+```sh
+dbn-go-slurp-docs -generate-sitemap -fetch docs-corpus
+```
+
+### Output Structure
+
+The tool creates a structured documentation corpus:
+
+```
+docs-corpus/
+├── README.md                    # Root index with all sections
+├── databento-docs-sitemap.xml.gz # Compressed sitemap
+├── .slurp-progress.json         # Progress tracking for resume
+├── schemas-and-data-formats/
+│   ├── index.md                 # Section index
+│   ├── ohlcv.md                 # Individual page summaries
+│   └── mbo.md
+├── api-reference-historical/
+│   ├── index.md
+│   └── ...
+└── ...
+```
+
+Each page summary includes:
+- **Overview**: Brief description of the topic
+- **Contents**: Table of contents from headings
+- **Code Examples**: Organized by language (Python, Rust, C++, C, HTTP)
+- **Key Concepts**: Important terminology
+- **Developer Notes**: Usage patterns and integration points
+
+### Resume Support
+
+The tool supports resumable fetching. If interrupted, run again with the same output directory to continue where it left off:
+
+```sh
+dbn-go-slurp-docs -fetch docs-corpus          # Interrupted
+dbn-go-slurp-docs -fetch docs-corpus          # Resumes automatically
+```
+
+Use `-no-resume` to start fresh:
+```sh
+dbn-go-slurp-docs -fetch -no-resume docs-corpus
+```
+
+### Chrome Path
+
+The tool auto-detects Chrome/Chromium on macOS and Linux. To specify a custom path:
+
+```sh
+export CHROME_PATH=/path/to/chrome
+dbn-go-slurp-docs -fetch docs-corpus
+```
 
 ----
 
