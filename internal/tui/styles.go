@@ -39,21 +39,21 @@ var (
 		Cell:     lipgloss.NewStyle().Padding(0, 1),
 	}
 
-	nimbleStickerTableStyles = map[stickersTable.TableStyleKey]lipgloss.Style{
-		stickersTable.TableHeaderStyleKey: lipgloss.NewStyle().
+	nimbleStickerTableStyles = map[stickersTable.StyleKey]lipgloss.Style{
+		stickersTable.StyleKeyHeader: lipgloss.NewStyle().
 			Foreground(colorRed),
-		stickersTable.TableFooterStyleKey: lipgloss.NewStyle().
+		stickersTable.StyleKeyFooter: lipgloss.NewStyle().
 			Align(lipgloss.Right).
 			Height(1).
 			Foreground(colorRed).
 			Background(colorLightPurple),
-		stickersTable.TableRowsStyleKey: lipgloss.NewStyle().
+		stickersTable.StyleKeyRows: lipgloss.NewStyle().
 			Foreground(colorWhite),
-		stickersTable.TableRowsSubsequentStyleKey: lipgloss.NewStyle().
+		stickersTable.StyleKeyRowsSubsequent: lipgloss.NewStyle().
 			Foreground(colorWhite),
-		stickersTable.TableRowsCursorStyleKey: lipgloss.NewStyle().
+		stickersTable.StyleKeyRowsCursor: lipgloss.NewStyle().
 			Foreground(colorGrue),
-		stickersTable.TableCellCursorStyleKey: lipgloss.NewStyle().
+		stickersTable.StyleKeyCellCursor: lipgloss.NewStyle().
 			Foreground(colorGrue),
 	}
 )
