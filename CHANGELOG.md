@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## v0.7.0 (2026-01-28)
+## v0.7.0 (2026-02-10)
 
  * Add `Publisher`, `Dataset`, and `Venue` types
  * Add `SystemCode` and `ErrorCode` enums.
