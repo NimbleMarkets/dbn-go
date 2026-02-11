@@ -130,7 +130,7 @@ type FieldDetail struct {
 	// The field name.
 	Name string `json:"name,omitempty"`
 	// The field type name.
-	TypeName string `json:"type_name,omitempty"`
+	TypeName string `json:"type,omitempty"`
 }
 
 // The unit prices for a particular [`FeedMode`].

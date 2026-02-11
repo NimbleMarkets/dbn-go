@@ -2,6 +2,7 @@
 
 ## v0.7.1 (2026-02-11)
 
+ * Fix `FieldDetail.TypeName` JSON field name, which broke `dbn_hist.GetFields`
  * Add `dbn-go-slurp-docs` to GoReleaser
 
 ## v0.7.0 (2026-02-10)
