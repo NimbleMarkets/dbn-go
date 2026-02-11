@@ -89,6 +89,18 @@ func listPublishersHandler(ctx context.Context, request mcp.CallToolRequest) (*m
 		return mcp.NewToolResultErrorf("failed to list publishers: %s", err), nil
 	}
 
+	// Optional dataset filter
+	if dataset, err := request.RequireString("dataset"); err == nil && dataset != "" {
+		dataset = strings.ToUpper(dataset)
+		filtered := publishers[:0:0]
+		for _, p := range publishers {
+			if p.Dataset == dataset {
+				filtered = append(filtered, p)
+			}
+		}
+		publishers = filtered
+	}
+
 	jbytes, err := json.Marshal(publishers)
 	if err != nil {
 		return mcp.NewToolResultErrorf("failed to marshal results: %s", err), nil

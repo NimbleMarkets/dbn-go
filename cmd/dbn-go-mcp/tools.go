@@ -130,10 +130,14 @@ func registerTools(mcpServer *mcp_server.MCPServer) {
 	// list_publishers - discovery tool (no billing)
 	mcpServer.AddTool(
 		mcp.NewTool("list_publishers",
-			mcp.WithDescription("Lists all Databento publishers with their publisher_id, dataset code, venue, and description. Use this to discover which venues and data sources are available, and to map publisher IDs seen in records back to their source. This does not incur any billing."),
+			mcp.WithDescription("Lists Databento publishers with their publisher_id, dataset code, venue, and description. Use this to discover which venues and data sources are available, and to map publisher IDs seen in records back to their source. Optionally filter by dataset. This does not incur any billing."),
 			mcp.WithReadOnlyHintAnnotation(true),
 			mcp.WithDestructiveHintAnnotation(false),
 			mcp.WithIdempotentHintAnnotation(true),
+			mcp.WithString("dataset",
+				mcp.Description("Optional dataset code to filter publishers (e.g. XNAS.ITCH, GLBX.MDP3). Use list_datasets to discover valid values."),
+				mcp.Enum(validDatasets...),
+			),
 		),
 		listPublishersHandler,
 	)
