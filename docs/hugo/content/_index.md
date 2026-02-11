@@ -10,7 +10,7 @@ type: docs
 ## Command-Line Tools
 
 * [**dbn-go-hist**]({{< relref "/dbn-go-hist" >}}): CLI for the Databento Historical API
-* **dbn-go-file**: CLI to process DBN files (parquet, split, metadata)
+* [**dbn-go-file**]({{< relref "/dbn-go-file" >}}): CLI to process DBN files (parquet, split, metadata)
 * **dbn-go-live**: Live API feed handler
 * **dbn-go-mcp**: LLM Model Context Protocol (MCP) server for Databento
 * **dbn-go-tui**: Terminal UI for your Databento account

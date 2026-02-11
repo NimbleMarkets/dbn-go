@@ -33,11 +33,15 @@ jobs:
           hugo-version: "latest"
           extended: true
 
-      - name: Build dbn-go-hist
-        run: go build -o bin/dbn-go-hist ./cmd/dbn-go-hist/
+      - name: Build CLIs
+        run: |
+          go build -o bin/dbn-go-hist ./cmd/dbn-go-hist/
+          go build -o bin/dbn-go-file ./cmd/dbn-go-file/
 
       - name: Generate command docs
-        run: ./bin/dbn-go-hist docs markdown --hugo -o docs/hugo/content/dbn-go-hist/command
+        run: |
+          ./bin/dbn-go-hist docs markdown --hugo -o docs/hugo/content/dbn-go-hist/command
+          ./bin/dbn-go-file docs markdown --hugo -o docs/hugo/content/dbn-go-file/command
 
       - name: Setup Pages
         id: pages

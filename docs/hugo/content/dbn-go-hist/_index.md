@@ -1,6 +1,7 @@
 ---
 title: "dbn-go-hist"
 weight: 10
+bookCollapseSection: true
 ---
 
 # dbn-go-hist

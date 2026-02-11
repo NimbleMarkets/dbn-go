@@ -31,6 +31,6 @@ enableGitInfo = false
     startLevel = 2
 
 [outputs]
-  home = ["HTML", "RSS", "JSON"]
+  home = ["HTML", "RSS"]
   section = ["HTML"]
   page = ["HTML"]

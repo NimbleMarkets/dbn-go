@@ -194,6 +194,12 @@ tasks:
 
   docs:md:build:
     desc: 'Generate Hugo markdown command docs'
+    deps:
+      - docs:md:build:dbn-go-hist
+      - docs:md:build:dbn-go-file
+
+  docs:md:build:dbn-go-hist:
+    desc: 'Generate Hugo markdown for dbn-go-hist'
     deps: [build-dbn-go-hist]
     cmds:
       - ./bin/dbn-go-hist docs markdown --hugo -o docs/hugo/content/dbn-go-hist/command
@@ -202,13 +208,30 @@ tasks:
     generates:
       - docs/hugo/content/dbn-go-hist/command/dbn-go-hist.md
 
+  docs:md:build:dbn-go-file:
+    desc: 'Generate Hugo markdown for dbn-go-file'
+    deps: [build-dbn-go-file]
+    cmds:
+      - ./bin/dbn-go-file docs markdown --hugo -o docs/hugo/content/dbn-go-file/command
+    sources:
+      - ./cmd/dbn-go-file/*.go
+    generates:
+      - docs/hugo/content/dbn-go-file/command/dbn-go-file.md
+
   docs:md:clean:
     desc: 'Clean generated markdown docs'
     cmds:
       - rm -rf docs/hugo/content/dbn-go-hist/command
+      - rm -rf docs/hugo/content/dbn-go-file/command
 
   docs:man:build:
     desc: 'Generate man pages'
+    deps:
+      - docs:man:build:dbn-go-hist
+      - docs:man:build:dbn-go-file
+
+  docs:man:build:dbn-go-hist:
+    desc: 'Generate man pages for dbn-go-hist'
     deps: [build-dbn-go-hist]
     cmds:
       - ./bin/dbn-go-hist docs man -o docs/man
@@ -216,6 +239,16 @@ tasks:
       - ./cmd/dbn-go-hist/*.go
     generates:
       - docs/man/dbn-go-hist.1
+
+  docs:man:build:dbn-go-file:
+    desc: 'Generate man pages for dbn-go-file'
+    deps: [build-dbn-go-file]
+    cmds:
+      - ./bin/dbn-go-file docs man -o docs/man
+    sources:
+      - ./cmd/dbn-go-file/*.go
+    generates:
+      - docs/man/dbn-go-file.1
 
   docs:man:clean:
     desc: 'Clean generated man pages'

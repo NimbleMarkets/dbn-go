@@ -7,4 +7,6 @@ dist/
 
 /*.dbn.zst
 
+# Generated Documentation
+/docs/man
 docs-databento/
