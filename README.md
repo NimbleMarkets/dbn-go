@@ -153,6 +153,7 @@ We include [some tools](./cmd/README.md) to make our lives easier. [Installation
  * [`dbn-go-hist`](./cmd/README.md#dbn-go-hist): a CLI to use the Historical API
  * [`dbn-go-live`](./cmd/README.md#dbn-go-live): a simple Live API feed handler
  * [`dbn-go-mcp`](./cmd/README.md#dbn-go-mcp): a LLM Model Context Protocol (MCP) server
+ * [`dbn-go-slurp-docs`](./cmd/README.md#dbn-go-slurp-docs): a tool to scrape Databento docs for offline use
  * [`dbn-go-tui`](./cmd/README.md#dbn-go-tui): a TUI for your Databento account
 
 ## Open Collaboration

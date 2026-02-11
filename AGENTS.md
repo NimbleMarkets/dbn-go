@@ -10,7 +10,7 @@ Key capabilities:
 - DBN file reading/writing (binary and JSON formats)
 - Historical API client (`hist/`)
 - Live API client (`live/`)
-- 5 CLI tools for file processing, API interaction, TUI, and MCP server
+- 6 CLI tools for file processing, API interaction, TUI, docs scraping, and MCP server
 
 ## Project Structure
 
@@ -24,6 +24,7 @@ Key capabilities:
 │   ├── dbn-go-hist/        # Historical API CLI
 │   ├── dbn-go-live/        # Live feed handler
 │   ├── dbn-go-mcp/         # MCP (Model Context Protocol) server
+│   ├── dbn-go-slurp-docs/  # Databento docs scraper
 │   └── dbn-go-tui/         # Terminal UI for Databento account
 ├── internal/               # Internal packages
 │   ├── file/               # File processing (JSON writer, Parquet, split)
@@ -118,6 +119,30 @@ records, metadata, err := dbn.ReadDBNToSlice[dbn.OhlcvMsg](reader)
 file, closer, err := dbn.MakeCompressedReader("file.dbn.zstd", false)
 defer closer.Close()
 ```
+
+## MCP Server (`cmd/dbn-go-mcp`)
+
+The MCP server (`dbn-go-mcp`) bridges LLMs and Databento's Historical API via the Model Context Protocol. Key architecture notes:
+
+- **Single file**: All code is in `cmd/dbn-go-mcp/main.go`
+- **Library**: Uses `github.com/mark3labs/mcp-go` for MCP protocol handling
+- **Transports**: STDIO (default) and SSE
+- **Error convention**: Tool handlers return errors as `mcp.NewToolResultError()` (not Go errors), so the LLM can see and reason about failures
+- **Shared validation**: `parseCommonParams()` extracts/validates dataset, schema, symbol, start, end from tool requests; `commonParams.metadataQueryParams()` builds the hist API query struct
+- **Cost guard**: `get_range` checks estimated cost against `--max-cost` budget before fetching data
+
+### MCP Tools (9 total)
+
+Discovery tools (no billing): `list_datasets`, `list_publishers`, `list_schemas`, `list_fields`, `get_dataset_range`, `get_dataset_condition`, `list_unit_prices`
+
+Query tools: `get_cost` (metadata only), `get_range` (incurs billing, returns JSON)
+
+### Adding New Tools
+
+1. Define the tool with `mcp.NewTool()` in `registerTools()`, using `mcp.WithDescription()` and typed parameters
+2. Write a handler `func(ctx, mcp.CallToolRequest) (*mcp.CallToolResult, error)` — return errors via `mcp.NewToolResultErrorf()`, not as Go errors
+3. For tools using dataset/schema/symbol/date params, reuse `parseCommonParams()`
+4. Register with `mcpServer.AddTool(tool, handler)`
 
 ## DBN Format Notes
 

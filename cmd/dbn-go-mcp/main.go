@@ -219,62 +219,152 @@ var validSchemas = []string{
 	"imbalance",
 }
 
-// getToolDescriptions return the mcp.Tools for our MCPServer
+// registerTools registers all MCP tools with the server.
 func registerTools(mcpServer *mcp_server.MCPServer) error {
+	// list_datasets - discovery tool (no billing)
+	mcpServer.AddTool(
+		mcp.NewTool("list_datasets",
+			mcp.WithDescription("Lists all available Databento dataset codes. Use this to discover valid dataset values before querying. Optionally filter by a date range to see which datasets have data in that period. This does not incur any billing."),
+			mcp.WithString("start",
+				mcp.Description("Optional start of date range filter, as ISO 8601 datetime (e.g. 2024-01-01)"),
+			),
+			mcp.WithString("end",
+				mcp.Description("Optional end of date range filter, as ISO 8601 datetime (e.g. 2024-12-31)"),
+			),
+		),
+		listDatasetsHandler,
+	)
+	// list_schemas - discovery tool (no billing)
+	mcpServer.AddTool(
+		mcp.NewTool("list_schemas",
+			mcp.WithDescription("Lists all available data record schemas for a given dataset. Use this to discover which schemas (e.g. trades, ohlcv-1d, mbp-1) are available before querying. This does not incur any billing."),
+			mcp.WithString("dataset",
+				mcp.Required(),
+				mcp.Description("Dataset code (e.g. XNAS.ITCH, GLBX.MDP3). Use list_datasets to discover valid values."),
+				mcp.Enum(validDatasets...),
+			),
+		),
+		listSchemasHandler,
+	)
+	// list_fields - discovery tool (no billing)
+	mcpServer.AddTool(
+		mcp.NewTool("list_fields",
+			mcp.WithDescription("Lists all field names and types for a given schema. Use this to understand the structure of records before querying with get_range. Returns fields for JSON encoding. This does not incur any billing."),
+			mcp.WithString("schema",
+				mcp.Required(),
+				mcp.Description("Schema to inspect (e.g. trades, ohlcv-1d, mbp-1). Use list_schemas to discover valid values."),
+				mcp.Enum(validSchemas...),
+			),
+		),
+		listFieldsHandler,
+	)
+	// list_publishers - discovery tool (no billing)
+	mcpServer.AddTool(
+		mcp.NewTool("list_publishers",
+			mcp.WithDescription("Lists all Databento publishers with their publisher_id, dataset code, venue, and description. Use this to discover which venues and data sources are available, and to map publisher IDs seen in records back to their source. This does not incur any billing."),
+		),
+		listPublishersHandler,
+	)
+	// get_dataset_range - discovery tool (no billing)
+	mcpServer.AddTool(
+		mcp.NewTool("get_dataset_range",
+			mcp.WithDescription("Returns the available date range (start and end) for a dataset. Use this to determine what time period of data is available before querying. This does not incur any billing."),
+			mcp.WithString("dataset",
+				mcp.Required(),
+				mcp.Description("Dataset code (e.g. XNAS.ITCH, GLBX.MDP3). Use list_datasets to discover valid values."),
+				mcp.Enum(validDatasets...),
+			),
+		),
+		getDatasetRangeHandler,
+	)
+	// get_dataset_condition - discovery tool (no billing)
+	mcpServer.AddTool(
+		mcp.NewTool("get_dataset_condition",
+			mcp.WithDescription("Returns the data quality and availability condition for each day in a dataset's date range. Conditions are: 'available', 'degraded', 'pending', 'missing', or 'intraday'. Use this to check if data exists and is reliable before querying. This does not incur any billing."),
+			mcp.WithString("dataset",
+				mcp.Required(),
+				mcp.Description("Dataset code (e.g. XNAS.ITCH, GLBX.MDP3). Use list_datasets to discover valid values."),
+				mcp.Enum(validDatasets...),
+			),
+			mcp.WithString("start",
+				mcp.Description("Optional start of date range filter, as ISO 8601 datetime (e.g. 2024-01-01). Defaults to beginning of dataset."),
+			),
+			mcp.WithString("end",
+				mcp.Description("Optional end of date range filter, as ISO 8601 datetime (e.g. 2024-01-31). Defaults to end of dataset."),
+			),
+		),
+		getDatasetConditionHandler,
+	)
+	// list_unit_prices - discovery tool (no billing)
+	mcpServer.AddTool(
+		mcp.NewTool("list_unit_prices",
+			mcp.WithDescription("Lists the unit prices in US dollars per gigabyte for each schema and feed mode in a dataset. Use this to understand relative costs of different schemas before querying. This does not incur any billing."),
+			mcp.WithString("dataset",
+				mcp.Required(),
+				mcp.Description("Dataset code (e.g. XNAS.ITCH, GLBX.MDP3). Use list_datasets to discover valid values."),
+				mcp.Enum(validDatasets...),
+			),
+		),
+		listUnitPricesHandler,
+	)
 	// get_cost
-	getCostTool := mcp.NewTool("get_cost",
-		mcp.WithDescription("Returns the estimated cost of all records of a DBN schema for a given symbol and date range"),
-		mcp.WithString("dataset",
-			mcp.Required(),
-			mcp.Description("Dataset to query"),
-			mcp.Enum(validDatasets...),
+	mcpServer.AddTool(
+		mcp.NewTool("get_cost",
+			mcp.WithDescription("Returns the estimated cost in USD, billable data size in bytes, and record count for a query. Always call this before get_range to understand cost implications. This does not incur any billing."),
+			mcp.WithString("dataset",
+				mcp.Required(),
+				mcp.Description("Dataset to query (e.g. XNAS.ITCH, GLBX.MDP3)"),
+				mcp.Enum(validDatasets...),
+			),
+			mcp.WithString("schema",
+				mcp.Required(),
+				mcp.Description("Schema to query (e.g. trades, ohlcv-1d, mbp-1)"),
+				mcp.Enum(validSchemas...),
+			),
+			mcp.WithString("symbol",
+				mcp.Required(),
+				mcp.Description("Symbol to query (e.g. AAPL, TSLA, QQQ)"),
+			),
+			mcp.WithString("start",
+				mcp.Required(),
+				mcp.Description("Start of range, as ISO 8601 datetime (e.g. 2024-01-15 or 2024-01-15T09:30:00Z)"),
+			),
+			mcp.WithString("end",
+				mcp.Required(),
+				mcp.Description("End of range (exclusive), as ISO 8601 datetime (e.g. 2024-01-16)"),
+			),
 		),
-		mcp.WithString("schema",
-			mcp.Required(),
-			mcp.Description("Schema to query"),
-			mcp.Enum(validSchemas...),
-		),
-		mcp.WithString("symbol",
-			mcp.Required(),
-			mcp.Description("Symbol to query"),
-		),
-		mcp.WithString("start",
-			mcp.Required(),
-			mcp.Description("start of range, as ISO 8601 datetime"),
-		),
-		mcp.WithString("end",
-			mcp.Required(),
-			mcp.Description("end of range, as ISO 8601 datetime"),
-		),
+		getCostHandler,
 	)
-	mcpServer.AddTool(getCostTool, getCostHandler)
 	// get_range
-	getRangeTool := mcp.NewTool("get_range",
-		mcp.WithDescription("Returns all records of a DBN dataset/schema for a given symbol and date range"),
-		mcp.WithString("dataset",
-			mcp.Required(),
-			mcp.Description("Dataset to query"),
-			mcp.Enum(validDatasets...),
+	mcpServer.AddTool(
+		mcp.NewTool("get_range",
+			mcp.WithDescription("Returns all records as JSON for a dataset/schema/symbol over a date range. CAUTION: This incurs Databento billing. Call get_cost first to check the cost. The server enforces a per-query budget limit. For large results, prefer ohlcv-1d or ohlcv-1h schemas which return compact summaries."),
+			mcp.WithString("dataset",
+				mcp.Required(),
+				mcp.Description("Dataset to query (e.g. XNAS.ITCH, GLBX.MDP3)"),
+				mcp.Enum(validDatasets...),
+			),
+			mcp.WithString("schema",
+				mcp.Required(),
+				mcp.Description("Schema to query (e.g. trades, ohlcv-1d, mbp-1)"),
+				mcp.Enum(validSchemas...),
+			),
+			mcp.WithString("symbol",
+				mcp.Required(),
+				mcp.Description("Symbol to query (e.g. AAPL, TSLA, QQQ)"),
+			),
+			mcp.WithString("start",
+				mcp.Required(),
+				mcp.Description("Start of range, as ISO 8601 datetime (e.g. 2024-01-15 or 2024-01-15T09:30:00Z)"),
+			),
+			mcp.WithString("end",
+				mcp.Required(),
+				mcp.Description("End of range (exclusive), as ISO 8601 datetime (e.g. 2024-01-16)"),
+			),
 		),
-		mcp.WithString("schema",
-			mcp.Required(),
-			mcp.Description("Schema to query"),
-			mcp.Enum(validSchemas...),
-		),
-		mcp.WithString("symbol",
-			mcp.Required(),
-			mcp.Description("Symbol to query"),
-		),
-		mcp.WithString("start",
-			mcp.Required(),
-			mcp.Description("start of range, as ISO 8601 datetime"),
-		),
-		mcp.WithString("end",
-			mcp.Required(),
-			mcp.Description("end of range, as ISO 8601 datetime"),
-		),
+		getRangeHandler,
 	)
-	mcpServer.AddTool(getRangeTool, getRangeHandler)
 	return nil
 }
 
@@ -345,6 +435,183 @@ func (p *commonParams) metadataQueryParams() dbn_hist.MetadataQueryParams {
 		Mode:      dbn_hist.FeedMode_Historical,
 		StypeIn:   dbn.SType_RawSymbol,
 	}
+}
+
+func listDatasetsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	var dateRange dbn_hist.DateRange
+
+	if startStr, err := request.RequireString("start"); err == nil && startStr != "" {
+		if startTime, err := iso8601.ParseString(startStr); err != nil {
+			return mcp.NewToolResultErrorf("start was invalid ISO 8601: %s", err), nil
+		} else {
+			dateRange.Start = startTime
+		}
+	}
+	if endStr, err := request.RequireString("end"); err == nil && endStr != "" {
+		if endTime, err := iso8601.ParseString(endStr); err != nil {
+			return mcp.NewToolResultErrorf("end was invalid ISO 8601: %s", err), nil
+		} else {
+			dateRange.End = endTime
+		}
+	}
+
+	datasets, err := dbn_hist.ListDatasets(config.ApiKey, dateRange)
+	if err != nil {
+		return mcp.NewToolResultErrorf("failed to list datasets: %s", err), nil
+	}
+
+	jbytes, err := json.Marshal(datasets)
+	if err != nil {
+		return mcp.NewToolResultErrorf("failed to marshal results: %s", err), nil
+	}
+
+	logger.Info("list_datasets", "count", len(datasets))
+	return mcp.NewToolResultText(string(jbytes)), nil
+}
+
+func listSchemasHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	dataset, err := request.RequireString("dataset")
+	if err != nil {
+		return mcp.NewToolResultError("dataset must be set"), nil
+	}
+	dataset = strings.ToUpper(dataset)
+
+	schemas, err := dbn_hist.ListSchemas(config.ApiKey, dataset)
+	if err != nil {
+		return mcp.NewToolResultErrorf("failed to list schemas: %s", err), nil
+	}
+
+	jbytes, err := json.Marshal(schemas)
+	if err != nil {
+		return mcp.NewToolResultErrorf("failed to marshal results: %s", err), nil
+	}
+
+	logger.Info("list_schemas", "dataset", dataset, "count", len(schemas))
+	return mcp.NewToolResultText(string(jbytes)), nil
+}
+
+func listFieldsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	schemaStr, err := request.RequireString("schema")
+	if err != nil {
+		return mcp.NewToolResultError("schema must be set"), nil
+	}
+	schemaStr = strings.ToLower(schemaStr)
+
+	schema, err := dbn.SchemaFromString(schemaStr)
+	if err != nil {
+		return mcp.NewToolResultErrorf("invalid schema: %s", err), nil
+	}
+
+	fields, err := dbn_hist.ListFields(config.ApiKey, dbn.Encoding_Json, schema)
+	if err != nil {
+		return mcp.NewToolResultErrorf("failed to list fields: %s", err), nil
+	}
+
+	jbytes, err := json.Marshal(fields)
+	if err != nil {
+		return mcp.NewToolResultErrorf("failed to marshal results: %s", err), nil
+	}
+
+	logger.Info("list_fields", "schema", schemaStr, "count", len(fields))
+	return mcp.NewToolResultText(string(jbytes)), nil
+}
+
+func listPublishersHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	publishers, err := dbn_hist.ListPublishers(config.ApiKey)
+	if err != nil {
+		return mcp.NewToolResultErrorf("failed to list publishers: %s", err), nil
+	}
+
+	jbytes, err := json.Marshal(publishers)
+	if err != nil {
+		return mcp.NewToolResultErrorf("failed to marshal results: %s", err), nil
+	}
+
+	logger.Info("list_publishers", "count", len(publishers))
+	return mcp.NewToolResultText(string(jbytes)), nil
+}
+
+func getDatasetRangeHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	dataset, err := request.RequireString("dataset")
+	if err != nil {
+		return mcp.NewToolResultError("dataset must be set"), nil
+	}
+	dataset = strings.ToUpper(dataset)
+
+	dateRange, err := dbn_hist.GetDatasetRange(config.ApiKey, dataset)
+	if err != nil {
+		return mcp.NewToolResultErrorf("failed to get dataset range: %s", err), nil
+	}
+
+	jbytes, err := json.Marshal(map[string]any{
+		"dataset": dataset,
+		"start":   dateRange.Start.Format(time.RFC3339),
+		"end":     dateRange.End.Format(time.RFC3339),
+	})
+	if err != nil {
+		return mcp.NewToolResultErrorf("failed to marshal results: %s", err), nil
+	}
+
+	logger.Info("get_dataset_range", "dataset", dataset, "start", dateRange.Start, "end", dateRange.End)
+	return mcp.NewToolResultText(string(jbytes)), nil
+}
+
+func getDatasetConditionHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	dataset, err := request.RequireString("dataset")
+	if err != nil {
+		return mcp.NewToolResultError("dataset must be set"), nil
+	}
+	dataset = strings.ToUpper(dataset)
+
+	var dateRange dbn_hist.DateRange
+	if startStr, err := request.RequireString("start"); err == nil && startStr != "" {
+		if startTime, err := iso8601.ParseString(startStr); err != nil {
+			return mcp.NewToolResultErrorf("start was invalid ISO 8601: %s", err), nil
+		} else {
+			dateRange.Start = startTime
+		}
+	}
+	if endStr, err := request.RequireString("end"); err == nil && endStr != "" {
+		if endTime, err := iso8601.ParseString(endStr); err != nil {
+			return mcp.NewToolResultErrorf("end was invalid ISO 8601: %s", err), nil
+		} else {
+			dateRange.End = endTime
+		}
+	}
+
+	conditions, err := dbn_hist.GetDatasetCondition(config.ApiKey, dataset, dateRange)
+	if err != nil {
+		return mcp.NewToolResultErrorf("failed to get dataset condition: %s", err), nil
+	}
+
+	jbytes, err := json.Marshal(conditions)
+	if err != nil {
+		return mcp.NewToolResultErrorf("failed to marshal results: %s", err), nil
+	}
+
+	logger.Info("get_dataset_condition", "dataset", dataset, "count", len(conditions))
+	return mcp.NewToolResultText(string(jbytes)), nil
+}
+
+func listUnitPricesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	dataset, err := request.RequireString("dataset")
+	if err != nil {
+		return mcp.NewToolResultError("dataset must be set"), nil
+	}
+	dataset = strings.ToUpper(dataset)
+
+	unitPrices, err := dbn_hist.ListUnitPrices(config.ApiKey, dataset)
+	if err != nil {
+		return mcp.NewToolResultErrorf("failed to list unit prices: %s", err), nil
+	}
+
+	jbytes, err := json.Marshal(unitPrices)
+	if err != nil {
+		return mcp.NewToolResultErrorf("failed to marshal results: %s", err), nil
+	}
+
+	logger.Info("list_unit_prices", "dataset", dataset, "count", len(unitPrices))
+	return mcp.NewToolResultText(string(jbytes)), nil
 }
 
 func getCostHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {

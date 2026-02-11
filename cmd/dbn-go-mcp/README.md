@@ -21,182 +21,52 @@ usage: dbn-go-mcp -k <api_key> [opts]
   -v, --verbose           Verbose logging
   ```
 
-Currenty, the following tools are supported by the `dbn` MCP server:
+Currently, the following tools are supported by the `dbn` MCP server:
+
+### Discovery Tools (no billing)
 
 | Tool | Params | Description |
 |------|--------|-------------|
-| `get_cost` | `dataset`, `schema`, `start`, `end`, `symbol` | Returns the estimated cost of all records of a DBN schema for a given date range. |
-| `get_range` |`dataset`, `schema`, `start`, `end`, `symbol` | Returns all records of a DBN dataset/schema for a given date range. |
+| `list_datasets` | `start`?, `end`? | Lists all available Databento dataset codes, optionally filtered by date range. |
+| `list_publishers` | *(none)* | Lists all publishers with their publisher_id, dataset, venue, and description. |
+| `list_schemas` | `dataset` | Lists all available data record schemas for a given dataset. |
+| `list_fields` | `schema` | Lists all field names and types for a given schema (JSON encoding). |
+| `get_dataset_range` | `dataset` | Returns the available date range (start and end) for a dataset. |
+| `get_dataset_condition` | `dataset`, `start`?, `end`? | Returns data quality/availability condition per day (available, degraded, pending, missing, intraday). |
+| `list_unit_prices` | `dataset` | Lists unit prices in USD per gigabyte for each schema and feed mode. |
+
+### Query Tools
+
+| Tool | Params | Description |
+|------|--------|-------------|
+| `get_cost` | `dataset`, `schema`, `symbol`, `start`, `end` | Returns the estimated cost in USD, data size, and record count for a query. |
+| `get_range` | `dataset`, `schema`, `symbol`, `start`, `end` | Returns all records as JSON for a given query. **Incurs billing.** |
+
+The recommended workflow for an LLM is: `list_datasets` -> `list_schemas` -> `list_fields` -> `get_cost` -> `get_range`.
 
 You can run a CLI test using the `STDIO` mode to list available tools:
 
 ```bash
-echo '{"method":"tools/list","params":{},"jsonrpc":"2.0","id":1}' | dbn-go-mcp | jq
+echo '{"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}},"jsonrpc":"2.0","id":0}
+{"method":"tools/list","params":{},"jsonrpc":"2.0","id":1}' | dbn-go-mcp 2>/dev/null | tail -1 | python3 -c "
+import sys, json
+tools = json.load(sys.stdin)['result']['tools']
+for t in tools:
+    print(f\"{t['name']:20s} {t['description'][:80]}\")
+"
 ```
 
-<details>
-<summary>Results are the dbn-go-mcp schema in JSON. Click to expand.</summary>
-
 ```
-time=2025-04-01T14:13:28.436-04:00 level=INFO msg="MCP STDIO server started"
-{
-  "jsonrpc": "2.0",
-  "id": 2,
-  "result": {
-    "tools": [
-      {
-        "description": "Returns the estimated cost of all records of a DBN schema for a given symbol and date range",
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "dataset": {
-              "description": "Dataset to query",
-              "enum": [
-                "ARCX.PILLAR",
-                "DBEQ.BASIC",
-                "EPRL.DOM",
-                "EQUS.MINI",
-                "EQUS.SUMMARY",
-                "GLBX.MDP3",
-                "IEXG.TOPS",
-                "IFEU.IMPACT",
-                "MEMX.MEMOIR",
-                "NDEX.IMPACT",
-                "OPRA.PILLAR",
-                "XASE.PILLAR",
-                "XBOS.ITCH",
-                "XCHI.PILLAR",
-                "XCIS.TRADESBBO",
-                "XNAS.BASIC",
-                "XNAS.ITCH",
-                "XNYS.PILLAR",
-                "XPSX.ITCH"
-              ],
-              "type": "string"
-            },
-            "end": {
-              "description": "end of range, as ISO 8601 datetime",
-              "type": "string"
-            },
-            "schema": {
-              "description": "Schema to query",
-              "enum": [
-                "mbo",
-                "mbp-1",
-                "mbp-10",
-                "bbo-1s",
-                "bbo-1m",
-                "tbbo",
-                "trades",
-                "ohlcv-1s",
-                "ohlcv-1m",
-                "ohlcv-1h",
-                "ohlcv-1d",
-                "definition",
-                "statistics",
-                "status",
-                "imbalance"
-              ],
-              "type": "string"
-            },
-            "start": {
-              "description": "start of range, as ISO 8601 datetime",
-              "type": "string"
-            },
-            "symbol": {
-              "description": "Symbol to query",
-              "type": "string"
-            }
-          },
-          "required": [
-            "dataset",
-            "schema",
-            "symbol",
-            "start",
-            "end"
-          ]
-        },
-        "name": "get_cost"
-      },
-      {
-        "description": "Returns all records of a DBN dataset/schema for a given symbol and date range",
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "dataset": {
-              "description": "Dataset to query",
-              "enum": [
-                "ARCX.PILLAR",
-                "DBEQ.BASIC",
-                "EPRL.DOM",
-                "EQUS.MINI",
-                "EQUS.SUMMARY",
-                "GLBX.MDP3",
-                "IEXG.TOPS",
-                "IFEU.IMPACT",
-                "MEMX.MEMOIR",
-                "NDEX.IMPACT",
-                "OPRA.PILLAR",
-                "XASE.PILLAR",
-                "XBOS.ITCH",
-                "XCHI.PILLAR",
-                "XCIS.TRADESBBO",
-                "XNAS.BASIC",
-                "XNAS.ITCH",
-                "XNYS.PILLAR",
-                "XPSX.ITCH"
-              ],
-              "type": "string"
-            },
-            "end": {
-              "description": "end of range, as ISO 8601 datetime",
-              "type": "string"
-            },
-            "schema": {
-              "description": "Schema to query",
-              "enum": [
-                "mbo",
-                "mbp-1",
-                "mbp-10",
-                "bbo-1s",
-                "bbo-1m",
-                "tbbo",
-                "trades",
-                "ohlcv-1s",
-                "ohlcv-1m",
-                "ohlcv-1h",
-                "ohlcv-1d",
-                "definition",
-                "statistics",
-                "status",
-                "imbalance"
-              ],
-              "type": "string"
-            },
-            "start": {
-              "description": "start of range, as ISO 8601 datetime",
-              "type": "string"
-            },
-            "symbol": {
-              "description": "Symbol to query",
-              "type": "string"
-            }
-          },
-          "required": [
-            "dataset",
-            "schema",
-            "symbol",
-            "start",
-            "end"
-          ]
-        },
-        "name": "get_range"
-      }
-    ]
-  }
-}
+get_cost                  Returns the estimated cost in USD, billable data size in bytes, and record
+get_dataset_condition     Returns the data quality and availability condition for each day in a datas
+get_dataset_range         Returns the available date range (start and end) for a dataset. Use this to
+get_range                 Returns all records as JSON for a dataset/schema/symbol over a date range.
+list_datasets             Lists all available Databento dataset codes. Use this to discover valid dat
+list_fields               Lists all field names and types for a given schema. Use this to understand
+list_publishers           Lists all Databento publishers with their publisher_id, dataset code, venue
+list_schemas              Lists all available data record schemas for a given dataset. Use this to di
+list_unit_prices          Lists the unit prices in US dollars per gigabyte for each schema and feed m
 ```
-</details>
 
 ## MCP Host Tool Configuration
 
@@ -608,6 +478,8 @@ mcphost -m ollama:qwq:32b --config mcp.json
 
 ## Next Steps
 
-We need to understand how to better structure and present these tools to the LLMs.   It might just be a matter of more [verbose MCP Tool descriptions](../dbn-go-mcp/main.go#L224).
-
-Operationally, perhaps we could add allow/deny lists for datasets and schemas, as well as stronger budgeting and auditing tools.
+Potential improvements:
+- Allow/deny lists for datasets and schemas to restrict what the LLM can access
+- Symbol resolution tool (`resolve_symbols`) for multi-venue queries
+- Result limiting (`limit` parameter on `get_range`) to avoid overwhelming LLMs with large responses
+- Stronger budgeting and auditing tools
