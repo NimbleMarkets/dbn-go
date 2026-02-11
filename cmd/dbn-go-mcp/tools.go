@@ -85,6 +85,9 @@ func registerTools(mcpServer *mcp_server.MCPServer) {
 	mcpServer.AddTool(
 		mcp.NewTool("list_datasets",
 			mcp.WithDescription("Lists all available Databento dataset codes. Use this to discover valid dataset values before querying. Optionally filter by a date range to see which datasets have data in that period. This does not incur any billing."),
+			mcp.WithReadOnlyHintAnnotation(true),
+			mcp.WithDestructiveHintAnnotation(false),
+			mcp.WithIdempotentHintAnnotation(true),
 			mcp.WithString("start",
 				mcp.Description("Optional start of date range filter, as ISO 8601 datetime (e.g. 2024-01-01)"),
 			),
@@ -98,6 +101,9 @@ func registerTools(mcpServer *mcp_server.MCPServer) {
 	mcpServer.AddTool(
 		mcp.NewTool("list_schemas",
 			mcp.WithDescription("Lists all available data record schemas for a given dataset. Use this to discover which schemas (e.g. trades, ohlcv-1d, mbp-1) are available before querying. This does not incur any billing."),
+			mcp.WithReadOnlyHintAnnotation(true),
+			mcp.WithDestructiveHintAnnotation(false),
+			mcp.WithIdempotentHintAnnotation(true),
 			mcp.WithString("dataset",
 				mcp.Required(),
 				mcp.Description("Dataset code (e.g. XNAS.ITCH, GLBX.MDP3). Use list_datasets to discover valid values."),
@@ -110,6 +116,9 @@ func registerTools(mcpServer *mcp_server.MCPServer) {
 	mcpServer.AddTool(
 		mcp.NewTool("list_fields",
 			mcp.WithDescription("Lists all field names and types for a given schema. Use this to understand the structure of records before querying with get_range. Returns fields for JSON encoding. This does not incur any billing."),
+			mcp.WithReadOnlyHintAnnotation(true),
+			mcp.WithDestructiveHintAnnotation(false),
+			mcp.WithIdempotentHintAnnotation(true),
 			mcp.WithString("schema",
 				mcp.Required(),
 				mcp.Description("Schema to inspect (e.g. trades, ohlcv-1d, mbp-1). Use list_schemas to discover valid values."),
@@ -122,6 +131,9 @@ func registerTools(mcpServer *mcp_server.MCPServer) {
 	mcpServer.AddTool(
 		mcp.NewTool("list_publishers",
 			mcp.WithDescription("Lists all Databento publishers with their publisher_id, dataset code, venue, and description. Use this to discover which venues and data sources are available, and to map publisher IDs seen in records back to their source. This does not incur any billing."),
+			mcp.WithReadOnlyHintAnnotation(true),
+			mcp.WithDestructiveHintAnnotation(false),
+			mcp.WithIdempotentHintAnnotation(true),
 		),
 		listPublishersHandler,
 	)
@@ -129,6 +141,9 @@ func registerTools(mcpServer *mcp_server.MCPServer) {
 	mcpServer.AddTool(
 		mcp.NewTool("get_dataset_range",
 			mcp.WithDescription("Returns the available date range (start and end) for a dataset. Use this to determine what time period of data is available before querying. This does not incur any billing."),
+			mcp.WithReadOnlyHintAnnotation(true),
+			mcp.WithDestructiveHintAnnotation(false),
+			mcp.WithIdempotentHintAnnotation(true),
 			mcp.WithString("dataset",
 				mcp.Required(),
 				mcp.Description("Dataset code (e.g. XNAS.ITCH, GLBX.MDP3). Use list_datasets to discover valid values."),
@@ -141,6 +156,9 @@ func registerTools(mcpServer *mcp_server.MCPServer) {
 	mcpServer.AddTool(
 		mcp.NewTool("get_dataset_condition",
 			mcp.WithDescription("Returns the data quality and availability condition for each day in a dataset's date range. Conditions are: 'available', 'degraded', 'pending', 'missing', or 'intraday'. Use this to check if data exists and is reliable before querying. This does not incur any billing."),
+			mcp.WithReadOnlyHintAnnotation(true),
+			mcp.WithDestructiveHintAnnotation(false),
+			mcp.WithIdempotentHintAnnotation(true),
 			mcp.WithString("dataset",
 				mcp.Required(),
 				mcp.Description("Dataset code (e.g. XNAS.ITCH, GLBX.MDP3). Use list_datasets to discover valid values."),
@@ -159,6 +177,9 @@ func registerTools(mcpServer *mcp_server.MCPServer) {
 	mcpServer.AddTool(
 		mcp.NewTool("list_unit_prices",
 			mcp.WithDescription("Lists the unit prices in US dollars per gigabyte for each schema and feed mode in a dataset. Use this to understand relative costs of different schemas before querying. This does not incur any billing."),
+			mcp.WithReadOnlyHintAnnotation(true),
+			mcp.WithDestructiveHintAnnotation(false),
+			mcp.WithIdempotentHintAnnotation(true),
 			mcp.WithString("dataset",
 				mcp.Required(),
 				mcp.Description("Dataset code (e.g. XNAS.ITCH, GLBX.MDP3). Use list_datasets to discover valid values."),
@@ -171,6 +192,9 @@ func registerTools(mcpServer *mcp_server.MCPServer) {
 	mcpServer.AddTool(
 		mcp.NewTool("resolve_symbols",
 			mcp.WithDescription("Resolves symbols from one symbology type to another for a given dataset and date range. For example, convert a raw symbol like 'AAPL' to its instrument_id, or resolve a continuous futures contract. Returns mappings with date-range validity, plus lists of partial and not-found symbols. This does not incur any billing."),
+			mcp.WithReadOnlyHintAnnotation(true),
+			mcp.WithDestructiveHintAnnotation(false),
+			mcp.WithIdempotentHintAnnotation(true),
 			mcp.WithString("dataset",
 				mcp.Required(),
 				mcp.Description("Dataset code (e.g. XNAS.ITCH, GLBX.MDP3). Use list_datasets to discover valid values."),
@@ -202,6 +226,9 @@ func registerTools(mcpServer *mcp_server.MCPServer) {
 	mcpServer.AddTool(
 		mcp.NewTool("get_cost",
 			mcp.WithDescription("Returns the estimated cost in USD, billable data size in bytes, and record count for a query. Always call this before get_range to understand cost implications. This does not incur any billing."),
+			mcp.WithReadOnlyHintAnnotation(true),
+			mcp.WithDestructiveHintAnnotation(false),
+			mcp.WithIdempotentHintAnnotation(true),
 			mcp.WithString("dataset",
 				mcp.Required(),
 				mcp.Description("Dataset to query (e.g. XNAS.ITCH, GLBX.MDP3)"),
@@ -231,6 +258,8 @@ func registerTools(mcpServer *mcp_server.MCPServer) {
 	mcpServer.AddTool(
 		mcp.NewTool("get_range",
 			mcp.WithDescription("Returns all records as JSON for a dataset/schema/symbol over a date range. CAUTION: This incurs Databento billing. Call get_cost first to check the cost. The server enforces a per-query budget limit. For large results, prefer ohlcv-1d or ohlcv-1h schemas which return compact summaries."),
+			mcp.WithDestructiveHintAnnotation(false),
+			mcp.WithIdempotentHintAnnotation(true),
 			mcp.WithString("dataset",
 				mcp.Required(),
 				mcp.Description("Dataset to query (e.g. XNAS.ITCH, GLBX.MDP3)"),
