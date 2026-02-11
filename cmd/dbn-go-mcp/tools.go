@@ -20,13 +20,19 @@ import (
 // via: dbn-go-hist datasets
 var validDatasets = []string{
 	"ARCX.PILLAR",
+	"BATS.PITCH",
+	"BATY.PITCH",
 	"DBEQ.BASIC",
+	"EDGA.PITCH",
+	"EDGX.PITCH",
 	"EPRL.DOM",
 	"EQUS.MINI",
 	"EQUS.SUMMARY",
 	"GLBX.MDP3",
 	"IEXG.TOPS",
 	"IFEU.IMPACT",
+	"IFLL.IMPACT",
+	"IFUS.IMPACT",
 	"MEMX.MEMOIR",
 	"NDEX.IMPACT",
 	"OPRA.PILLAR",
@@ -34,6 +40,8 @@ var validDatasets = []string{
 	"XBOS.ITCH",
 	"XCHI.PILLAR",
 	"XCIS.TRADESBBO",
+	"XEEE.EOBI",
+	"XEUR.EOBI",
 	"XNAS.BASIC",
 	"XNAS.ITCH",
 	"XNYS.PILLAR",
@@ -44,20 +52,24 @@ var validDatasets = []string{
 // via: dbn-go-hist schemas -d XNAS.ITCH
 var validSchemas = []string{
 	"mbo",
-	"mbp-1",
 	"mbp-10",
+	"mbp-1",
+	"cmbp-1",
 	"bbo-1s",
 	"bbo-1m",
+	"cbbo-1s",
+	"cbbo-1m",
 	"tbbo",
+	"tcbbo",
 	"trades",
 	"ohlcv-1s",
 	"ohlcv-1m",
 	"ohlcv-1h",
 	"ohlcv-1d",
 	"definition",
+	"imbalance",
 	"statistics",
 	"status",
-	"imbalance",
 }
 
 // Valid symbology types for resolve_symbols.
@@ -402,4 +414,3 @@ func parseOptionalDateRange(request mcp.CallToolRequest) (dbn_hist.DateRange, *m
 
 	return dateRange, nil
 }
-
