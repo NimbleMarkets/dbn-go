@@ -245,7 +245,11 @@ func registerTools(mcpServer *mcp_server.MCPServer) {
 			),
 			mcp.WithString("symbol",
 				mcp.Required(),
-				mcp.Description("Symbol to query (e.g. AAPL, TSLA, QQQ)"),
+				mcp.Description("Symbol to query (e.g. AAPL, TSLA, ES.c.0)"),
+			),
+			mcp.WithString("stype_in",
+				mcp.Description("Input symbology type (default: raw_symbol). Use 'continuous' for futures like ES.c.0."),
+				mcp.Enum(validStypes...),
 			),
 			mcp.WithString("start",
 				mcp.Required(),
@@ -276,7 +280,11 @@ func registerTools(mcpServer *mcp_server.MCPServer) {
 			),
 			mcp.WithString("symbol",
 				mcp.Required(),
-				mcp.Description("Symbol to query (e.g. AAPL, TSLA, QQQ)"),
+				mcp.Description("Symbol to query (e.g. AAPL, TSLA, ES.c.0)"),
+			),
+			mcp.WithString("stype_in",
+				mcp.Description("Input symbology type (default: raw_symbol). Use 'continuous' for futures like ES.c.0."),
+				mcp.Enum(validStypes...),
 			),
 			mcp.WithString("start",
 				mcp.Required(),
@@ -298,6 +306,7 @@ type commonParams struct {
 	Dataset   string
 	SchemaStr string
 	Symbol    string
+	StypeIn   dbn.SType
 	StartStr  string
 	EndStr    string
 	StartTime time.Time
@@ -331,6 +340,13 @@ func parseCommonParams(request mcp.CallToolRequest) (*commonParams, *mcp.CallToo
 		return nil, mcp.NewToolResultError("symbol must be set")
 	}
 
+	p.StypeIn = dbn.SType_RawSymbol
+	if stypeInStr, err := request.RequireString("stype_in"); err == nil && stypeInStr != "" {
+		if p.StypeIn, err = dbn.STypeFromString(stypeInStr); err != nil {
+			return nil, mcp.NewToolResultErrorf("invalid stype_in: %s", err)
+		}
+	}
+
 	if p.StartStr, err = request.RequireString("start"); err != nil {
 		return nil, mcp.NewToolResultError("start must be set")
 	}
@@ -356,7 +372,7 @@ func (p *commonParams) metadataQueryParams() dbn_hist.MetadataQueryParams {
 		Symbols:   []string{p.Symbol},
 		DateRange: dbn_hist.DateRange{Start: p.StartTime, End: p.EndTime},
 		Mode:      dbn_hist.FeedMode_Historical,
-		StypeIn:   dbn.SType_RawSymbol,
+		StypeIn:   p.StypeIn,
 	}
 }
 

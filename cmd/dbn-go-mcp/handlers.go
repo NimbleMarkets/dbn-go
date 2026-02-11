@@ -308,7 +308,7 @@ func getRangeHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.Cal
 		MapSymbols:   true,
 		SplitSymbols: false,
 		Delivery:     dbn_hist.Delivery_Download,
-		StypeIn:      dbn.SType_RawSymbol,
+		StypeIn:      p.StypeIn,
 		StypeOut:     dbn.SType_InstrumentId,
 	}
 	rangeData, err := dbn_hist.GetRange(config.ApiKey, jobParams)
