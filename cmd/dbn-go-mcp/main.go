@@ -1,6 +1,6 @@
 // Copyright (c) 2025 Neomantra Corp
 //
-// This is a Nodel Context Protocol (MCP) server for Databento APIs.
+// This is a Model Context Protocol (MCP) server for Databento APIs.
 // It bridges LLMs and Databento's historical and metadata APIs.
 //
 // NOTE: this incurs billing, handle with care!
@@ -11,7 +11,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -281,147 +280,135 @@ func registerTools(mcpServer *mcp_server.MCPServer) error {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-func getCostHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	var dataset, schemaStr, symbol, startStr, endStr string
-	var startTime, endTime time.Time
+// commonParams holds the parsed and validated parameters shared across tool handlers.
+type commonParams struct {
+	Dataset   string
+	SchemaStr string
+	Symbol    string
+	StartStr  string
+	EndStr    string
+	StartTime time.Time
+	EndTime   time.Time
+}
+
+// parseCommonParams extracts and validates dataset, schema, symbol, start, and end
+// from a tool request. Returns a tool-result error (not a Go error) so the LLM
+// can see and reason about validation failures.
+func parseCommonParams(request mcp.CallToolRequest) (*commonParams, *mcp.CallToolResult) {
+	var p commonParams
 	var err error
 
-	if dataset, err = request.RequireString("dataset"); err != nil {
-		return nil, errors.New("dataset must be set")
-	} else {
-		dataset = strings.ToUpper(dataset)
-		if !slices.Contains(validDatasets, dataset) {
-			return nil, errors.New("unknown dataset")
-		}
+	if p.Dataset, err = request.RequireString("dataset"); err != nil {
+		return nil, mcp.NewToolResultError("dataset must be set")
 	}
-	if schemaStr, err = request.RequireString("schema"); err != nil {
-		return nil, errors.New("schema must be set")
-	} else {
-		schemaStr = strings.ToLower(schemaStr)
-		if !slices.Contains(validSchemas, schemaStr) {
-			return nil, errors.New("unknown schema")
-		}
-	}
-	if symbol, err = request.RequireString("symbol"); err != nil {
-		return nil, errors.New("symbol must be valid")
-	}
-	if startStr, err = request.RequireString("start"); err != nil {
-		return nil, errors.New("start must be valid")
-	} else {
-		if startTime, err = iso8601.ParseString(startStr); err != nil {
-			return nil, fmt.Errorf("start was invalid: %w", err)
-		}
-	}
-	if endStr, err = request.RequireString("end"); err != nil {
-		return nil, errors.New("end must be valid")
-	} else {
-		if endTime, err = iso8601.ParseString(endStr); err != nil {
-			return nil, fmt.Errorf("end was invalid: %w", err)
-		}
+	p.Dataset = strings.ToUpper(p.Dataset)
+	if !slices.Contains(validDatasets, p.Dataset) {
+		return nil, mcp.NewToolResultErrorf("unknown dataset: %s", p.Dataset)
 	}
 
-	metaParams := dbn_hist.MetadataQueryParams{
-		Dataset:   dataset,
-		Schema:    schemaStr,
-		Symbols:   []string{symbol},
-		DateRange: dbn_hist.DateRange{Start: startTime, End: endTime},
+	if p.SchemaStr, err = request.RequireString("schema"); err != nil {
+		return nil, mcp.NewToolResultError("schema must be set")
+	}
+	p.SchemaStr = strings.ToLower(p.SchemaStr)
+	if !slices.Contains(validSchemas, p.SchemaStr) {
+		return nil, mcp.NewToolResultErrorf("unknown schema: %s", p.SchemaStr)
+	}
+
+	if p.Symbol, err = request.RequireString("symbol"); err != nil {
+		return nil, mcp.NewToolResultError("symbol must be set")
+	}
+
+	if p.StartStr, err = request.RequireString("start"); err != nil {
+		return nil, mcp.NewToolResultError("start must be set")
+	}
+	if p.StartTime, err = iso8601.ParseString(p.StartStr); err != nil {
+		return nil, mcp.NewToolResultErrorf("start was invalid ISO 8601: %s", err)
+	}
+
+	if p.EndStr, err = request.RequireString("end"); err != nil {
+		return nil, mcp.NewToolResultError("end must be set")
+	}
+	if p.EndTime, err = iso8601.ParseString(p.EndStr); err != nil {
+		return nil, mcp.NewToolResultErrorf("end was invalid ISO 8601: %s", err)
+	}
+
+	return &p, nil
+}
+
+// metadataQueryParams builds a MetadataQueryParams from commonParams.
+func (p *commonParams) metadataQueryParams() dbn_hist.MetadataQueryParams {
+	return dbn_hist.MetadataQueryParams{
+		Dataset:   p.Dataset,
+		Schema:    p.SchemaStr,
+		Symbols:   []string{p.Symbol},
+		DateRange: dbn_hist.DateRange{Start: p.StartTime, End: p.EndTime},
 		Mode:      dbn_hist.FeedMode_Historical,
 		StypeIn:   dbn.SType_RawSymbol,
 	}
+}
+
+func getCostHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	p, errResult := parseCommonParams(request)
+	if errResult != nil {
+		return errResult, nil
+	}
+
+	metaParams := p.metadataQueryParams()
 
 	cost, err := dbn_hist.GetCost(config.ApiKey, metaParams)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get cost: %w", err)
+		return mcp.NewToolResultErrorf("failed to get cost: %s", err), nil
 	}
 	dataSize, err := dbn_hist.GetBillableSize(config.ApiKey, metaParams)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get data size: %w", err)
+		return mcp.NewToolResultErrorf("failed to get data size: %s", err), nil
 	}
 	recordCount, err := dbn_hist.GetRecordCount(config.ApiKey, metaParams)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get record count: %w", err)
+		return mcp.NewToolResultErrorf("failed to get record count: %s", err), nil
 	}
 
-	jbytes, err := json.Marshal(map[string]interface{}{
+	jbytes, err := json.Marshal(map[string]any{
 		"query":        metaParams,
 		"cost":         cost,
 		"data_size":    dataSize,
 		"record_count": recordCount,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to json.Marshal results: %w", err)
+		return mcp.NewToolResultErrorf("failed to marshal results: %s", err), nil
 	}
 
-	logger.Info("get_cost", "dataset", dataset, "schema", schemaStr, "symbol", symbol,
-		"start", startStr, "end", endStr, "cost", cost, "size", dataSize, "count", recordCount)
+	logger.Info("get_cost", "dataset", p.Dataset, "schema", p.SchemaStr, "symbol", p.Symbol,
+		"start", p.StartStr, "end", p.EndStr, "cost", cost, "size", dataSize, "count", recordCount)
 
 	return mcp.NewToolResultText(string(jbytes)), nil
 }
 
 func getRangeHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	var dataset, schemaStr, symbol, startStr, endStr string
-	var schema dbn.Schema
-	var startTime, endTime time.Time
-	var err error
-
-	if dataset, err = request.RequireString("dataset"); err != nil {
-		return nil, errors.New("dataset must be set")
-	} else {
-		dataset = strings.ToUpper(dataset)
-		if !slices.Contains(validDatasets, dataset) {
-			return nil, errors.New("unknown dataset")
-		}
-	}
-	if schemaStr, err = request.RequireString("schema"); err != nil {
-		return nil, errors.New("schema must be set")
-	} else {
-		schemaStr = strings.ToLower(schemaStr)
-		if !slices.Contains(validSchemas, schemaStr) {
-			return nil, errors.New("unknown schema")
-		}
-		if schema, err = dbn.SchemaFromString(schemaStr); err != nil {
-			return nil, fmt.Errorf("schema was invalid: %w", err)
-		}
-	}
-	if symbol, err = request.RequireString("symbol"); err != nil {
-		return nil, errors.New("symbol must be valid")
-	}
-	if startStr, err = request.RequireString("start"); err != nil {
-		return nil, errors.New("start must be valid")
-	} else {
-		if startTime, err = iso8601.ParseString(startStr); err != nil {
-			return nil, fmt.Errorf("start was invalid: %w", err)
-		}
-	}
-	if endStr, err = request.RequireString("end"); err != nil {
-		return nil, errors.New("end must be valid")
-	} else {
-		if endTime, err = iso8601.ParseString(endStr); err != nil {
-			return nil, fmt.Errorf("end was invalid: %w", err)
-		}
+	p, errResult := parseCommonParams(request)
+	if errResult != nil {
+		return errResult, nil
 	}
 
-	metaParams := dbn_hist.MetadataQueryParams{
-		Dataset:   dataset,
-		Schema:    schemaStr,
-		Symbols:   []string{symbol},
-		DateRange: dbn_hist.DateRange{Start: startTime, End: endTime},
-		Mode:      dbn_hist.FeedMode_Historical,
-		StypeIn:   dbn.SType_RawSymbol,
+	schema, err := dbn.SchemaFromString(p.SchemaStr)
+	if err != nil {
+		return mcp.NewToolResultErrorf("schema was invalid: %s", err), nil
 	}
+
+	metaParams := p.metadataQueryParams()
 	cost, err := dbn_hist.GetCost(config.ApiKey, metaParams)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get cost: %w", err)
+		return mcp.NewToolResultErrorf("failed to get cost: %s", err), nil
 	}
-	if cost > config.MaxCost { // more than budget?
-		return nil, fmt.Errorf("query was above budget, cost: %0.2f budget: %0.2f", cost, config.MaxCost)
+	if config.MaxCost > 0 && cost > config.MaxCost {
+		return mcp.NewToolResultErrorf("query exceeds budget: estimated cost $%.2f, budget $%.2f", cost, config.MaxCost), nil
 	}
 
 	jobParams := dbn_hist.SubmitJobParams{
-		Dataset:      dataset,
-		Symbols:      symbol,
+		Dataset:      p.Dataset,
+		Symbols:      p.Symbol,
 		Schema:       schema,
-		DateRange:    dbn_hist.DateRange{Start: startTime, End: endTime},
+		DateRange:    dbn_hist.DateRange{Start: p.StartTime, End: p.EndTime},
 		Encoding:     dbn.Encoding_Json,
 		PrettyPx:     true,
 		PrettyTs:     true,
@@ -433,10 +420,10 @@ func getRangeHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.Cal
 	}
 	rangeData, err := dbn_hist.GetRange(config.ApiKey, jobParams)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get range: %w", err)
+		return mcp.NewToolResultErrorf("failed to get range: %s", err), nil
 	}
 
-	logger.Info("get_range", "dataset", dataset, "schema", schemaStr, "symbol", symbol,
-		"start", startStr, "end", endStr, "cost", cost, "size", len(rangeData))
+	logger.Info("get_range", "dataset", p.Dataset, "schema", p.SchemaStr, "symbol", p.Symbol,
+		"start", p.StartStr, "end", p.EndStr, "cost", cost, "size", len(rangeData))
 	return mcp.NewToolResultText(string(rangeData)), nil
 }
