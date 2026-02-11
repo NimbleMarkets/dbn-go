@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.7.1 (2026-02-11)
+
+ * Add `dbn-go-slurp-docs` to GoReleaser
+
 ## v0.7.0 (2026-02-10)
 
  * Add `dbn-go-slurp-docs` for [docs for LLMs](./cmd/README.md#dbn-go-slurp-docs)

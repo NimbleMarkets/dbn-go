@@ -40,6 +40,14 @@ builds:
       - darwin
       - windows
 
+  - id: "dbn-go-slurp-docs"
+    main: ./cmd/dbn-go-slurp-docs
+    binary: bin/dbn-go-slurp-docs
+    goos:
+      - linux
+      - darwin
+      - windows
+
   - id: "dbn-go-tui"
     main: ./cmd/dbn-go-tui
     binary: bin/dbn-go-tui
@@ -92,4 +100,5 @@ brews:
       bin.install "./bin/dbn-go-hist"
       bin.install "./bin/dbn-go-live"
       bin.install "./bin/dbn-go-mcp"
+      bin.install "./bin/dbn-go-slurp-docs"
       bin.install "./bin/dbn-go-tui"
