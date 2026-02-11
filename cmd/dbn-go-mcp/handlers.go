@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/NimbleMarkets/dbn-go"
@@ -248,17 +249,29 @@ func getCostHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 
 	metaParams := p.metadataQueryParams()
 
-	cost, err := dbn_hist.GetCost(config.ApiKey, metaParams)
-	if err != nil {
-		return mcp.NewToolResultErrorf("failed to get cost: %s", err), nil
+	var (
+		cost        float64
+		dataSize    int
+		recordCount int
+		costErr     error
+		sizeErr     error
+		countErr    error
+		wg          sync.WaitGroup
+	)
+	wg.Add(3)
+	go func() { defer wg.Done(); cost, costErr = dbn_hist.GetCost(config.ApiKey, metaParams) }()
+	go func() { defer wg.Done(); dataSize, sizeErr = dbn_hist.GetBillableSize(config.ApiKey, metaParams) }()
+	go func() { defer wg.Done(); recordCount, countErr = dbn_hist.GetRecordCount(config.ApiKey, metaParams) }()
+	wg.Wait()
+
+	if costErr != nil {
+		return mcp.NewToolResultErrorf("failed to get cost: %s", costErr), nil
 	}
-	dataSize, err := dbn_hist.GetBillableSize(config.ApiKey, metaParams)
-	if err != nil {
-		return mcp.NewToolResultErrorf("failed to get data size: %s", err), nil
+	if sizeErr != nil {
+		return mcp.NewToolResultErrorf("failed to get data size: %s", sizeErr), nil
 	}
-	recordCount, err := dbn_hist.GetRecordCount(config.ApiKey, metaParams)
-	if err != nil {
-		return mcp.NewToolResultErrorf("failed to get record count: %s", err), nil
+	if countErr != nil {
+		return mcp.NewToolResultErrorf("failed to get record count: %s", countErr), nil
 	}
 
 	jbytes, err := json.Marshal(map[string]any{
