@@ -11,7 +11,6 @@ import (
 	"github.com/NimbleMarkets/dbn-go"
 	dbn_hist "github.com/NimbleMarkets/dbn-go/hist"
 	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/relvacode/iso8601"
 )
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -212,23 +211,12 @@ func resolveSymbolsHandler(ctx context.Context, request mcp.CallToolRequest) (*m
 		}
 	}
 
-	startStr, err := request.RequireString("start")
-	if err != nil {
+	dateRange, errResult := parseOptionalDateRange(request)
+	if errResult != nil {
+		return errResult, nil
+	}
+	if dateRange.Start.IsZero() {
 		return mcp.NewToolResultError("start must be set"), nil
-	}
-	startTime, err := iso8601.ParseString(startStr)
-	if err != nil {
-		return mcp.NewToolResultErrorf("start was invalid ISO 8601: %s", err), nil
-	}
-
-	var dateRange dbn_hist.DateRange
-	dateRange.Start = startTime
-	if endStr, err := request.RequireString("end"); err == nil && endStr != "" {
-		if endTime, err := iso8601.ParseString(endStr); err != nil {
-			return mcp.NewToolResultErrorf("end was invalid ISO 8601: %s", err), nil
-		} else {
-			dateRange.End = endTime
-		}
 	}
 
 	resolution, err := dbn_hist.SymbologyResolve(config.ApiKey, dbn_hist.ResolveParams{
@@ -248,7 +236,7 @@ func resolveSymbolsHandler(ctx context.Context, request mcp.CallToolRequest) (*m
 	}
 
 	logger.Info("resolve_symbols", "dataset", dataset, "symbols", symbolsStr,
-		"stype_in", stypeIn, "stype_out", stypeOut, "start", startStr)
+		"stype_in", stypeIn, "stype_out", stypeOut, "start", dateRange.Start)
 	return mcp.NewToolResultText(string(jbytes)), nil
 }
 
