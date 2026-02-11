@@ -33,7 +33,6 @@ tasks:
     desc: 'Clean all'
     cmds:
       - rm -f bin/dbn-go-file bin/dbn-go-hist bin/dbn-go-live bin/dbn-go-mcp bin/dbn-go-tui bin/dbn-go-slurp-docs
-      - rm -rf docs-corpus slurped-docs
 
   docker-build:
     desc: 'Docker build'
@@ -181,35 +180,98 @@ tasks:
 
 ###############################################################################
 
-  docs-corpus-init:
-    desc: 'Generate docs corpus directory structure (requires Chrome to generate sitemap)'
+  docs:build:
+    desc: 'Build all generated docs (markdown + man)'
+    deps:
+      - docs:md:build
+      - docs:man:build
+
+  docs:clean:
+    desc: 'Clean all generated docs'
+    deps:
+      - docs:md:clean
+      - docs:man:clean
+
+  docs:md:build:
+    desc: 'Generate Hugo markdown command docs'
+    deps: [build-dbn-go-hist]
+    cmds:
+      - ./bin/dbn-go-hist docs markdown --hugo -o docs/hugo/content/dbn-go-hist/command
+    sources:
+      - ./cmd/dbn-go-hist/*.go
+    generates:
+      - docs/hugo/content/dbn-go-hist/command/dbn-go-hist.md
+
+  docs:md:clean:
+    desc: 'Clean generated markdown docs'
+    cmds:
+      - rm -rf docs/hugo/content/dbn-go-hist/command
+
+  docs:man:build:
+    desc: 'Generate man pages'
+    deps: [build-dbn-go-hist]
+    cmds:
+      - ./bin/dbn-go-hist docs man -o docs/man
+    sources:
+      - ./cmd/dbn-go-hist/*.go
+    generates:
+      - docs/man/dbn-go-hist.1
+
+  docs:man:clean:
+    desc: 'Clean generated man pages'
+    cmds:
+      - rm -rf docs/man
+
+  docs:hugo:serve:
+    desc: 'Serve Hugo docs locally'
+    deps: [docs:md:build]
+    dir: docs/hugo
+    cmds:
+      - hugo serve
+
+  docs:hugo:build:
+    desc: 'Build Hugo static site'
+    deps: [docs:md:build]
+    dir: docs/hugo
+    cmds:
+      - rm -rf public
+      - hugo --minify
+
+###############################################################################
+
+  docs:databento:init:
+    desc: 'Generate docs-databento directory structure (requires Chrome to generate sitemap)'
     deps: [build-dbn-go-slurp-docs]
     cmds:
-      - ./bin/dbn-go-slurp-docs -generate-sitemap docs-corpus
-      - ./bin/dbn-go-slurp-docs docs-corpus
+      - ./bin/dbn-go-slurp-docs -generate-sitemap docs-databento
+      - ./bin/dbn-go-slurp-docs docs-databento
 
-  docs-corpus-fetch:
+  docs:databento:fetch:
     desc: 'Fetch all docs content with Chrome (slow, ~15 minutes)'
     deps: [build-dbn-go-slurp-docs]
     cmds:
-      - ./bin/dbn-go-slurp-docs -generate-sitemap -fetch docs-corpus
+      - ./bin/dbn-go-slurp-docs -generate-sitemap -fetch docs-databento
 
-  docs-corpus-fetch-fast:
+  docs:databento:fetch-fast:
     desc: 'Fetch docs with shorter delays (may hit rate limits)'
     deps: [build-dbn-go-slurp-docs]
     cmds:
-      - ./bin/dbn-go-slurp-docs -generate-sitemap -fetch -delay=1s -v docs-corpus
+      - ./bin/dbn-go-slurp-docs -generate-sitemap -fetch -delay=1s -v docs-databento
 
-  docs-corpus-resume:
+  docs:databento:resume:
     desc: 'Resume fetching docs from where it left off'
     deps: [build-dbn-go-slurp-docs]
     cmds:
-      - ./bin/dbn-go-slurp-docs -fetch docs-corpus
+      - ./bin/dbn-go-slurp-docs -fetch docs-databento
 
-  docs-corpus-reset:
-    desc: 'Reset docs corpus and start fresh (regenerates sitemap)'
+  docs:databento:reset:
+    desc: 'Reset docs-databento and start fresh (regenerates sitemap)'
     deps: [build-dbn-go-slurp-docs]
     cmds:
-      - rm -rf docs-corpus
-      - ./bin/dbn-go-slurp-docs -generate-sitemap -fetch -no-resume docs-corpus
+      - rm -rf docs-databento
+      - ./bin/dbn-go-slurp-docs -generate-sitemap -fetch -no-resume docs-databento
 
+  docs:databento:clean:
+    desc: 'Removes docs-databento'
+    cmds:
+      - rm -rf docs-databento

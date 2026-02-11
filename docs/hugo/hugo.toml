@@ -1,0 +1,36 @@
+baseURL = "https://NimbleMarkets.github.io/dbn-go/"
+languageCode = "en-us"
+title = "dbn-go"
+theme = "hugo-book"
+contentDir = "content"
+
+# Disable auto-generated timestamps for reproducible builds
+enableGitInfo = false
+
+[params]
+  description = "Go library and tools for Databento's APIs and DBN format"
+
+  # hugo-book theme params
+  BookTheme = "auto"
+  BookToC = true
+  BookMenuBundle = "/menu"
+  BookSection = "*"
+  BookRepo = "https://github.com/NimbleMarkets/dbn-go"
+  BookEditPath = "edit/main/docs/hugo"
+  BookDateFormat = "January 2, 2006"
+  BookSearch = true
+  BookComments = false
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+  [markup.tableOfContents]
+    endLevel = 4
+    ordered = false
+    startLevel = 2
+
+[outputs]
+  home = ["HTML", "RSS", "JSON"]
+  section = ["HTML"]
+  page = ["HTML"]

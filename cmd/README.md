@@ -232,7 +232,7 @@ Usage of dbn-go-slurp-docs:
   -no-resume
         Don't resume from previous run
   -output string
-        Output directory for documentation corpus (default "docs-corpus")
+        Output directory for documentation corpus (default "docs-databento")
   -v    Verbose logging
 ```
 
@@ -242,17 +242,17 @@ The tool works in two phases:
 
 **1. Generate the sitemap** (requires Chrome):
 ```sh
-dbn-go-slurp-docs -generate-sitemap docs-corpus
+dbn-go-slurp-docs -generate-sitemap docs-databento
 ```
 
 **2. Fetch and process documentation** (requires Chrome):
 ```sh
-dbn-go-slurp-docs -fetch docs-corpus
+dbn-go-slurp-docs -fetch docs-databento
 ```
 
 Or combine both steps:
 ```sh
-dbn-go-slurp-docs -generate-sitemap -fetch docs-corpus
+dbn-go-slurp-docs -generate-sitemap -fetch docs-databento
 ```
 
 ### Output Structure
@@ -260,7 +260,7 @@ dbn-go-slurp-docs -generate-sitemap -fetch docs-corpus
 The tool creates a structured documentation corpus:
 
 ```
-docs-corpus/
+docs-databento/
 ├── README.md                    # Root index with all sections
 ├── databento-docs-sitemap.xml.gz # Compressed sitemap
 ├── .slurp-progress.json         # Progress tracking for resume
@@ -286,13 +286,13 @@ Each page summary includes:
 The tool supports resumable fetching. If interrupted, run again with the same output directory to continue where it left off:
 
 ```sh
-dbn-go-slurp-docs -fetch docs-corpus          # Interrupted
-dbn-go-slurp-docs -fetch docs-corpus          # Resumes automatically
+dbn-go-slurp-docs -fetch docs-databento          # Interrupted
+dbn-go-slurp-docs -fetch docs-databento          # Resumes automatically
 ```
 
 Use `-no-resume` to start fresh:
 ```sh
-dbn-go-slurp-docs -fetch -no-resume docs-corpus
+dbn-go-slurp-docs -fetch -no-resume docs-databento
 ```
 
 ### Chrome Path
@@ -301,7 +301,7 @@ The tool auto-detects Chrome/Chromium on macOS and Linux. To specify a custom pa
 
 ```sh
 export CHROME_PATH=/path/to/chrome
-dbn-go-slurp-docs -fetch docs-corpus
+dbn-go-slurp-docs -fetch docs-databento
 ```
 
 ----

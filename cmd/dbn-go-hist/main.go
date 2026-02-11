@@ -319,6 +319,13 @@ func main() {
 	rootCmd.AddCommand(tuiCmd)
 	tuiCmd.Flags().IntVarP(&maxActiveDownloads, "limit", "l", defaultMaxActiveDownloads, "Limit maximum concurrent downloads")
 
+	docsCmd.AddCommand(docsMarkdownCmd)
+	docsCmd.AddCommand(docsManCmd)
+	docsCmd.PersistentFlags().StringVarP(&docsOutputDir, "output", "o", "docs", "Output directory for generated docs")
+	docsCmd.PersistentFlags().BoolVar(&docsEnableAutoGenTag, "enableAutoGenTag", false, "Enable auto-generation tag in docs")
+	docsMarkdownCmd.Flags().BoolVar(&docsHugo, "hugo", false, "Generate Hugo-compatible markdown with YAML front matter")
+	rootCmd.AddCommand(docsCmd)
+
 	err := rootCmd.Execute()
 	requireNoError(err)
 }
