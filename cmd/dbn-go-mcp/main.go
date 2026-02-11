@@ -25,6 +25,23 @@ const (
 
 	defaultSSEHostPort = ":8889"
 	defaultMaxCost     = 1.0 // $1.00
+
+	// serverInstructions is sent to LLM clients during MCP initialization.
+	serverInstructions = `dbn-go-mcp provides access to Databento's historical market data APIs.
+
+IMPORTANT — BILLING: Only the get_range tool incurs Databento billing charges. All other tools are free metadata/discovery queries. Always call get_cost before get_range to check the estimated cost.
+
+Recommended workflow:
+1. Use list_datasets to discover available datasets.
+2. Use list_schemas to see which schemas a dataset supports.
+3. Use list_fields to understand the record structure of a schema.
+4. Use get_dataset_range and get_dataset_condition to verify data availability.
+5. Use get_cost to estimate the cost of your query.
+6. Only then call get_range to fetch the actual data.
+
+Additional discovery tools: list_publishers (venue/source info), list_unit_prices (cost per schema), resolve_symbols (symbol mapping across symbologies).
+
+The server enforces a per-query budget limit on get_range. For large queries, prefer compact schemas like ohlcv-1d or ohlcv-1h.`
 )
 
 type Config struct {
@@ -145,7 +162,10 @@ func requireValOrExit(val string, errstr string) {
 
 func run() error {
 	// Create the MCP Server
-	mcpServer := mcp_server.NewMCPServer(config.Name, config.Version)
+	mcpServer := mcp_server.NewMCPServer(config.Name, config.Version,
+		mcp_server.WithRecovery(),
+		mcp_server.WithInstructions(serverInstructions),
+	)
 	registerTools(mcpServer)
 
 	if config.UseSSE {
