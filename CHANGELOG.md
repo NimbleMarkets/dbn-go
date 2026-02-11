@@ -2,6 +2,7 @@
 
 ## v0.7.1 (2026-02-11)
 
+ * Improve metadata tools in [MCP server](./cmd/dbn-go-mcp/README.md)
  * Fix `FieldDetail.TypeName` JSON field name, which broke `dbn_hist.GetFields`
  * Add `dbn-go-slurp-docs` to GoReleaser
 
