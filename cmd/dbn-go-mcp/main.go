@@ -219,6 +219,23 @@ var validSchemas = []string{
 	"imbalance",
 }
 
+// Valid symbology types for resolve_symbols
+var validStypes = []string{
+	"raw_symbol",
+	"instrument_id",
+	"smart",
+	"continuous",
+	"parent",
+	"nasdaq",
+	"cms",
+	"isin",
+	"us_code",
+	"bbg_comp_id",
+	"bbg_comp_ticker",
+	"figi",
+	"figi_ticker",
+}
+
 // registerTools registers all MCP tools with the server.
 func registerTools(mcpServer *mcp_server.MCPServer) error {
 	// list_datasets - discovery tool (no billing)
@@ -306,6 +323,37 @@ func registerTools(mcpServer *mcp_server.MCPServer) error {
 			),
 		),
 		listUnitPricesHandler,
+	)
+	// resolve_symbols - discovery tool (no billing)
+	mcpServer.AddTool(
+		mcp.NewTool("resolve_symbols",
+			mcp.WithDescription("Resolves symbols from one symbology type to another for a given dataset and date range. For example, convert a raw symbol like 'AAPL' to its instrument_id, or resolve a continuous futures contract. Returns mappings with date-range validity, plus lists of partial and not-found symbols. This does not incur any billing."),
+			mcp.WithString("dataset",
+				mcp.Required(),
+				mcp.Description("Dataset code (e.g. XNAS.ITCH, GLBX.MDP3). Use list_datasets to discover valid values."),
+				mcp.Enum(validDatasets...),
+			),
+			mcp.WithString("symbols",
+				mcp.Required(),
+				mcp.Description("Comma-separated list of symbols to resolve (e.g. 'AAPL' or 'AAPL,TSLA,QQQ')"),
+			),
+			mcp.WithString("stype_in",
+				mcp.Description("Input symbology type (default: raw_symbol). One of: raw_symbol, instrument_id, smart, continuous, parent, nasdaq, cms, isin, us_code, bbg_comp_id, bbg_comp_ticker, figi, figi_ticker"),
+				mcp.Enum(validStypes...),
+			),
+			mcp.WithString("stype_out",
+				mcp.Description("Output symbology type (default: instrument_id). One of: raw_symbol, instrument_id, smart, continuous, parent, nasdaq, cms, isin, us_code, bbg_comp_id, bbg_comp_ticker, figi, figi_ticker"),
+				mcp.Enum(validStypes...),
+			),
+			mcp.WithString("start",
+				mcp.Required(),
+				mcp.Description("Start of date range, as ISO 8601 datetime (e.g. 2024-01-01)"),
+			),
+			mcp.WithString("end",
+				mcp.Description("Optional end of date range (exclusive), as ISO 8601 datetime (e.g. 2024-12-31). Defaults to current date."),
+			),
+		),
+		resolveSymbolsHandler,
 	)
 	// get_cost
 	mcpServer.AddTool(
@@ -611,6 +659,76 @@ func listUnitPricesHandler(ctx context.Context, request mcp.CallToolRequest) (*m
 	}
 
 	logger.Info("list_unit_prices", "dataset", dataset, "count", len(unitPrices))
+	return mcp.NewToolResultText(string(jbytes)), nil
+}
+
+func resolveSymbolsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	dataset, err := request.RequireString("dataset")
+	if err != nil {
+		return mcp.NewToolResultError("dataset must be set"), nil
+	}
+	dataset = strings.ToUpper(dataset)
+
+	symbolsStr, err := request.RequireString("symbols")
+	if err != nil {
+		return mcp.NewToolResultError("symbols must be set"), nil
+	}
+	symbols := strings.Split(symbolsStr, ",")
+	for i := range symbols {
+		symbols[i] = strings.TrimSpace(symbols[i])
+	}
+
+	stypeIn := dbn.SType_RawSymbol
+	if stypeInStr, err := request.RequireString("stype_in"); err == nil && stypeInStr != "" {
+		if stypeIn, err = dbn.STypeFromString(stypeInStr); err != nil {
+			return mcp.NewToolResultErrorf("invalid stype_in: %s", err), nil
+		}
+	}
+
+	stypeOut := dbn.SType_InstrumentId
+	if stypeOutStr, err := request.RequireString("stype_out"); err == nil && stypeOutStr != "" {
+		if stypeOut, err = dbn.STypeFromString(stypeOutStr); err != nil {
+			return mcp.NewToolResultErrorf("invalid stype_out: %s", err), nil
+		}
+	}
+
+	startStr, err := request.RequireString("start")
+	if err != nil {
+		return mcp.NewToolResultError("start must be set"), nil
+	}
+	startTime, err := iso8601.ParseString(startStr)
+	if err != nil {
+		return mcp.NewToolResultErrorf("start was invalid ISO 8601: %s", err), nil
+	}
+
+	var dateRange dbn_hist.DateRange
+	dateRange.Start = startTime
+	if endStr, err := request.RequireString("end"); err == nil && endStr != "" {
+		if endTime, err := iso8601.ParseString(endStr); err != nil {
+			return mcp.NewToolResultErrorf("end was invalid ISO 8601: %s", err), nil
+		} else {
+			dateRange.End = endTime
+		}
+	}
+
+	resolution, err := dbn_hist.SymbologyResolve(config.ApiKey, dbn_hist.ResolveParams{
+		Dataset:   dataset,
+		Symbols:   symbols,
+		StypeIn:   stypeIn,
+		StypeOut:  stypeOut,
+		DateRange: dateRange,
+	})
+	if err != nil {
+		return mcp.NewToolResultErrorf("failed to resolve symbols: %s", err), nil
+	}
+
+	jbytes, err := json.Marshal(resolution)
+	if err != nil {
+		return mcp.NewToolResultErrorf("failed to marshal results: %s", err), nil
+	}
+
+	logger.Info("resolve_symbols", "dataset", dataset, "symbols", symbolsStr,
+		"stype_in", stypeIn, "stype_out", stypeOut, "start", startStr)
 	return mcp.NewToolResultText(string(jbytes)), nil
 }
 

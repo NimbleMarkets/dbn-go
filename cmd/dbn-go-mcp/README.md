@@ -34,6 +34,7 @@ Currently, the following tools are supported by the `dbn` MCP server:
 | `get_dataset_range` | `dataset` | Returns the available date range (start and end) for a dataset. |
 | `get_dataset_condition` | `dataset`, `start`?, `end`? | Returns data quality/availability condition per day (available, degraded, pending, missing, intraday). |
 | `list_unit_prices` | `dataset` | Lists unit prices in USD per gigabyte for each schema and feed mode. |
+| `resolve_symbols` | `dataset`, `symbols`, `start`, `stype_in`?, `stype_out`?, `end`? | Resolves symbols from one symbology type to another (e.g. raw_symbol to instrument_id). |
 
 ### Query Tools
 
@@ -66,6 +67,7 @@ list_fields               Lists all field names and types for a given schema. Us
 list_publishers           Lists all Databento publishers with their publisher_id, dataset code, venue
 list_schemas              Lists all available data record schemas for a given dataset. Use this to di
 list_unit_prices          Lists the unit prices in US dollars per gigabyte for each schema and feed m
+resolve_symbols           Resolves symbols from one symbology type to another for a given dataset and
 ```
 
 ## MCP Host Tool Configuration
@@ -480,6 +482,5 @@ mcphost -m ollama:qwq:32b --config mcp.json
 
 Potential improvements:
 - Allow/deny lists for datasets and schemas to restrict what the LLM can access
-- Symbol resolution tool (`resolve_symbols`) for multi-venue queries
 - Result limiting (`limit` parameter on `get_range`) to avoid overwhelming LLMs with large responses
 - Stronger budgeting and auditing tools

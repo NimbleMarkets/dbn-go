@@ -131,9 +131,9 @@ The MCP server (`dbn-go-mcp`) bridges LLMs and Databento's Historical API via th
 - **Shared validation**: `parseCommonParams()` extracts/validates dataset, schema, symbol, start, end from tool requests; `commonParams.metadataQueryParams()` builds the hist API query struct
 - **Cost guard**: `get_range` checks estimated cost against `--max-cost` budget before fetching data
 
-### MCP Tools (9 total)
+### MCP Tools (10 total)
 
-Discovery tools (no billing): `list_datasets`, `list_publishers`, `list_schemas`, `list_fields`, `get_dataset_range`, `get_dataset_condition`, `list_unit_prices`
+Discovery tools (no billing): `list_datasets`, `list_publishers`, `list_schemas`, `list_fields`, `get_dataset_range`, `get_dataset_condition`, `list_unit_prices`, `resolve_symbols`
 
 Query tools: `get_cost` (metadata only), `get_range` (incurs billing, returns JSON)
 
