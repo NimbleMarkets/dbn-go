@@ -301,6 +301,13 @@ func getRangeHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.Cal
 		return mcp.NewToolResultErrorf("schema was invalid: %s", err), nil
 	}
 
+	stypeOut := dbn.SType_InstrumentId
+	if stypeOutStr, err := request.RequireString("stype_out"); err == nil && stypeOutStr != "" {
+		if stypeOut, err = dbn.STypeFromString(stypeOutStr); err != nil {
+			return mcp.NewToolResultErrorf("invalid stype_out: %s", err), nil
+		}
+	}
+
 	metaParams := p.metadataQueryParams()
 	cost, err := dbn_hist.GetCost(config.ApiKey, metaParams)
 	if err != nil {
@@ -322,7 +329,7 @@ func getRangeHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.Cal
 		SplitSymbols: false,
 		Delivery:     dbn_hist.Delivery_Download,
 		StypeIn:      p.StypeIn,
-		StypeOut:     dbn.SType_InstrumentId,
+		StypeOut:     stypeOut,
 	}
 	rangeData, err := dbn_hist.GetRange(config.ApiKey, jobParams)
 	if err != nil {

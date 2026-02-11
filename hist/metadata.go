@@ -136,7 +136,7 @@ type FieldDetail struct {
 // The unit prices for a particular [`FeedMode`].
 type UnitPricesForMode struct {
 	/// The data feed mode.
-	Mode FeedMode `json:"mode,omitempty"`
+	Mode FeedMode `json:"mode"`
 	/// The unit prices in US dollars by data record schema.
 	UnitPrices map[string]float64 `json:"unit_prices,omitempty"`
 }
@@ -150,9 +150,9 @@ const (
 )
 
 type ConditionDetail struct {
-	Date         string // The day of the described data, as an ISO 8601 date string
-	Condition    string // The condition code describing the quality and availability of the data on the given day. Possible values are ConditionKind.
-	LastModified string // The date when any schema in the dataset on the given day was last generated or modified, as an ISO 8601 date string.
+	Date         string `json:"date"`               // The day of the described data, as an ISO 8601 date string
+	Condition    string `json:"condition"`          // The condition code describing the quality and availability of the data on the given day. Possible values are ConditionKind.
+	LastModified string `json:"last_modified_date"` // The date when any schema in the dataset on the given day was last generated or modified, as an ISO 8601 date string.
 }
 
 //////////////////////////////////////////////////////////////////////////////
