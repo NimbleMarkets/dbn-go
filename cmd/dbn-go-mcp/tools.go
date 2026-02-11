@@ -255,9 +255,9 @@ func registerTools(mcpServer *mcp_server.MCPServer) {
 				mcp.Description("Schema to query (e.g. trades, ohlcv-1d, mbp-1)"),
 				mcp.Enum(validSchemas...),
 			),
-			mcp.WithString("symbol",
+			mcp.WithString("symbols",
 				mcp.Required(),
-				mcp.Description("Symbol to query (e.g. AAPL, TSLA, ES.c.0)"),
+				mcp.Description("Comma-separated symbols to query (e.g. 'AAPL' or 'AAPL,TSLA,MSFT'). Up to 2,000 symbols per request."),
 			),
 			mcp.WithString("stype_in",
 				mcp.Description("Input symbology type (default: raw_symbol). Use 'continuous' for futures like ES.c.0."),
@@ -277,7 +277,7 @@ func registerTools(mcpServer *mcp_server.MCPServer) {
 	// get_range
 	mcpServer.AddTool(
 		mcp.NewTool("get_range",
-			mcp.WithDescription("Returns all records as JSON for a dataset/schema/symbol over a date range. CAUTION: This incurs Databento billing. Call get_cost first to check the cost. The server enforces a per-query budget limit. For large results, prefer ohlcv-1d or ohlcv-1h schemas which return compact summaries."),
+			mcp.WithDescription("Returns all records as JSON for a dataset/schema/symbols over a date range. CAUTION: This incurs Databento billing. Call get_cost first to check the cost. The server enforces a per-query budget limit. For large results, prefer ohlcv-1d or ohlcv-1h schemas which return compact summaries."),
 			mcp.WithDestructiveHintAnnotation(false),
 			mcp.WithIdempotentHintAnnotation(true),
 			mcp.WithString("dataset",
@@ -290,9 +290,9 @@ func registerTools(mcpServer *mcp_server.MCPServer) {
 				mcp.Description("Schema to query (e.g. trades, ohlcv-1d, mbp-1)"),
 				mcp.Enum(validSchemas...),
 			),
-			mcp.WithString("symbol",
+			mcp.WithString("symbols",
 				mcp.Required(),
-				mcp.Description("Symbol to query (e.g. AAPL, TSLA, ES.c.0)"),
+				mcp.Description("Comma-separated symbols to query (e.g. 'AAPL' or 'AAPL,TSLA,MSFT'). Up to 2,000 symbols per request."),
 			),
 			mcp.WithString("stype_in",
 				mcp.Description("Input symbology type (default: raw_symbol). Use 'continuous' for futures like ES.c.0."),
@@ -321,7 +321,7 @@ func registerTools(mcpServer *mcp_server.MCPServer) {
 type commonParams struct {
 	Dataset   string
 	SchemaStr string
-	Symbol    string
+	Symbols   []string
 	StypeIn   dbn.SType
 	StartStr  string
 	EndStr    string
@@ -352,8 +352,13 @@ func parseCommonParams(request mcp.CallToolRequest) (*commonParams, *mcp.CallToo
 		return nil, mcp.NewToolResultErrorf("unknown schema: %s", p.SchemaStr)
 	}
 
-	if p.Symbol, err = request.RequireString("symbol"); err != nil {
-		return nil, mcp.NewToolResultError("symbol must be set")
+	symbolsStr, err := request.RequireString("symbols")
+	if err != nil {
+		return nil, mcp.NewToolResultError("symbols must be set")
+	}
+	p.Symbols = strings.Split(symbolsStr, ",")
+	for i := range p.Symbols {
+		p.Symbols[i] = strings.TrimSpace(p.Symbols[i])
 	}
 
 	p.StypeIn = dbn.SType_RawSymbol
@@ -385,7 +390,7 @@ func (p *commonParams) metadataQueryParams() dbn_hist.MetadataQueryParams {
 	return dbn_hist.MetadataQueryParams{
 		Dataset:   p.Dataset,
 		Schema:    p.SchemaStr,
-		Symbols:   []string{p.Symbol},
+		Symbols:   p.Symbols,
 		DateRange: dbn_hist.DateRange{Start: p.StartTime, End: p.EndTime},
 		Mode:      dbn_hist.FeedMode_Historical,
 		StypeIn:   p.StypeIn,

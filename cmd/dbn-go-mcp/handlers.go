@@ -284,7 +284,7 @@ func getCostHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 		return mcp.NewToolResultErrorf("failed to marshal results: %s", err), nil
 	}
 
-	logger.Info("get_cost", "dataset", p.Dataset, "schema", p.SchemaStr, "symbol", p.Symbol,
+	logger.Info("get_cost", "dataset", p.Dataset, "schema", p.SchemaStr, "symbols", len(p.Symbols),
 		"start", p.StartStr, "end", p.EndStr, "cost", cost, "size", dataSize, "count", recordCount)
 
 	return mcp.NewToolResultText(string(jbytes)), nil
@@ -319,7 +319,7 @@ func getRangeHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.Cal
 
 	jobParams := dbn_hist.SubmitJobParams{
 		Dataset:      p.Dataset,
-		Symbols:      p.Symbol,
+		Symbols:      strings.Join(p.Symbols, ","),
 		Schema:       schema,
 		DateRange:    dbn_hist.DateRange{Start: p.StartTime, End: p.EndTime},
 		Encoding:     dbn.Encoding_Json,
@@ -336,7 +336,7 @@ func getRangeHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.Cal
 		return mcp.NewToolResultErrorf("failed to get range: %s", err), nil
 	}
 
-	logger.Info("get_range", "dataset", p.Dataset, "schema", p.SchemaStr, "symbol", p.Symbol,
+	logger.Info("get_range", "dataset", p.Dataset, "schema", p.SchemaStr, "symbols", len(p.Symbols),
 		"start", p.StartStr, "end", p.EndStr, "cost", cost, "size", len(rangeData))
 	return mcp.NewToolResultText(string(rangeData)), nil
 }
