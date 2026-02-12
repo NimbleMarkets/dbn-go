@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## v0.8.0 (2026-02-12)
+## v0.8.1 (2026-02-12)
 
   * [MCP enhancements](./cmd/dbn-go-mcp/README.md)
   * `dbn-go-mcp-meta` for metadata-only queries
@@ -9,6 +9,7 @@
   * `dbn-go-mcp-data` for data retrieval and analysis
     * 1 billable tool `fetch_range` which fills a local Parquet cache
     * `query_cache` for DuckDB-SQL queries against the cache
+  * Releases are now notarized by [Neomantra Corp](https://www.neomantra.com) for MacOS installs
 
 ## v0.7.1 (2026-02-11)
 
