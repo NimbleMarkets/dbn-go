@@ -127,7 +127,7 @@ func (s *Server) RegisterMetaTools(mcpServer *mcp_server.MCPServer) {
 	// list_fields - discovery tool (no billing)
 	mcpServer.AddTool(
 		mcp.NewTool("list_fields",
-			mcp.WithDescription("Lists all field names and types for a given schema. Use this to understand the structure of records before querying with get_range. Returns fields for JSON encoding. This does not incur any billing."),
+			mcp.WithDescription("Lists all field names and types for a given schema. Use this to understand the structure of records before querying with fetch_range. Returns fields for JSON encoding. This does not incur any billing."),
 			mcp.WithReadOnlyHintAnnotation(true),
 			mcp.WithDestructiveHintAnnotation(false),
 			mcp.WithIdempotentHintAnnotation(true),
@@ -241,7 +241,7 @@ func (s *Server) RegisterMetaTools(mcpServer *mcp_server.MCPServer) {
 	// get_cost
 	mcpServer.AddTool(
 		mcp.NewTool("get_cost",
-			mcp.WithDescription("Returns the estimated cost in USD, billable data size in bytes, and record count for a query. Always call this before get_range to understand cost implications. This does not incur any billing."),
+			mcp.WithDescription("Returns the estimated cost in USD, billable data size in bytes, and record count for a query. Always call this before fetch_range to understand cost implications. This does not incur any billing."),
 			mcp.WithReadOnlyHintAnnotation(true),
 			mcp.WithDestructiveHintAnnotation(false),
 			mcp.WithIdempotentHintAnnotation(true),

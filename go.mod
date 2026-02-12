@@ -10,6 +10,7 @@ require (
 	github.com/charmbracelet/huh v0.8.0
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/chromedp/chromedp v0.14.2
+	github.com/duckdb/duckdb-go/v2 v2.5.5
 	github.com/dustin/go-humanize v1.0.1
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/klauspost/compress v1.18.4
@@ -44,10 +45,17 @@ require (
 	github.com/clipperhouse/displaywidth v0.10.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.6.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.6 // indirect
+	github.com/duckdb/duckdb-go-bindings v0.3.3 // indirect
+	github.com/duckdb/duckdb-go-bindings/lib/darwin-amd64 v0.3.3 // indirect
+	github.com/duckdb/duckdb-go-bindings/lib/darwin-arm64 v0.3.3 // indirect
+	github.com/duckdb/duckdb-go-bindings/lib/linux-amd64 v0.3.3 // indirect
+	github.com/duckdb/duckdb-go-bindings/lib/linux-arm64 v0.3.3 // indirect
+	github.com/duckdb/duckdb-go-bindings/lib/windows-amd64 v0.3.3 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/go-json-experiment/json v0.0.0-20251027170946-4849db3c2f7e // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
+	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.4.0 // indirect

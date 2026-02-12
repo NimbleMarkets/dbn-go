@@ -10,9 +10,9 @@ bookCollapseSection: true
 
 It requires your [Databento API Key](https://databento.com/portal/keys). Since this program is typically executed by a host program (like Claude Desktop), the preferred method is to store the API key in a file and use `--key-file` or the `DATABENTO_API_KEY_FILE` environment variable.
 
-**CAUTION:** The `get_range` tool incurs Databento billing! All other tools are free.
+**CAUTION:** The `fetch_range` tool incurs Databento billing! All other tools are free.
 
-> **Note:** The DuckDB cache is currently in development. Cache tools (`query_cache`, `list_cache`, `clear_cache`) are registered but return "not yet implemented". Data download via `get_range` works normally.
+Data fetched via `fetch_range` is cached locally as Parquet and queryable via DuckDB using `query_cache`.
 
 ## Overview
 
@@ -149,7 +149,7 @@ Resolves symbols from one symbology type to another for a given dataset and date
 
 #### get_cost
 
-Returns the estimated cost in USD, billable data size in bytes, and record count for a query. **Always call this before `get_range`.**
+Returns the estimated cost in USD, billable data size in bytes, and record count for a query. **Always call this before `fetch_range`.**
 
 **Parameters:**
 | Name | Type | Required | Description |
@@ -163,9 +163,9 @@ Returns the estimated cost in USD, billable data size in bytes, and record count
 
 ---
 
-#### get_range
+#### fetch_range
 
-Returns all records as JSON for a dataset/schema/symbols over a date range. **This incurs Databento billing.** The server enforces a per-query budget limit (default $1.00, configurable via `--max-cost`). For large results, prefer compact schemas like `ohlcv-1d` or `ohlcv-1h`.
+Fetches market data from Databento and caches it locally as Parquet. Returns metadata about the cached file (path, record count, size, view name). Use `query_cache` to query the data with SQL. **This incurs Databento billing.** The server enforces a per-query budget limit (default $1.00, configurable via `--max-cost`). For large queries, prefer compact schemas like `ohlcv-1d` or `ohlcv-1h`.
 
 **Parameters:**
 | Name | Type | Required | Description |
@@ -180,15 +180,15 @@ Returns all records as JSON for a dataset/schema/symbols over a date range. **Th
 
 ---
 
-### Cache Tools (in development)
+### Cache Tools (no billing)
 
-These tools provide access to the local DuckDB cache. They are registered but not yet functional.
+These tools provide access to the local DuckDB cache.
 
 ---
 
 #### query_cache
 
-Query cached market data using SQL. Data previously fetched via `get_range` is stored locally and can be queried without additional billing.
+Query cached market data using SQL. Returns results as CSV. Data previously fetched via `fetch_range` is stored locally and can be queried without additional billing.
 
 **Parameters:**
 | Name | Type | Required | Description |
@@ -226,7 +226,8 @@ The recommended workflow for an LLM is:
 3. `list_fields` — understand the record structure of a schema
 4. `get_dataset_range` / `get_dataset_condition` — verify data availability
 5. `get_cost` — estimate the cost of your query
-6. `get_range` — fetch the actual data
+6. `fetch_range` — fetch and cache the data locally as Parquet
+7. `query_cache` — query the cached data with SQL (returns CSV)
 
 ## Installation
 

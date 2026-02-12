@@ -10,12 +10,12 @@ import (
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// RegisterDataTools registers data-specific MCP tools (get_range + cache tools).
+// RegisterDataTools registers data-specific MCP tools (fetch_range + cache tools).
 func (s *Server) RegisterDataTools(mcpServer *mcp_server.MCPServer) {
-	// get_range
+	// fetch_range
 	mcpServer.AddTool(
-		mcp.NewTool("get_range",
-			mcp.WithDescription("Returns all records as JSON for a dataset/schema/symbols over a date range. CAUTION: This incurs Databento billing. Call get_cost first to check the cost. The server enforces a per-query budget limit. For large results, prefer ohlcv-1d or ohlcv-1h schemas which return compact summaries."),
+		mcp.NewTool("fetch_range",
+			mcp.WithDescription("Fetches market data from Databento and caches it locally as Parquet. Returns metadata about the cached file (path, record count, size, view name). Use query_cache to query the data with SQL. CAUTION: This incurs Databento billing. Call get_cost first to check the cost. Supported schemas: ohlcv-1s/1m/1h/1d, trades, mbp-1, tbbo, imbalance, statistics."),
 			mcp.WithDestructiveHintAnnotation(false),
 			mcp.WithIdempotentHintAnnotation(true),
 			mcp.WithString("dataset",
@@ -49,12 +49,12 @@ func (s *Server) RegisterDataTools(mcpServer *mcp_server.MCPServer) {
 				mcp.Description("End of range (exclusive), as ISO 8601 datetime (e.g. 2024-01-16)"),
 			),
 		),
-		s.getRangeHandler,
+		s.fetchRangeHandler,
 	)
-	// query_cache - cache tool (no billing)
+	// query_cache - SQL tool (no billing)
 	mcpServer.AddTool(
 		mcp.NewTool("query_cache",
-			mcp.WithDescription("Query cached market data using SQL. Data previously fetched via get_range is stored locally and can be queried without additional billing. This does not incur any billing."),
+			mcp.WithDescription("Query cached market data using DuckDB SQL. Returns results as CSV. Data previously fetched via fetch_range is stored locally and can be queried without additional billing. This does not incur any billing."),
 			mcp.WithReadOnlyHintAnnotation(true),
 			mcp.WithDestructiveHintAnnotation(false),
 			mcp.WithIdempotentHintAnnotation(true),

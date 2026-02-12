@@ -35,7 +35,7 @@ const (
 	// serverInstructions is sent to LLM clients during MCP initialization.
 	serverInstructions = `dbn-go-mcp-data provides full access to Databento's historical market data APIs with a local DuckDB cache.
 
-IMPORTANT — BILLING: Only the get_range tool incurs Databento billing charges. All other tools are free metadata/discovery queries. Always call get_cost before get_range to check the estimated cost.
+IMPORTANT — BILLING: Only the fetch_range tool incurs Databento billing charges. All other tools are free metadata/discovery queries. Always call get_cost before fetch_range to check the estimated cost.
 
 Recommended workflow:
 1. Use list_datasets to discover available datasets.
@@ -43,13 +43,14 @@ Recommended workflow:
 3. Use list_fields to understand the record structure of a schema.
 4. Use get_dataset_range and get_dataset_condition to verify data availability.
 5. Use get_cost to estimate the cost of your query.
-6. Only then call get_range to fetch the actual data.
+6. Call fetch_range to download and cache the data locally as Parquet.
+7. Use query_cache with SQL to analyze the cached data (via DuckDB views).
 
 Additional discovery tools: list_publishers (venue/source info), list_unit_prices (cost per schema), resolve_symbols (symbol mapping across symbologies).
 
-Cache tools: list_cache (see cached data), query_cache (query cached data with SQL), clear_cache (remove cached data).
+Cache tools: list_cache (see cached data and view names), query_cache (SQL queries against cached data), clear_cache (remove cached data).
 
-The server enforces a per-query budget limit on get_range. For large queries, prefer compact schemas like ohlcv-1d or ohlcv-1h.`
+The server enforces a per-query budget limit on fetch_range. For large queries, prefer compact schemas like ohlcv-1d or ohlcv-1h.`
 )
 
 type Config struct {
@@ -159,10 +160,6 @@ func main() {
 		logger = slog.New(slog.NewTextHandler(logWriter, &slog.HandlerOptions{Level: logLevel}))
 	}
 
-	// TODO: Initialize DuckDB cache
-	// db, err := initCache(config.CacheDB)
-	// ...
-
 	// Run our MCP server
 	if err := run(); err != nil {
 		logger.Error("run loop error", "error", err.Error())
@@ -207,6 +204,11 @@ func run() error {
 		CacheDir: config.CacheDir,
 		CacheDB:  config.CacheDB,
 	}
+	if err := srv.InitCache(); err != nil {
+		return fmt.Errorf("failed to initialize cache: %w", err)
+	}
+	defer srv.Close()
+
 	srv.RegisterMetaTools(mcpServer)
 	srv.RegisterDataTools(mcpServer)
 
