@@ -42,7 +42,7 @@ func (s *Server) fetchRangeHandler(ctx context.Context, request mcp.CallToolRequ
 	}
 
 	metaParams := p.MetadataQueryParams()
-	cost, err := dbn_hist.GetCost(s.ApiKey, metaParams)
+	cost, err := dbn_hist.GetCost(s.GetApiKey(), metaParams)
 	if err != nil {
 		return mcp.NewToolResultErrorf("failed to get cost: %s", err), nil
 	}
@@ -63,7 +63,7 @@ func (s *Server) fetchRangeHandler(ctx context.Context, request mcp.CallToolRequ
 		StypeIn:      p.StypeIn,
 		StypeOut:     stypeOut,
 	}
-	rangeData, err := dbn_hist.GetRange(s.ApiKey, jobParams)
+	rangeData, err := dbn_hist.GetRange(s.GetApiKey(), jobParams)
 	if err != nil {
 		return mcp.NewToolResultErrorf("failed to get range: %s", err), nil
 	}
@@ -107,7 +107,7 @@ func (s *Server) fetchRangeHandler(ctx context.Context, request mcp.CallToolRequ
 
 	// Count records via DuckDB
 	var recordCount int64
-	row := s.DB.QueryRow(fmt.Sprintf(`SELECT count(*) FROM "%s"`, viewName))
+	row := s.db.QueryRow(fmt.Sprintf(`SELECT count(*) FROM "%s"`, viewName))
 	row.Scan(&recordCount)
 
 	result := map[string]any{
@@ -170,6 +170,13 @@ func (s *Server) listCacheHandler(ctx context.Context, request mcp.CallToolReque
 func (s *Server) clearCacheHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	dataset, _ := request.RequireString("dataset")
 	schema, _ := request.RequireString("schema")
+
+	if dataset != "" && !safeName.MatchString(dataset) {
+		return mcp.NewToolResultError("invalid dataset name"), nil
+	}
+	if schema != "" && !safeName.MatchString(schema) {
+		return mcp.NewToolResultError("invalid schema name"), nil
+	}
 
 	s.mu.Lock()
 	removed := s.clearCache(dataset, schema)

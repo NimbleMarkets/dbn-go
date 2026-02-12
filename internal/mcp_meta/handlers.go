@@ -22,7 +22,7 @@ func (s *Server) listDatasetsHandler(ctx context.Context, request mcp.CallToolRe
 		return errResult, nil
 	}
 
-	datasets, err := dbn_hist.ListDatasets(s.ApiKey, dateRange)
+	datasets, err := dbn_hist.ListDatasets(s.apiKey, dateRange)
 	if err != nil {
 		return mcp.NewToolResultErrorf("failed to list datasets: %s", err), nil
 	}
@@ -43,7 +43,7 @@ func (s *Server) listSchemasHandler(ctx context.Context, request mcp.CallToolReq
 	}
 	dataset = strings.ToUpper(dataset)
 
-	schemas, err := dbn_hist.ListSchemas(s.ApiKey, dataset)
+	schemas, err := dbn_hist.ListSchemas(s.apiKey, dataset)
 	if err != nil {
 		return mcp.NewToolResultErrorf("failed to list schemas: %s", err), nil
 	}
@@ -69,7 +69,7 @@ func (s *Server) listFieldsHandler(ctx context.Context, request mcp.CallToolRequ
 		return mcp.NewToolResultErrorf("invalid schema: %s", err), nil
 	}
 
-	fields, err := dbn_hist.ListFields(s.ApiKey, dbn.Encoding_Json, schema)
+	fields, err := dbn_hist.ListFields(s.apiKey, dbn.Encoding_Json, schema)
 	if err != nil {
 		return mcp.NewToolResultErrorf("failed to list fields: %s", err), nil
 	}
@@ -84,7 +84,7 @@ func (s *Server) listFieldsHandler(ctx context.Context, request mcp.CallToolRequ
 }
 
 func (s *Server) listPublishersHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	publishers, err := dbn_hist.ListPublishers(s.ApiKey)
+	publishers, err := dbn_hist.ListPublishers(s.apiKey)
 	if err != nil {
 		return mcp.NewToolResultErrorf("failed to list publishers: %s", err), nil
 	}
@@ -117,7 +117,7 @@ func (s *Server) getDatasetRangeHandler(ctx context.Context, request mcp.CallToo
 	}
 	dataset = strings.ToUpper(dataset)
 
-	dateRange, err := dbn_hist.GetDatasetRange(s.ApiKey, dataset)
+	dateRange, err := dbn_hist.GetDatasetRange(s.apiKey, dataset)
 	if err != nil {
 		return mcp.NewToolResultErrorf("failed to get dataset range: %s", err), nil
 	}
@@ -147,7 +147,7 @@ func (s *Server) getDatasetConditionHandler(ctx context.Context, request mcp.Cal
 		return errResult, nil
 	}
 
-	conditions, err := dbn_hist.GetDatasetCondition(s.ApiKey, dataset, dateRange)
+	conditions, err := dbn_hist.GetDatasetCondition(s.apiKey, dataset, dateRange)
 	if err != nil {
 		return mcp.NewToolResultErrorf("failed to get dataset condition: %s", err), nil
 	}
@@ -168,7 +168,7 @@ func (s *Server) listUnitPricesHandler(ctx context.Context, request mcp.CallTool
 	}
 	dataset = strings.ToUpper(dataset)
 
-	unitPrices, err := dbn_hist.ListUnitPrices(s.ApiKey, dataset)
+	unitPrices, err := dbn_hist.ListUnitPrices(s.apiKey, dataset)
 	if err != nil {
 		return mcp.NewToolResultErrorf("failed to list unit prices: %s", err), nil
 	}
@@ -220,7 +220,7 @@ func (s *Server) resolveSymbolsHandler(ctx context.Context, request mcp.CallTool
 		return mcp.NewToolResultError("start must be set"), nil
 	}
 
-	resolution, err := dbn_hist.SymbologyResolve(s.ApiKey, dbn_hist.ResolveParams{
+	resolution, err := dbn_hist.SymbologyResolve(s.apiKey, dbn_hist.ResolveParams{
 		Dataset:   dataset,
 		Symbols:   symbols,
 		StypeIn:   stypeIn,
@@ -259,9 +259,9 @@ func (s *Server) getCostHandler(ctx context.Context, request mcp.CallToolRequest
 		wg          sync.WaitGroup
 	)
 	wg.Add(3)
-	go func() { defer wg.Done(); cost, costErr = dbn_hist.GetCost(s.ApiKey, metaParams) }()
-	go func() { defer wg.Done(); dataSize, sizeErr = dbn_hist.GetBillableSize(s.ApiKey, metaParams) }()
-	go func() { defer wg.Done(); recordCount, countErr = dbn_hist.GetRecordCount(s.ApiKey, metaParams) }()
+	go func() { defer wg.Done(); cost, costErr = dbn_hist.GetCost(s.apiKey, metaParams) }()
+	go func() { defer wg.Done(); dataSize, sizeErr = dbn_hist.GetBillableSize(s.apiKey, metaParams) }()
+	go func() { defer wg.Done(); recordCount, countErr = dbn_hist.GetRecordCount(s.apiKey, metaParams) }()
 	wg.Wait()
 
 	if costErr != nil {

@@ -10,12 +10,12 @@ import (
 )
 
 // Server holds state for MCP data tool handlers.
-// It embeds *mcp_meta.Server for access to ApiKey, MaxCost, and Logger.
+// It embeds *mcp_meta.Server for access to MaxCost and Logger.
 type Server struct {
 	*mcp_meta.Server
 
 	CacheDir string  // Directory for cached data files
 	CacheDB  string  // Path to DuckDB database file (reserved for future use)
-	DB       *sql.DB // DuckDB in-memory connection
+	db       *sql.DB // DuckDB in-memory connection
 	mu       sync.Mutex
 }

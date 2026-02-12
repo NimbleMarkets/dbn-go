@@ -164,11 +164,7 @@ func run() error {
 		mcp_server.WithInstructions(serverInstructions),
 	)
 
-	srv := &mcp_meta.Server{
-		ApiKey:  config.ApiKey,
-		MaxCost: config.MaxCost,
-		Logger:  logger,
-	}
+	srv := mcp_meta.NewServer(config.ApiKey, config.MaxCost, logger)
 	srv.RegisterMetaTools(mcpServer)
 
 	if config.UseSSE {

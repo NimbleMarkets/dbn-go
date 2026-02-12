@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sort"
 
@@ -16,6 +17,10 @@ import (
 	"github.com/NimbleMarkets/dbn-go/internal/file"
 	_ "github.com/duckdb/duckdb-go/v2"
 )
+
+// safeName matches valid dataset names (e.g. XNAS.ITCH) and schema names (e.g. ohlcv-1d).
+// Only alphanumeric, dot, hyphen, and underscore are allowed.
+var safeName = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 
 // schemaSupportsParquet returns true if the schema can be converted to parquet.
 func schemaSupportsParquet(schema dbn.Schema) bool {
@@ -40,15 +45,28 @@ func (s *Server) InitCache() error {
 	if err != nil {
 		return fmt.Errorf("failed to open DuckDB: %w", err)
 	}
-	s.DB = db
+	// Security hardening: disable extensions and remote filesystem access.
+	// We keep local file access enabled because read_parquet() needs it for views.
+	// lock_configuration prevents user SQL from re-enabling these.
+	for _, stmt := range []string{
+		"SET allow_extensions_autoloading = false",
+		"SET disabled_filesystems = 'HTTPFileSystem'",
+		"SET lock_configuration = true",
+	} {
+		if _, err := db.Exec(stmt); err != nil {
+			db.Close()
+			return fmt.Errorf("failed to configure DuckDB (%s): %w", stmt, err)
+		}
+	}
+	s.db = db
 
 	return s.refreshViews()
 }
 
 // Close closes the DuckDB connection.
 func (s *Server) Close() error {
-	if s.DB != nil {
-		return s.DB.Close()
+	if s.db != nil {
+		return s.db.Close()
 	}
 	return nil
 }
@@ -56,7 +74,7 @@ func (s *Server) Close() error {
 // refreshViews scans CacheDir for {dataset}/{schema}/*.parquet directories
 // and creates or drops DuckDB views accordingly.
 func (s *Server) refreshViews() error {
-	if s.DB == nil {
+	if s.db == nil {
 		return nil
 	}
 
@@ -64,12 +82,12 @@ func (s *Server) refreshViews() error {
 	wantViews := map[string]string{} // view name -> glob path
 	datasets, _ := os.ReadDir(s.CacheDir)
 	for _, ds := range datasets {
-		if !ds.IsDir() {
+		if !ds.IsDir() || !safeName.MatchString(ds.Name()) {
 			continue
 		}
 		schemas, _ := os.ReadDir(filepath.Join(s.CacheDir, ds.Name()))
 		for _, sc := range schemas {
-			if !sc.IsDir() {
+			if !sc.IsDir() || !safeName.MatchString(sc.Name()) {
 				continue
 			}
 			parquetGlob := filepath.Join(s.CacheDir, ds.Name(), sc.Name(), "*.parquet")
@@ -84,13 +102,13 @@ func (s *Server) refreshViews() error {
 	// Create or replace views for existing parquet files
 	for viewName, globPath := range wantViews {
 		stmt := fmt.Sprintf(`CREATE OR REPLACE VIEW "%s" AS SELECT * FROM read_parquet('%s')`, viewName, globPath)
-		if _, err := s.DB.Exec(stmt); err != nil {
+		if _, err := s.db.Exec(stmt); err != nil {
 			s.Logger.Warn("failed to create view", "view", viewName, "error", err)
 		}
 	}
 
 	// Drop views that no longer have backing files
-	rows, err := s.DB.Query("SELECT table_name FROM information_schema.tables WHERE table_type = 'VIEW'")
+	rows, err := s.db.Query("SELECT table_name FROM information_schema.tables WHERE table_type = 'VIEW'")
 	if err != nil {
 		return nil // non-fatal
 	}
@@ -105,7 +123,7 @@ func (s *Server) refreshViews() error {
 	}
 	for _, v := range existingViews {
 		if _, ok := wantViews[v]; !ok {
-			s.DB.Exec(fmt.Sprintf(`DROP VIEW IF EXISTS "%s"`, v))
+			s.db.Exec(fmt.Sprintf(`DROP VIEW IF EXISTS "%s"`, v))
 		}
 	}
 
@@ -114,7 +132,10 @@ func (s *Server) refreshViews() error {
 
 // refreshViewForSchema creates or refreshes a single DuckDB view for the given dataset/schema.
 func (s *Server) refreshViewForSchema(dataset, schema string) {
-	if s.DB == nil {
+	if s.db == nil {
+		return
+	}
+	if !safeName.MatchString(dataset) || !safeName.MatchString(schema) {
 		return
 	}
 
@@ -124,25 +145,25 @@ func (s *Server) refreshViewForSchema(dataset, schema string) {
 
 	if len(matches) > 0 {
 		stmt := fmt.Sprintf(`CREATE OR REPLACE VIEW "%s" AS SELECT * FROM read_parquet('%s')`, viewName, parquetGlob)
-		if _, err := s.DB.Exec(stmt); err != nil {
+		if _, err := s.db.Exec(stmt); err != nil {
 			s.Logger.Warn("failed to create view", "view", viewName, "error", err)
 		}
 		return
 	}
 
 	// No files, drop view if it exists
-	s.DB.Exec(fmt.Sprintf(`DROP VIEW IF EXISTS "%s"`, viewName))
+	s.db.Exec(fmt.Sprintf(`DROP VIEW IF EXISTS "%s"`, viewName))
 }
 
 // queryDuckDB executes a SQL query against DuckDB and returns results as CSV.
 func (s *Server) queryDuckDB(userSQL string) (string, error) {
-	if s.DB == nil {
+	if s.db == nil {
 		return "", fmt.Errorf("cache not initialized")
 	}
 
 	wrappedSQL := fmt.Sprintf("SELECT * FROM (%s) LIMIT 10000", userSQL)
 
-	rows, err := s.DB.Query(wrappedSQL)
+	rows, err := s.db.Query(wrappedSQL)
 	if err != nil {
 		return "", err
 	}
@@ -201,12 +222,12 @@ func (s *Server) listCacheEntries() []CacheEntry {
 
 	datasets, _ := os.ReadDir(s.CacheDir)
 	for _, ds := range datasets {
-		if !ds.IsDir() {
+		if !ds.IsDir() || !safeName.MatchString(ds.Name()) {
 			continue
 		}
 		schemas, _ := os.ReadDir(filepath.Join(s.CacheDir, ds.Name()))
 		for _, sc := range schemas {
-			if !sc.IsDir() {
+			if !sc.IsDir() || !safeName.MatchString(sc.Name()) {
 				continue
 			}
 			parquetGlob := filepath.Join(s.CacheDir, ds.Name(), sc.Name(), "*.parquet")
@@ -243,12 +264,12 @@ func (s *Server) clearCache(dataset, schema string) int {
 
 	if dataset != "" && schema != "" {
 		dir := filepath.Join(s.CacheDir, dataset, schema)
-		removed += removeParquetFiles(dir)
+		removed += removeParquetFiles(dir, s.CacheDir)
 	} else if dataset != "" {
 		schemas, _ := os.ReadDir(filepath.Join(s.CacheDir, dataset))
 		for _, sc := range schemas {
 			if sc.IsDir() {
-				removed += removeParquetFiles(filepath.Join(s.CacheDir, dataset, sc.Name()))
+				removed += removeParquetFiles(filepath.Join(s.CacheDir, dataset, sc.Name()), s.CacheDir)
 			}
 		}
 	} else {
@@ -260,7 +281,7 @@ func (s *Server) clearCache(dataset, schema string) int {
 			schemas, _ := os.ReadDir(filepath.Join(s.CacheDir, ds.Name()))
 			for _, sc := range schemas {
 				if sc.IsDir() {
-					removed += removeParquetFiles(filepath.Join(s.CacheDir, ds.Name(), sc.Name()))
+					removed += removeParquetFiles(filepath.Join(s.CacheDir, ds.Name(), sc.Name()), s.CacheDir)
 				}
 			}
 		}
@@ -270,14 +291,16 @@ func (s *Server) clearCache(dataset, schema string) int {
 	return removed
 }
 
-// removeParquetFiles removes all .parquet files in a directory and cleans up empty dirs.
-func removeParquetFiles(dir string) int {
+// removeParquetFiles removes all .parquet files in a directory and cleans up
+// empty parent directories, stopping at (and never removing) boundDir.
+func removeParquetFiles(dir string, boundDir string) int {
 	matches, _ := filepath.Glob(filepath.Join(dir, "*.parquet"))
 	for _, m := range matches {
 		os.Remove(m)
 	}
-	// Remove empty directories walking up
-	for d := dir; ; d = filepath.Dir(d) {
+	// Remove empty directories walking up, but never past boundDir
+	cleanBound := filepath.Clean(boundDir)
+	for d := dir; d != cleanBound && strings.HasPrefix(d, cleanBound); d = filepath.Dir(d) {
 		entries, err := os.ReadDir(d)
 		if err != nil || len(entries) > 0 {
 			break
