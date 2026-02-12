@@ -1,22 +1,22 @@
 ---
-title: "dbn-go-mcp"
+title: "dbn-go-mcp-meta"
 weight: 30
 bookCollapseSection: true
 ---
 
-# dbn-go-mcp
+# dbn-go-mcp-meta
 
-`dbn-go-mcp` is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server for [Databento](https://databento.com) services. It bridges LLMs and Databento's historical and metadata APIs, allowing AI assistants to query market data directly.
+`dbn-go-mcp-meta` is a metadata-only [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server for [Databento](https://databento.com) services. It bridges LLMs and Databento's metadata discovery APIs, allowing AI assistants to explore datasets, schemas, and pricing without downloading data.
+
+**No tools in this server incur Databento billing.** For data download and caching, use [`dbn-go-mcp-data`]({{< relref "/dbn-go-mcp-data" >}}).
 
 It requires your [Databento API Key](https://databento.com/portal/keys). Since this program is typically executed by a host program (like Claude Desktop), the preferred method is to store the API key in a file and use `--key-file` or the `DATABENTO_API_KEY_FILE` environment variable.
-
-**CAUTION:** This program may incur Databento billing!
 
 ## Overview
 
 ```bash
-dbn-go-mcp                          # MCP server on stdio (default)
-dbn-go-mcp --sse --port :8889       # MCP server over HTTP (SSE)
+dbn-go-mcp-meta                          # MCP server on stdio (default)
+dbn-go-mcp-meta --sse --port :8889       # MCP server over HTTP (SSE)
 ```
 
 The MCP server supports two transport modes:
@@ -141,11 +141,9 @@ Resolves symbols from one symbology type to another for a given dataset and date
 
 ---
 
-### Query Tools
-
 #### get_cost
 
-Returns the estimated cost in USD, billable data size in bytes, and record count for a query. **Always call this before `get_range`.**
+Returns the estimated cost in USD, billable data size in bytes, and record count for a query.
 
 **Parameters:**
 | Name | Type | Required | Description |
@@ -154,23 +152,6 @@ Returns the estimated cost in USD, billable data size in bytes, and record count
 | `schema` | string | Yes | Schema (e.g. `trades`, `ohlcv-1d`) |
 | `symbols` | string | Yes | Comma-separated symbols |
 | `stype_in` | string | No | Input symbology type (default: `raw_symbol`) |
-| `start` | string | Yes | Start of range (ISO 8601) |
-| `end` | string | Yes | End of range, exclusive (ISO 8601) |
-
----
-
-#### get_range
-
-Returns all records as JSON for a dataset/schema/symbols over a date range. **This incurs Databento billing.** The server enforces a per-query budget limit (default $1.00, configurable via `--max-cost`). For large results, prefer compact schemas like `ohlcv-1d` or `ohlcv-1h`.
-
-**Parameters:**
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `dataset` | string | Yes | Dataset code |
-| `schema` | string | Yes | Schema (e.g. `trades`, `ohlcv-1d`) |
-| `symbols` | string | Yes | Comma-separated symbols |
-| `stype_in` | string | No | Input symbology type (default: `raw_symbol`) |
-| `stype_out` | string | No | Output symbology type (default: `instrument_id`) |
 | `start` | string | Yes | Start of range (ISO 8601) |
 | `end` | string | Yes | End of range, exclusive (ISO 8601) |
 
@@ -184,14 +165,13 @@ The recommended workflow for an LLM is:
 2. `list_schemas` — see which schemas a dataset supports
 3. `list_fields` — understand the record structure of a schema
 4. `get_dataset_range` / `get_dataset_condition` — verify data availability
-5. `get_cost` — estimate the cost of your query
-6. `get_range` — fetch the actual data
+5. `get_cost` — estimate the cost of a potential query
 
 ## Installation
 
 ### Claude Desktop
 
-Add `dbn-go-mcp` to your Claude Desktop configuration file:
+Add `dbn-go-mcp-meta` to your Claude Desktop configuration file:
 
 {{< tabs "claude-desktop" >}}
 {{< tab "macOS" >}}
@@ -206,10 +186,9 @@ Edit `%APPDATA%\Claude\claude_desktop_config.json`:
 {
   "mcpServers": {
     "dbn": {
-      "command": "dbn-go-mcp",
+      "command": "dbn-go-mcp-meta",
       "args": [
-        "--key-file", "/path/to/databento_api_key.txt",
-        "--max-cost", "1.50"
+        "--key-file", "/path/to/databento_api_key.txt"
       ]
     }
   }
@@ -223,7 +202,7 @@ Restart Claude Desktop to load the new MCP server.
 ### Claude Code
 
 ```bash
-claude mcp add --transport stdio dbn -- dbn-go-mcp --key-file /path/to/databento_api_key.txt
+claude mcp add --transport stdio dbn -- dbn-go-mcp-meta --key-file /path/to/databento_api_key.txt
 claude mcp list
 ```
 
@@ -232,7 +211,7 @@ claude mcp list
 ### Gemini CLI
 
 ```bash
-gemini mcp add --transport stdio dbn -- dbn-go-mcp --key-file /path/to/databento_api_key.txt
+gemini mcp add --transport stdio dbn -- dbn-go-mcp-meta --key-file /path/to/databento_api_key.txt
 gemini mcp list
 ```
 
@@ -253,7 +232,7 @@ Edit `%USERPROFILE%\.config\github-copilot\mcp.json`:
 {
   "mcpServers": {
     "dbn": {
-      "command": "dbn-go-mcp",
+      "command": "dbn-go-mcp-meta",
       "args": [
         "--key-file", "/path/to/databento_api_key.txt"
       ]
@@ -269,12 +248,13 @@ Edit `%USERPROFILE%\.config\github-copilot\mcp.json`:
 For networked deployments, run the MCP server over HTTP with Server-Sent Events:
 
 ```bash
-dbn-go-mcp --sse --port :8889
-dbn-go-mcp --sse --port 0.0.0.0:8889   # Listen on all interfaces
+dbn-go-mcp-meta --sse --port :8889
+dbn-go-mcp-meta --sse --port 0.0.0.0:8889   # Listen on all interfaces
 ```
 
 ## See Also
 
+- [`dbn-go-mcp-data`]({{< relref "/dbn-go-mcp-data" >}}) — Full MCP server with data download and DuckDB cache
 - [Databento Documentation](https://databento.com/docs)
 - [Model Context Protocol](https://modelcontextprotocol.io) — MCP specification
 - [GitHub Repository](https://github.com/NimbleMarkets/dbn-go)

@@ -12,7 +12,8 @@ type: docs
 * [**dbn-go-hist**]({{< relref "/dbn-go-hist" >}}): CLI for the Databento Historical API
 * [**dbn-go-file**]({{< relref "/dbn-go-file" >}}): CLI to process DBN files (parquet, split, metadata)
 * **dbn-go-live**: Live API feed handler
-* [**dbn-go-mcp**]({{< relref "/dbn-go-mcp" >}}): LLM Model Context Protocol (MCP) server for Databento
+* [**dbn-go-mcp-meta**]({{< relref "/dbn-go-mcp-meta" >}}): Metadata-only MCP server for Databento (no billing, no CGO)
+* [**dbn-go-mcp-data**]({{< relref "/dbn-go-mcp-data" >}}): Full MCP server for Databento with DuckDB cache (requires CGO)
 * **dbn-go-tui**: Terminal UI for your Databento account
 * **dbn-go-slurp-docs**: Tool to scrape Databento docs for offline use
 

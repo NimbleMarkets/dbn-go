@@ -1,6 +1,6 @@
 // Copyright (c) 2025 Neomantra Corp
 
-package main
+package mcp_meta
 
 import (
 	"context"
@@ -16,13 +16,13 @@ import (
 
 ///////////////////////////////////////////////////////////////////////////////
 
-func listDatasetsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	dateRange, errResult := parseOptionalDateRange(request)
+func (s *Server) listDatasetsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	dateRange, errResult := ParseOptionalDateRange(request)
 	if errResult != nil {
 		return errResult, nil
 	}
 
-	datasets, err := dbn_hist.ListDatasets(config.ApiKey, dateRange)
+	datasets, err := dbn_hist.ListDatasets(s.ApiKey, dateRange)
 	if err != nil {
 		return mcp.NewToolResultErrorf("failed to list datasets: %s", err), nil
 	}
@@ -32,18 +32,18 @@ func listDatasetsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp
 		return mcp.NewToolResultErrorf("failed to marshal results: %s", err), nil
 	}
 
-	logger.Info("list_datasets", "count", len(datasets))
+	s.Logger.Info("list_datasets", "count", len(datasets))
 	return mcp.NewToolResultText(string(jbytes)), nil
 }
 
-func listSchemasHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *Server) listSchemasHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	dataset, err := request.RequireString("dataset")
 	if err != nil {
 		return mcp.NewToolResultError("dataset must be set"), nil
 	}
 	dataset = strings.ToUpper(dataset)
 
-	schemas, err := dbn_hist.ListSchemas(config.ApiKey, dataset)
+	schemas, err := dbn_hist.ListSchemas(s.ApiKey, dataset)
 	if err != nil {
 		return mcp.NewToolResultErrorf("failed to list schemas: %s", err), nil
 	}
@@ -53,11 +53,11 @@ func listSchemasHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.
 		return mcp.NewToolResultErrorf("failed to marshal results: %s", err), nil
 	}
 
-	logger.Info("list_schemas", "dataset", dataset, "count", len(schemas))
+	s.Logger.Info("list_schemas", "dataset", dataset, "count", len(schemas))
 	return mcp.NewToolResultText(string(jbytes)), nil
 }
 
-func listFieldsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *Server) listFieldsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	schemaStr, err := request.RequireString("schema")
 	if err != nil {
 		return mcp.NewToolResultError("schema must be set"), nil
@@ -69,7 +69,7 @@ func listFieldsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.C
 		return mcp.NewToolResultErrorf("invalid schema: %s", err), nil
 	}
 
-	fields, err := dbn_hist.ListFields(config.ApiKey, dbn.Encoding_Json, schema)
+	fields, err := dbn_hist.ListFields(s.ApiKey, dbn.Encoding_Json, schema)
 	if err != nil {
 		return mcp.NewToolResultErrorf("failed to list fields: %s", err), nil
 	}
@@ -79,12 +79,12 @@ func listFieldsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.C
 		return mcp.NewToolResultErrorf("failed to marshal results: %s", err), nil
 	}
 
-	logger.Info("list_fields", "schema", schemaStr, "count", len(fields))
+	s.Logger.Info("list_fields", "schema", schemaStr, "count", len(fields))
 	return mcp.NewToolResultText(string(jbytes)), nil
 }
 
-func listPublishersHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	publishers, err := dbn_hist.ListPublishers(config.ApiKey)
+func (s *Server) listPublishersHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	publishers, err := dbn_hist.ListPublishers(s.ApiKey)
 	if err != nil {
 		return mcp.NewToolResultErrorf("failed to list publishers: %s", err), nil
 	}
@@ -106,18 +106,18 @@ func listPublishersHandler(ctx context.Context, request mcp.CallToolRequest) (*m
 		return mcp.NewToolResultErrorf("failed to marshal results: %s", err), nil
 	}
 
-	logger.Info("list_publishers", "count", len(publishers))
+	s.Logger.Info("list_publishers", "count", len(publishers))
 	return mcp.NewToolResultText(string(jbytes)), nil
 }
 
-func getDatasetRangeHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *Server) getDatasetRangeHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	dataset, err := request.RequireString("dataset")
 	if err != nil {
 		return mcp.NewToolResultError("dataset must be set"), nil
 	}
 	dataset = strings.ToUpper(dataset)
 
-	dateRange, err := dbn_hist.GetDatasetRange(config.ApiKey, dataset)
+	dateRange, err := dbn_hist.GetDatasetRange(s.ApiKey, dataset)
 	if err != nil {
 		return mcp.NewToolResultErrorf("failed to get dataset range: %s", err), nil
 	}
@@ -131,23 +131,23 @@ func getDatasetRangeHandler(ctx context.Context, request mcp.CallToolRequest) (*
 		return mcp.NewToolResultErrorf("failed to marshal results: %s", err), nil
 	}
 
-	logger.Info("get_dataset_range", "dataset", dataset, "start", dateRange.Start, "end", dateRange.End)
+	s.Logger.Info("get_dataset_range", "dataset", dataset, "start", dateRange.Start, "end", dateRange.End)
 	return mcp.NewToolResultText(string(jbytes)), nil
 }
 
-func getDatasetConditionHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *Server) getDatasetConditionHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	dataset, err := request.RequireString("dataset")
 	if err != nil {
 		return mcp.NewToolResultError("dataset must be set"), nil
 	}
 	dataset = strings.ToUpper(dataset)
 
-	dateRange, errResult := parseOptionalDateRange(request)
+	dateRange, errResult := ParseOptionalDateRange(request)
 	if errResult != nil {
 		return errResult, nil
 	}
 
-	conditions, err := dbn_hist.GetDatasetCondition(config.ApiKey, dataset, dateRange)
+	conditions, err := dbn_hist.GetDatasetCondition(s.ApiKey, dataset, dateRange)
 	if err != nil {
 		return mcp.NewToolResultErrorf("failed to get dataset condition: %s", err), nil
 	}
@@ -157,18 +157,18 @@ func getDatasetConditionHandler(ctx context.Context, request mcp.CallToolRequest
 		return mcp.NewToolResultErrorf("failed to marshal results: %s", err), nil
 	}
 
-	logger.Info("get_dataset_condition", "dataset", dataset, "count", len(conditions))
+	s.Logger.Info("get_dataset_condition", "dataset", dataset, "count", len(conditions))
 	return mcp.NewToolResultText(string(jbytes)), nil
 }
 
-func listUnitPricesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *Server) listUnitPricesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	dataset, err := request.RequireString("dataset")
 	if err != nil {
 		return mcp.NewToolResultError("dataset must be set"), nil
 	}
 	dataset = strings.ToUpper(dataset)
 
-	unitPrices, err := dbn_hist.ListUnitPrices(config.ApiKey, dataset)
+	unitPrices, err := dbn_hist.ListUnitPrices(s.ApiKey, dataset)
 	if err != nil {
 		return mcp.NewToolResultErrorf("failed to list unit prices: %s", err), nil
 	}
@@ -178,11 +178,11 @@ func listUnitPricesHandler(ctx context.Context, request mcp.CallToolRequest) (*m
 		return mcp.NewToolResultErrorf("failed to marshal results: %s", err), nil
 	}
 
-	logger.Info("list_unit_prices", "dataset", dataset, "count", len(unitPrices))
+	s.Logger.Info("list_unit_prices", "dataset", dataset, "count", len(unitPrices))
 	return mcp.NewToolResultText(string(jbytes)), nil
 }
 
-func resolveSymbolsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *Server) resolveSymbolsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	dataset, err := request.RequireString("dataset")
 	if err != nil {
 		return mcp.NewToolResultError("dataset must be set"), nil
@@ -212,7 +212,7 @@ func resolveSymbolsHandler(ctx context.Context, request mcp.CallToolRequest) (*m
 		}
 	}
 
-	dateRange, errResult := parseOptionalDateRange(request)
+	dateRange, errResult := ParseOptionalDateRange(request)
 	if errResult != nil {
 		return errResult, nil
 	}
@@ -220,7 +220,7 @@ func resolveSymbolsHandler(ctx context.Context, request mcp.CallToolRequest) (*m
 		return mcp.NewToolResultError("start must be set"), nil
 	}
 
-	resolution, err := dbn_hist.SymbologyResolve(config.ApiKey, dbn_hist.ResolveParams{
+	resolution, err := dbn_hist.SymbologyResolve(s.ApiKey, dbn_hist.ResolveParams{
 		Dataset:   dataset,
 		Symbols:   symbols,
 		StypeIn:   stypeIn,
@@ -236,18 +236,18 @@ func resolveSymbolsHandler(ctx context.Context, request mcp.CallToolRequest) (*m
 		return mcp.NewToolResultErrorf("failed to marshal results: %s", err), nil
 	}
 
-	logger.Info("resolve_symbols", "dataset", dataset, "symbols", symbolsStr,
+	s.Logger.Info("resolve_symbols", "dataset", dataset, "symbols", symbolsStr,
 		"stype_in", stypeIn, "stype_out", stypeOut, "start", dateRange.Start)
 	return mcp.NewToolResultText(string(jbytes)), nil
 }
 
-func getCostHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	p, errResult := parseCommonParams(request)
+func (s *Server) getCostHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	p, errResult := ParseCommonParams(request)
 	if errResult != nil {
 		return errResult, nil
 	}
 
-	metaParams := p.metadataQueryParams()
+	metaParams := p.MetadataQueryParams()
 
 	var (
 		cost        float64
@@ -259,9 +259,9 @@ func getCostHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 		wg          sync.WaitGroup
 	)
 	wg.Add(3)
-	go func() { defer wg.Done(); cost, costErr = dbn_hist.GetCost(config.ApiKey, metaParams) }()
-	go func() { defer wg.Done(); dataSize, sizeErr = dbn_hist.GetBillableSize(config.ApiKey, metaParams) }()
-	go func() { defer wg.Done(); recordCount, countErr = dbn_hist.GetRecordCount(config.ApiKey, metaParams) }()
+	go func() { defer wg.Done(); cost, costErr = dbn_hist.GetCost(s.ApiKey, metaParams) }()
+	go func() { defer wg.Done(); dataSize, sizeErr = dbn_hist.GetBillableSize(s.ApiKey, metaParams) }()
+	go func() { defer wg.Done(); recordCount, countErr = dbn_hist.GetRecordCount(s.ApiKey, metaParams) }()
 	wg.Wait()
 
 	if costErr != nil {
@@ -284,59 +284,8 @@ func getCostHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 		return mcp.NewToolResultErrorf("failed to marshal results: %s", err), nil
 	}
 
-	logger.Info("get_cost", "dataset", p.Dataset, "schema", p.SchemaStr, "symbols", len(p.Symbols),
+	s.Logger.Info("get_cost", "dataset", p.Dataset, "schema", p.SchemaStr, "symbols", len(p.Symbols),
 		"start", p.StartStr, "end", p.EndStr, "cost", cost, "size", dataSize, "count", recordCount)
 
 	return mcp.NewToolResultText(string(jbytes)), nil
-}
-
-func getRangeHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	p, errResult := parseCommonParams(request)
-	if errResult != nil {
-		return errResult, nil
-	}
-
-	schema, err := dbn.SchemaFromString(p.SchemaStr)
-	if err != nil {
-		return mcp.NewToolResultErrorf("schema was invalid: %s", err), nil
-	}
-
-	stypeOut := dbn.SType_InstrumentId
-	if stypeOutStr, err := request.RequireString("stype_out"); err == nil && stypeOutStr != "" {
-		if stypeOut, err = dbn.STypeFromString(stypeOutStr); err != nil {
-			return mcp.NewToolResultErrorf("invalid stype_out: %s", err), nil
-		}
-	}
-
-	metaParams := p.metadataQueryParams()
-	cost, err := dbn_hist.GetCost(config.ApiKey, metaParams)
-	if err != nil {
-		return mcp.NewToolResultErrorf("failed to get cost: %s", err), nil
-	}
-	if config.MaxCost > 0 && cost > config.MaxCost {
-		return mcp.NewToolResultErrorf("query exceeds budget: estimated cost $%.2f, budget $%.2f", cost, config.MaxCost), nil
-	}
-
-	jobParams := dbn_hist.SubmitJobParams{
-		Dataset:      p.Dataset,
-		Symbols:      strings.Join(p.Symbols, ","),
-		Schema:       schema,
-		DateRange:    dbn_hist.DateRange{Start: p.StartTime, End: p.EndTime},
-		Encoding:     dbn.Encoding_Json,
-		PrettyPx:     true,
-		PrettyTs:     true,
-		MapSymbols:   true,
-		SplitSymbols: false,
-		Delivery:     dbn_hist.Delivery_Download,
-		StypeIn:      p.StypeIn,
-		StypeOut:     stypeOut,
-	}
-	rangeData, err := dbn_hist.GetRange(config.ApiKey, jobParams)
-	if err != nil {
-		return mcp.NewToolResultErrorf("failed to get range: %s", err), nil
-	}
-
-	logger.Info("get_range", "dataset", p.Dataset, "schema", p.SchemaStr, "symbols", len(p.Symbols),
-		"start", p.StartStr, "end", p.EndStr, "cost", cost, "size", len(rangeData))
-	return mcp.NewToolResultText(string(rangeData)), nil
 }

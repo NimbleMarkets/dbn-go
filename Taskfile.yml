@@ -32,7 +32,7 @@ tasks:
   clean:
     desc: 'Clean all'
     cmds:
-      - rm -f bin/dbn-go-file bin/dbn-go-hist bin/dbn-go-live bin/dbn-go-mcp bin/dbn-go-tui bin/dbn-go-slurp-docs
+      - rm -f bin/dbn-go-file bin/dbn-go-hist bin/dbn-go-live bin/dbn-go-mcp-meta bin/dbn-go-mcp-data bin/dbn-go-tui bin/dbn-go-slurp-docs
 
   docker-build:
     desc: 'Docker build'
@@ -65,7 +65,8 @@ tasks:
       - build-dbn-go-file
       - build-dbn-go-hist
       - build-dbn-go-live
-      - build-dbn-go-mcp
+      - build-dbn-go-mcp-meta
+      - build-dbn-go-mcp-data
       - build-dbn-go-tui
       - build-dbn-go-slurp-docs
 
@@ -120,18 +121,33 @@ tasks:
     cmds:
       - go build -o bin/dbn-go-live cmd/dbn-go-live/*.go
 
-  build-dbn-go-mcp:
-    desc: 'Build dbn-go-mcp'
+  build-dbn-go-mcp-meta:
+    desc: 'Build dbn-go-mcp-meta'
     deps: [go-tidy]
     sources:
       - ./*.go
       - hist/*.go
       - internal/**/*.go
-      - cmd/dbn-go-mcp/*.go
+      - cmd/dbn-go-mcp-meta/*.go
     generates:
-      - bin/dbn-go-mcp
+      - bin/dbn-go-mcp-meta
     cmds:
-      - go build -o bin/dbn-go-mcp cmd/dbn-go-mcp/*.go
+      - go build -o bin/dbn-go-mcp-meta cmd/dbn-go-mcp-meta/*.go
+
+  build-dbn-go-mcp-data:
+    desc: 'Build dbn-go-mcp-data'
+    deps: [go-tidy]
+    env:
+      CGO_ENABLED: "1"
+    sources:
+      - ./*.go
+      - hist/*.go
+      - internal/**/*.go
+      - cmd/dbn-go-mcp-data/*.go
+    generates:
+      - bin/dbn-go-mcp-data
+    cmds:
+      - go build -o bin/dbn-go-mcp-data cmd/dbn-go-mcp-data/*.go
 
   build-dbn-go-tui:
     desc: 'Build dbn-go-tui'
@@ -151,6 +167,7 @@ tasks:
     deps: [go-tidy]
     sources:
       - cmd/dbn-go-slurp-docs/*.go
+      - internal/docs/*.go
     generates:
       - bin/dbn-go-slurp-docs
     cmds:
@@ -164,10 +181,11 @@ tasks:
       - cmd/dbn-go-file/*.go
       - cmd/dbn-go-hist/*.go
       - cmd/dbn-go-live/*.go
-      - cmd/dbn-go-mcp/*.go
+      - cmd/dbn-go-mcp-meta/*.go
+      - cmd/dbn-go-mcp-data/*.go
       - cmd/dbn-go-tui/*.go
       - hist/*.go
-      - internal/*.go
+      - internal/**/*.go
       - live/*.go
     cmds:
       - go test ./...

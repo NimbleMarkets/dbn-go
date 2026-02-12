@@ -6,6 +6,18 @@ version: 2
 before:
   hooks:
     - go mod tidy
+    - rm -rf completions
+    - mkdir completions
+    - rm -rf manpages
+    - mkdir manpages
+    - sh -c 'go run ./cmd/dbn-go-file completion bash > ./completions/dbn-go-file.bash'
+    - sh -c 'go run ./cmd/dbn-go-file completion fish > ./completions/dbn-go-file.fish'
+    - sh -c 'go run ./cmd/dbn-go-file completion zsh > ./completions/dbn-go-file.zsh'
+    - sh -c 'go run ./cmd/dbn-go-file docs man -o ./manpages/'
+    - sh -c 'go run ./cmd/dbn-go-hist completion bash > ./completions/dbn-go-hist.bash'
+    - sh -c 'go run ./cmd/dbn-go-hist completion fish > ./completions/dbn-go-hist.fish'
+    - sh -c 'go run ./cmd/dbn-go-hist completion zsh > ./completions/dbn-go-hist.zsh'
+    - sh -c 'go run ./cmd/dbn-go-hist docs man -o ./manpages/'
 
 builds:
   - id: "dbn-go-file"
@@ -32,9 +44,9 @@ builds:
       - darwin
       - windows
 
-  - id: "dbn-go-mcp"
-    main: ./cmd/dbn-go-mcp
-    binary: bin/dbn-go-mcp
+  - id: "dbn-go-mcp-meta"
+    main: ./cmd/dbn-go-mcp-meta
+    binary: bin/dbn-go-mcp-meta
     goos:
       - linux
       - darwin
@@ -57,19 +69,25 @@ builds:
       - windows
 
 archives:
-  - format: tar.gz
-    # this name template makes the OS and Arch compatible with the results of `uname`.
-    name_template: >-
-      {{ .ProjectName }}_
-      {{- title .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "386" }}i386
-      {{- else }}{{ .Arch }}{{ end }}
-      {{- if .Arm }}v{{ .Arm }}{{ end }}
-    # use zip for windows archives
+  - id: default
+    formats:
+      - tar.gz
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - src: ./manpages/*
+        dst: man/man1/
+        strip_parent: true
+      - src: ./completions/*
+        dst: completions/
+        strip_parent: true
+
+checksum:
+  name_template: checksums.txt
 
 changelog:
   sort: asc
@@ -77,6 +95,7 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
+      - "^ci:"
 
 release:
   github:
@@ -99,6 +118,6 @@ brews:
       bin.install "./bin/dbn-go-file"
       bin.install "./bin/dbn-go-hist"
       bin.install "./bin/dbn-go-live"
-      bin.install "./bin/dbn-go-mcp"
+      bin.install "./bin/dbn-go-mcp-meta"
       bin.install "./bin/dbn-go-slurp-docs"
       bin.install "./bin/dbn-go-tui"

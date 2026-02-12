@@ -1,9 +1,8 @@
 // Copyright (c) 2025 Neomantra Corp
 //
-// This is a Model Context Protocol (MCP) server for Databento APIs.
-// It bridges LLMs and Databento's historical and metadata APIs.
-//
-// NOTE: this incurs billing, handle with care!
+// This is a metadata-only Model Context Protocol (MCP) server for Databento APIs.
+// It bridges LLMs and Databento's metadata discovery APIs.
+// No data download tools are available — use dbn-go-mcp-data for that.
 //
 
 package main
@@ -14,6 +13,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/NimbleMarkets/dbn-go/internal/mcp_meta"
 	mcp_server "github.com/mark3labs/mcp-go/server"
 	"github.com/spf13/pflag"
 )
@@ -27,21 +27,18 @@ const (
 	defaultMaxCost     = 1.0 // $1.00
 
 	// serverInstructions is sent to LLM clients during MCP initialization.
-	serverInstructions = `dbn-go-mcp provides access to Databento's historical market data APIs.
+	serverInstructions = `dbn-go-mcp-meta provides metadata-only access to Databento's historical market data APIs. No data download tools are available — use dbn-go-mcp-data for get_range and cached queries.
 
-IMPORTANT — BILLING: Only the get_range tool incurs Databento billing charges. All other tools are free metadata/discovery queries. Always call get_cost before get_range to check the estimated cost.
+None of these tools incur Databento billing charges.
 
 Recommended workflow:
 1. Use list_datasets to discover available datasets.
 2. Use list_schemas to see which schemas a dataset supports.
 3. Use list_fields to understand the record structure of a schema.
 4. Use get_dataset_range and get_dataset_condition to verify data availability.
-5. Use get_cost to estimate the cost of your query.
-6. Only then call get_range to fetch the actual data.
+5. Use get_cost to estimate the cost of a potential query.
 
-Additional discovery tools: list_publishers (venue/source info), list_unit_prices (cost per schema), resolve_symbols (symbol mapping across symbologies).
-
-The server enforces a per-query budget limit on get_range. For large queries, prefer compact schemas like ohlcv-1d or ohlcv-1h.`
+Additional discovery tools: list_publishers (venue/source info), list_unit_prices (cost per schema), resolve_symbols (symbol mapping across symbologies).`
 )
 
 type Config struct {
@@ -113,7 +110,7 @@ func main() {
 		config.SSEHostPort = defaultSSEHostPort
 	}
 
-	config.Name = "dbn-go-mcp"
+	config.Name = "dbn-go-mcp-meta"
 	config.Version = mcpServerVersion
 
 	// Set up logging
@@ -166,7 +163,13 @@ func run() error {
 		mcp_server.WithRecovery(),
 		mcp_server.WithInstructions(serverInstructions),
 	)
-	registerTools(mcpServer)
+
+	srv := &mcp_meta.Server{
+		ApiKey:  config.ApiKey,
+		MaxCost: config.MaxCost,
+		Logger:  logger,
+	}
+	srv.RegisterMetaTools(mcpServer)
 
 	if config.UseSSE {
 		sseServer := mcp_server.NewSSEServer(mcpServer)
