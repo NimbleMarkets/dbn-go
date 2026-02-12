@@ -46,8 +46,8 @@ func (s *Server) fetchRangeHandler(ctx context.Context, request mcp.CallToolRequ
 	if err != nil {
 		return mcp.NewToolResultErrorf("failed to get cost: %s", err), nil
 	}
-	if s.MaxCost > 0 && cost > s.MaxCost {
-		return mcp.NewToolResultErrorf("query exceeds budget: estimated cost $%.2f, budget $%.2f", cost, s.MaxCost), nil
+	if s.maxCost > 0 && cost > s.maxCost {
+		return mcp.NewToolResultErrorf("query exceeds budget: estimated cost $%.2f, budget $%.2f", cost, s.maxCost), nil
 	}
 
 	// Fetch as DBN + ZStd

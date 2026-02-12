@@ -10,8 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"sort"
+	"strings"
 
 	"github.com/NimbleMarkets/dbn-go"
 	"github.com/NimbleMarkets/dbn-go/internal/file"
@@ -32,12 +32,12 @@ func schemaSupportsParquet(schema dbn.Schema) bool {
 func (s *Server) cacheParquetPath(dataset, schema, symbols, stypeIn, start, end string) string {
 	h := sha256.Sum256([]byte(symbols + "|" + stypeIn + "|" + start + "|" + end))
 	hash8 := fmt.Sprintf("%x", h[:4]) // 4 bytes = 8 hex chars
-	return filepath.Join(s.CacheDir, dataset, schema, hash8+".parquet")
+	return filepath.Join(s.cacheDir, dataset, schema, hash8+".parquet")
 }
 
 // InitCache opens an in-memory DuckDB database and creates views for any existing cached parquet files.
 func (s *Server) InitCache() error {
-	if err := os.MkdirAll(s.CacheDir, 0755); err != nil {
+	if err := os.MkdirAll(s.cacheDir, 0755); err != nil {
 		return fmt.Errorf("failed to create cache dir: %w", err)
 	}
 
@@ -80,17 +80,17 @@ func (s *Server) refreshViews() error {
 
 	// Collect which views should exist
 	wantViews := map[string]string{} // view name -> glob path
-	datasets, _ := os.ReadDir(s.CacheDir)
+	datasets, _ := os.ReadDir(s.cacheDir)
 	for _, ds := range datasets {
 		if !ds.IsDir() || !safeName.MatchString(ds.Name()) {
 			continue
 		}
-		schemas, _ := os.ReadDir(filepath.Join(s.CacheDir, ds.Name()))
+		schemas, _ := os.ReadDir(filepath.Join(s.cacheDir, ds.Name()))
 		for _, sc := range schemas {
 			if !sc.IsDir() || !safeName.MatchString(sc.Name()) {
 				continue
 			}
-			parquetGlob := filepath.Join(s.CacheDir, ds.Name(), sc.Name(), "*.parquet")
+			parquetGlob := filepath.Join(s.cacheDir, ds.Name(), sc.Name(), "*.parquet")
 			matches, _ := filepath.Glob(parquetGlob)
 			if len(matches) > 0 {
 				viewName := ds.Name() + "/" + sc.Name()
@@ -140,7 +140,7 @@ func (s *Server) refreshViewForSchema(dataset, schema string) {
 	}
 
 	viewName := dataset + "/" + schema
-	parquetGlob := filepath.Join(s.CacheDir, dataset, schema, "*.parquet")
+	parquetGlob := filepath.Join(s.cacheDir, dataset, schema, "*.parquet")
 	matches, _ := filepath.Glob(parquetGlob)
 
 	if len(matches) > 0 {
@@ -220,17 +220,17 @@ type CacheEntry struct {
 func (s *Server) listCacheEntries() []CacheEntry {
 	var entries []CacheEntry
 
-	datasets, _ := os.ReadDir(s.CacheDir)
+	datasets, _ := os.ReadDir(s.cacheDir)
 	for _, ds := range datasets {
 		if !ds.IsDir() || !safeName.MatchString(ds.Name()) {
 			continue
 		}
-		schemas, _ := os.ReadDir(filepath.Join(s.CacheDir, ds.Name()))
+		schemas, _ := os.ReadDir(filepath.Join(s.cacheDir, ds.Name()))
 		for _, sc := range schemas {
 			if !sc.IsDir() || !safeName.MatchString(sc.Name()) {
 				continue
 			}
-			parquetGlob := filepath.Join(s.CacheDir, ds.Name(), sc.Name(), "*.parquet")
+			parquetGlob := filepath.Join(s.cacheDir, ds.Name(), sc.Name(), "*.parquet")
 			matches, _ := filepath.Glob(parquetGlob)
 			if len(matches) == 0 {
 				continue
@@ -263,25 +263,25 @@ func (s *Server) clearCache(dataset, schema string) int {
 	removed := 0
 
 	if dataset != "" && schema != "" {
-		dir := filepath.Join(s.CacheDir, dataset, schema)
-		removed += removeParquetFiles(dir, s.CacheDir)
+		dir := filepath.Join(s.cacheDir, dataset, schema)
+		removed += removeParquetFiles(dir, s.cacheDir)
 	} else if dataset != "" {
-		schemas, _ := os.ReadDir(filepath.Join(s.CacheDir, dataset))
+		schemas, _ := os.ReadDir(filepath.Join(s.cacheDir, dataset))
 		for _, sc := range schemas {
 			if sc.IsDir() {
-				removed += removeParquetFiles(filepath.Join(s.CacheDir, dataset, sc.Name()), s.CacheDir)
+				removed += removeParquetFiles(filepath.Join(s.cacheDir, dataset, sc.Name()), s.cacheDir)
 			}
 		}
 	} else {
-		datasets, _ := os.ReadDir(s.CacheDir)
+		datasets, _ := os.ReadDir(s.cacheDir)
 		for _, ds := range datasets {
 			if !ds.IsDir() {
 				continue
 			}
-			schemas, _ := os.ReadDir(filepath.Join(s.CacheDir, ds.Name()))
+			schemas, _ := os.ReadDir(filepath.Join(s.cacheDir, ds.Name()))
 			for _, sc := range schemas {
 				if sc.IsDir() {
-					removed += removeParquetFiles(filepath.Join(s.CacheDir, ds.Name(), sc.Name()), s.CacheDir)
+					removed += removeParquetFiles(filepath.Join(s.cacheDir, ds.Name(), sc.Name()), s.cacheDir)
 				}
 			}
 		}

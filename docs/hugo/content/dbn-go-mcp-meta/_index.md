@@ -16,7 +16,7 @@ It requires your [Databento API Key](https://databento.com/portal/keys). Since t
 
 ```bash
 dbn-go-mcp-meta                          # MCP server on stdio (default)
-dbn-go-mcp-meta --sse --port :8889       # MCP server over HTTP (SSE)
+dbn-go-mcp-meta --sse                    # MCP server over HTTP (SSE), localhost only
 ```
 
 The MCP server supports two transport modes:
@@ -31,8 +31,7 @@ The MCP server supports two transport modes:
   -f, --key-file string   File to read Databento API key from (or set 'DATABENTO_API_KEY_FILE' envvar)
   -l, --log-file string   Log file destination (or MCP_LOG_FILE envvar). Default is stderr
   -j, --log-json          Log in JSON (default is plaintext)
-  -c, --max-cost float    Max cost, in dollars, for a query (<=0 is unlimited) (default 1)
-      --port string       host:port to listen to SSE connections
+  -p, --port string       host:port to listen to SSE connections (default "127.0.0.1:8889")
       --sse               Use SSE Transport (default is STDIO transport)
   -v, --verbose           Verbose logging
 ```
@@ -248,8 +247,8 @@ Edit `%USERPROFILE%\.config\github-copilot\mcp.json`:
 For networked deployments, run the MCP server over HTTP with Server-Sent Events:
 
 ```bash
-dbn-go-mcp-meta --sse --port :8889
-dbn-go-mcp-meta --sse --port 0.0.0.0:8889   # Listen on all interfaces
+dbn-go-mcp-meta --sse                              # localhost only (default 127.0.0.1:8889)
+dbn-go-mcp-meta --sse --port 0.0.0.0:8889          # listen on all interfaces
 ```
 
 ## See Also

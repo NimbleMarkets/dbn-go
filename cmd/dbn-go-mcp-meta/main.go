@@ -23,11 +23,12 @@ import (
 const (
 	mcpServerVersion = "0.0.1"
 
-	defaultSSEHostPort = ":8889"
-	defaultMaxCost     = 1.0 // $1.00
+	defaultSSEHostPort = "127.0.0.1:8889"
 
 	// serverInstructions is sent to LLM clients during MCP initialization.
-	serverInstructions = `dbn-go-mcp-meta provides metadata-only access to Databento's historical market data APIs. No data download tools are available — use dbn-go-mcp-data for get_range and cached queries.
+	serverInstructions = `dbn-go-mcp-meta provides metadata-only access to Databento's historical market data APIs.
+	
+No data download tools are available — use dbn-go-mcp-data for fetch_range and cached queries.
 
 None of these tools incur Databento billing charges.
 
@@ -54,8 +55,6 @@ type Config struct {
 
 	Verbose bool // Verbose logging
 
-	MaxCost float64 // Max cost for a query
-
 	// TODO:
 	//   allow/deny lists for schema/dataset
 }
@@ -76,7 +75,6 @@ func main() {
 	pflag.StringVarP(&logFilename, "log-file", "l", "", "Log file destination (or MCP_LOG_FILE envvar). Default is stderr")
 	pflag.BoolVarP(&config.LogJSON, "log-json", "j", false, "Log in JSON (default is plaintext)")
 	pflag.StringVarP(&config.SSEHostPort, "port", "p", "", "host:port to listen to SSE connections")
-	pflag.Float64VarP(&config.MaxCost, "max-cost", "c", defaultMaxCost, "Max cost, in dollars, for a query (<=0 is unlimited)")
 	pflag.BoolVarP(&config.UseSSE, "sse", "", false, "Use SSE Transport (default is STDIO transport)")
 	pflag.BoolVarP(&config.Verbose, "verbose", "v", false, "Verbose logging")
 	pflag.BoolVarP(&showHelp, "help", "h", false, "Show help")
@@ -164,7 +162,7 @@ func run() error {
 		mcp_server.WithInstructions(serverInstructions),
 	)
 
-	srv := mcp_meta.NewServer(config.ApiKey, config.MaxCost, logger)
+	srv := mcp_meta.NewServer(config.ApiKey, logger)
 	srv.RegisterMetaTools(mcpServer)
 
 	if config.UseSSE {

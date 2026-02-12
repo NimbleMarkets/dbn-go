@@ -6,14 +6,13 @@ import "log/slog"
 
 // Server holds shared state for MCP metadata tool handlers.
 type Server struct {
-	apiKey  string
-	MaxCost float64
-	Logger  *slog.Logger
+	apiKey string
+	Logger *slog.Logger
 }
 
-// NewServer creates a new Server with the given API key, max cost, and logger.
-func NewServer(apiKey string, maxCost float64, logger *slog.Logger) *Server {
-	return &Server{apiKey: apiKey, MaxCost: maxCost, Logger: logger}
+// NewServer creates a new Server with the given API key, and logger.
+func NewServer(apiKey string, logger *slog.Logger) *Server {
+	return &Server{apiKey: apiKey, Logger: logger}
 }
 
 // GetApiKey returns the Databento API key.

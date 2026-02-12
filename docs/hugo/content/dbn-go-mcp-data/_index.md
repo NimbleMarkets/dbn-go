@@ -6,7 +6,7 @@ bookCollapseSection: true
 
 # dbn-go-mcp-data
 
-`dbn-go-mcp-data` is a full-featured [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server for [Databento](https://databento.com) services. It includes all the metadata discovery tools from [`dbn-go-mcp-meta`]({{< relref "/dbn-go-mcp-meta" >}}), plus data download (`get_range`) and a local DuckDB cache for efficient re-queries.
+`dbn-go-mcp-data` is a full-featured [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server for [Databento](https://databento.com) services. It includes all the metadata discovery tools from [`dbn-go-mcp-meta`]({{< relref "/dbn-go-mcp-meta" >}}), plus data download (`fetch_range`) and a local DuckDB-backed Parquet cache for efficient re-queries.
 
 It requires your [Databento API Key](https://databento.com/portal/keys). Since this program is typically executed by a host program (like Claude Desktop), the preferred method is to store the API key in a file and use `--key-file` or the `DATABENTO_API_KEY_FILE` environment variable.
 
@@ -18,7 +18,7 @@ Data fetched via `fetch_range` is cached locally as Parquet and queryable via Du
 
 ```bash
 dbn-go-mcp-data                          # MCP server on stdio (default)
-dbn-go-mcp-data --sse --port :8889       # MCP server over HTTP (SSE)
+dbn-go-mcp-data --sse                    # MCP server over HTTP (SSE), localhost only
 ```
 
 The MCP server supports two transport modes:
@@ -28,17 +28,17 @@ The MCP server supports two transport modes:
 ### Command-Line Flags
 
 ```
-  -h, --help              Show help
-  -k, --key string        Databento API key (or set 'DATABENTO_API_KEY' envvar)
-  -f, --key-file string   File to read Databento API key from (or set 'DATABENTO_API_KEY_FILE' envvar)
-  -l, --log-file string   Log file destination (or MCP_LOG_FILE envvar). Default is stderr
-  -j, --log-json          Log in JSON (default is plaintext)
-  -c, --max-cost float    Max cost, in dollars, for a query (<=0 is unlimited) (default 1)
-      --cache-dir string  Directory for cached data files (default "~/.dbn-go/cache/")
-      --cache-db string   Path to DuckDB database file (default "~/.dbn-go/cache.duckdb")
-      --port string       host:port to listen to SSE connections
-      --sse               Use SSE Transport (default is STDIO transport)
-  -v, --verbose           Verbose logging
+  -h, --help                Show help
+  -k, --key string          Databento API key (or set 'DATABENTO_API_KEY' envvar)
+  -f, --key-file string     File to read Databento API key from (or set 'DATABENTO_API_KEY_FILE' envvar)
+  -l, --log-file string     Log file destination (or MCP_LOG_FILE envvar). Default is stderr
+  -j, --log-json            Log in JSON (default is plaintext)
+  -c, --max-cost float      Max cost, in dollars, for a query (<=0 is unlimited) (default 1)
+      --cache-dir string    Directory for cached data files (default "~/.dbn-go/cache/")
+      --cache-db string     Path to DuckDB database file (default "~/.dbn-go/cache.duckdb")
+  -p, --hostport string     host:port to listen to SSE connections (default "127.0.0.1:8889")
+      --sse                 Use SSE Transport (default is STDIO transport)
+  -v, --verbose             Verbose logging
 ```
 
 ## Available Tools
@@ -165,7 +165,9 @@ Returns the estimated cost in USD, billable data size in bytes, and record count
 
 #### fetch_range
 
-Fetches market data from Databento and caches it locally as Parquet. Returns metadata about the cached file (path, record count, size, view name). Use `query_cache` to query the data with SQL. **This incurs Databento billing.** The server enforces a per-query budget limit (default $1.00, configurable via `--max-cost`). For large queries, prefer compact schemas like `ohlcv-1d` or `ohlcv-1h`.
+Fetches market data from Databento and caches it locally as Parquet. Returns metadata about the cached file (view name, record count, size). Use `query_cache` to query the data with SQL. **This incurs Databento billing.** The server enforces a per-query budget limit (default $1.00, configurable via `--max-cost`). For large queries, prefer compact schemas like `ohlcv-1d` or `ohlcv-1h`.
+
+Supported schemas: `ohlcv-1s`, `ohlcv-1m`, `ohlcv-1h`, `ohlcv-1d`, `trades`, `mbp-1`, `tbbo`, `imbalance`, `statistics`.
 
 **Parameters:**
 | Name | Type | Required | Description |
@@ -311,8 +313,8 @@ Edit `%USERPROFILE%\.config\github-copilot\mcp.json`:
 For networked deployments, run the MCP server over HTTP with Server-Sent Events:
 
 ```bash
-dbn-go-mcp-data --sse --port :8889
-dbn-go-mcp-data --sse --port 0.0.0.0:8889   # Listen on all interfaces
+dbn-go-mcp-data --sse                                  # localhost only (default 127.0.0.1:8889)
+dbn-go-mcp-data --sse --hostport 0.0.0.0:8889          # listen on all interfaces
 ```
 
 ## See Also

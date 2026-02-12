@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## v0.8.0 (2026-02-12)
+
+  * [MCP enhancements](./cmd/dbn-go-mcp/README.md)
+  * `dbn-go-mcp-meta` for metadata-only queries
+    * [9 MCP tools](./cmd/dbn-go-mcp-meta/README.md#discovery-tools-no-billing) reflecting the DataBento Metadata API
+    * No billable DataBento API calls 
+  * `dbn-go-mcp-data` for data retrieval and analysis
+    * 1 billable tool `fetch_range` which fills a local Parquet cache
+    * `query_cache` for DuckDB-SQL queries against the cache
+
 ## v0.7.1 (2026-02-11)
 
  * Improve metadata tools in [MCP server](./cmd/dbn-go-mcp/README.md)

@@ -17,7 +17,6 @@ import (
 	"strings"
 
 	"github.com/NimbleMarkets/dbn-go/internal/mcp_data"
-	"github.com/NimbleMarkets/dbn-go/internal/mcp_meta"
 	mcp_server "github.com/mark3labs/mcp-go/server"
 	"github.com/spf13/pflag"
 )
@@ -27,7 +26,7 @@ import (
 const (
 	mcpServerVersion = "0.0.1"
 
-	defaultSSEHostPort = ":8889"
+	defaultSSEHostPort = "127.0.0.1:8889"
 	defaultMaxCost     = 1.0 // $1.00
 	defaultCacheDir    = "~/.dbn-go/cache/"
 	defaultCacheDB     = "~/.dbn-go/cache.duckdb"
@@ -66,10 +65,7 @@ type Config struct {
 
 	Verbose bool // Verbose logging
 
-	MaxCost float64 // Max cost for a query
-
-	CacheDir string // Directory for cached data files
-	CacheDB  string // Path to DuckDB database file
+	mcp_data.ServerConfig // MCP data config (MaxCost, CacheDir, CacheDB)
 
 	// TODO:
 	//   allow/deny lists for schema/dataset
@@ -90,7 +86,7 @@ func main() {
 	pflag.StringVarP(&apikeyFilename, "key-file", "f", "", "File to read Databento API key from (or set 'DATABENTO_API_KEY_FILE' envvar)")
 	pflag.StringVarP(&logFilename, "log-file", "l", "", "Log file destination (or MCP_LOG_FILE envvar). Default is stderr")
 	pflag.BoolVarP(&config.LogJSON, "log-json", "j", false, "Log in JSON (default is plaintext)")
-	pflag.StringVarP(&config.SSEHostPort, "port", "p", "", "host:port to listen to SSE connections")
+	pflag.StringVarP(&config.SSEHostPort, "hostport", "p", "", "host:port to listen to SSE connections")
 	pflag.Float64VarP(&config.MaxCost, "max-cost", "c", defaultMaxCost, "Max cost, in dollars, for a query (<=0 is unlimited)")
 	pflag.StringVar(&config.CacheDir, "cache-dir", defaultCacheDir, "Directory for cached data files")
 	pflag.StringVar(&config.CacheDB, "cache-db", defaultCacheDB, "Path to DuckDB database file")
@@ -195,11 +191,12 @@ func run() error {
 		mcp_server.WithInstructions(serverInstructions),
 	)
 
-	srv := &mcp_data.Server{
-		Server:   mcp_meta.NewServer(config.ApiKey, config.MaxCost, logger),
+	srv := mcp_data.NewServer(mcp_data.ServerConfig{
+		MaxCost:  config.MaxCost,
 		CacheDir: config.CacheDir,
 		CacheDB:  config.CacheDB,
-	}
+	}, logger)
+
 	if err := srv.InitCache(); err != nil {
 		return fmt.Errorf("failed to initialize cache: %w", err)
 	}
