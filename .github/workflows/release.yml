@@ -10,36 +10,40 @@ permissions:
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
+    env:
+      GORELEASER_CROSS_VERSION: v1.25.7
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
+      - name: Build snapshot
+        if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+        run: |
+          docker run \
+            --rm \
+            -v $(pwd):/go/src/github.com/${{ github.repository }} \
+            -w /go/src/github.com/${{ github.repository }} \
+            ghcr.io/goreleaser/goreleaser-cross:${{ env.GORELEASER_CROSS_VERSION }} \
+            build --clean --snapshot
 
-      - name: Build with GoReleaser on main
-        uses: goreleaser/goreleaser-action@v6
-        if: github.ref == 'refs/heads/main'
-        with:
-          # either 'goreleaser' (default) or 'goreleaser-pro'
-          distribution: goreleaser
-          version: '~> v2'
-          args: build --clean --snapshot
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
-
-      - name: Publish with GoReleaser on tags
-        uses: goreleaser/goreleaser-action@v6
+      - name: Release
         if: startsWith(github.ref, 'refs/tags/')
-        with:
-          distribution: goreleaser
-          version: '~> v2'
-          args: release --clean
+        run: |
+          docker run \
+            --rm \
+            -e GITHUB_TOKEN \
+            -e HOMEBREW_TAP_GITHUB_TOKEN \
+            -e MACOS_SIGN_P12 \
+            -e MACOS_SIGN_PASSWORD \
+            -e MACOS_NOTARY_KEY \
+            -e MACOS_NOTARY_KEY_ID \
+            -e MACOS_NOTARY_ISSUER_ID \
+            -v $(pwd):/go/src/github.com/${{ github.repository }} \
+            -w /go/src/github.com/${{ github.repository }} \
+            ghcr.io/goreleaser/goreleaser-cross:${{ env.GORELEASER_CROSS_VERSION }} \
+            release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}

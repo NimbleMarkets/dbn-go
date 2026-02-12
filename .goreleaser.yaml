@@ -1,5 +1,8 @@
-# dbn-go .goreleaser.yml
-# Make sure to check the documentation at https://goreleaser.com
+# dbn-go .goreleaser.yaml
+# Single goreleaser config for all binaries.
+# Run inside goreleaser-cross for CGO cross-compilation (dbn-go-mcp-data).
+# Pure-Go binaries use CGO_ENABLED=0 and include Windows.
+# dbn-go-mcp-data (CGO) is linux + darwin only.
 
 version: 2
 
@@ -20,56 +23,102 @@ before:
     - sh -c 'go run ./cmd/dbn-go-hist docs man -o ./manpages/'
 
 builds:
+  # --- Pure-Go binaries (CGO_ENABLED=0, linux + darwin + windows) ---
+
   - id: "dbn-go-file"
     main: ./cmd/dbn-go-file
     binary: bin/dbn-go-file
-    goos:
-      - linux
-      - darwin
-      - windows
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
 
   - id: "dbn-go-hist"
     main: ./cmd/dbn-go-hist
     binary: bin/dbn-go-hist
-    goos:
-      - linux
-      - darwin
-      - windows
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
 
   - id: "dbn-go-live"
     main: ./cmd/dbn-go-live
     binary: bin/dbn-go-live
-    goos:
-      - linux
-      - darwin
-      - windows
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
 
   - id: "dbn-go-mcp-meta"
     main: ./cmd/dbn-go-mcp-meta
     binary: bin/dbn-go-mcp-meta
-    goos:
-      - linux
-      - darwin
-      - windows
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
 
   - id: "dbn-go-slurp-docs"
     main: ./cmd/dbn-go-slurp-docs
     binary: bin/dbn-go-slurp-docs
-    goos:
-      - linux
-      - darwin
-      - windows
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
 
   - id: "dbn-go-tui"
     main: ./cmd/dbn-go-tui
     binary: bin/dbn-go-tui
-    goos:
-      - linux
-      - darwin
-      - windows
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
+  # --- CGO binary: dbn-go-mcp-data (requires DuckDB) ---
+  # Per-platform builds with explicit cross-compilers from goreleaser-cross.
+
+  - id: "dbn-go-mcp-data-linux-amd64"
+    main: ./cmd/dbn-go-mcp-data
+    binary: bin/dbn-go-mcp-data
+    goos: [linux]
+    goarch: [amd64]
+    env:
+      - CGO_ENABLED=1
+      - CC=x86_64-linux-gnu-gcc
+      - CXX=x86_64-linux-gnu-g++
+
+  - id: "dbn-go-mcp-data-linux-arm64"
+    main: ./cmd/dbn-go-mcp-data
+    binary: bin/dbn-go-mcp-data
+    goos: [linux]
+    goarch: [arm64]
+    env:
+      - CGO_ENABLED=1
+      - CC=aarch64-linux-gnu-gcc
+      - CXX=aarch64-linux-gnu-g++
+
+  - id: "dbn-go-mcp-data-darwin-amd64"
+    main: ./cmd/dbn-go-mcp-data
+    binary: bin/dbn-go-mcp-data
+    goos: [darwin]
+    goarch: [amd64]
+    env:
+      - CGO_ENABLED=1
+      - CC=o64-clang
+      - CXX=o64-clang++
+
+  - id: "dbn-go-mcp-data-darwin-arm64"
+    main: ./cmd/dbn-go-mcp-data
+    binary: bin/dbn-go-mcp-data
+    goos: [darwin]
+    goarch: [arm64]
+    env:
+      - CGO_ENABLED=1
+      - CC=oa64-clang
+      - CXX=oa64-clang++
 
 archives:
   - id: default
+    builds:
+      - dbn-go-file
+      - dbn-go-hist
+      - dbn-go-live
+      - dbn-go-mcp-meta
+      - dbn-go-slurp-docs
+      - dbn-go-tui
     formats:
       - tar.gz
     format_overrides:
@@ -85,6 +134,17 @@ archives:
       - src: ./completions/*
         dst: completions/
         strip_parent: true
+
+  - id: mcp-data
+    builds:
+      - dbn-go-mcp-data-linux-amd64
+      - dbn-go-mcp-data-linux-arm64
+      - dbn-go-mcp-data-darwin-amd64
+      - dbn-go-mcp-data-darwin-arm64
+    formats:
+      - tar.gz
+    name_template: >-
+      dbn-go-mcp-data_{{ .Version }}_{{ .Os }}_{{ .Arch }}
 
 checksum:
   name_template: checksums.txt
@@ -106,7 +166,14 @@ notarize:
   macos:
     - enabled: '{{ isEnvSet "MACOS_SIGN_P12" }}'
       ids:
-        - default
+        - dbn-go-file
+        - dbn-go-hist
+        - dbn-go-live
+        - dbn-go-mcp-meta
+        - dbn-go-slurp-docs
+        - dbn-go-tui
+        - dbn-go-mcp-data-darwin-amd64
+        - dbn-go-mcp-data-darwin-arm64
       sign:
         certificate: "{{.Env.MACOS_SIGN_P12}}"
         password: "{{.Env.MACOS_SIGN_PASSWORD}}"
@@ -136,3 +203,17 @@ brews:
       bin.install "./bin/dbn-go-mcp-meta"
       bin.install "./bin/dbn-go-slurp-docs"
       bin.install "./bin/dbn-go-tui"
+
+homebrew_casks:
+  - name: dbn-go-mcp-data
+    url:
+      verified: github.com/nimblemarkets/dbn-go
+    repository:
+      owner: NimbleMarkets
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: https://github.com/NimbleMarkets/dbn-go
+    description: "MCP Data Server for Databento's APIs"
+    license: Apache License 2.0
+    binaries:
+      - dbn-go-mcp-data
