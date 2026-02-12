@@ -96,6 +96,7 @@ builds:
     goos: [darwin]
     goarch: [amd64]
     env:
+      - MACOSX_DEPLOYMENT_TARGET=11.0
       - CGO_ENABLED=1
       - CC=o64-clang
       - CXX=o64-clang++
@@ -106,6 +107,7 @@ builds:
     goos: [darwin]
     goarch: [arm64]
     env:
+      - MACOSX_DEPLOYMENT_TARGET=11.0
       - CGO_ENABLED=1
       - CC=oa64-clang
       - CXX=oa64-clang++
