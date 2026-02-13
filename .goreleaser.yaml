@@ -222,4 +222,4 @@ homebrew_casks:
     description: "MCP Data Server for Databento's APIs"
     license: Apache License 2.0
     binaries:
-      - dbn-go-mcp-data
+      - bin/dbn-go-mcp-data
