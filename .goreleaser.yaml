@@ -187,7 +187,9 @@ notarize:
         timeout: 20m
 
 brews:
-  - homepage: https://github.com/NimbleMarkets/dbn-go
+  - ids:
+      - default
+    homepage: https://github.com/NimbleMarkets/dbn-go
     description: "Golang tooling for Databento's APIs and DBN format"
     directory: Formula
     repository:
