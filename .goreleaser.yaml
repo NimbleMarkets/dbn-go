@@ -210,6 +210,8 @@ brews:
 
 homebrew_casks:
   - name: dbn-go-mcp-data
+    ids:
+      - mcp-data
     url:
       verified: github.com/nimblemarkets/dbn-go
     repository:
