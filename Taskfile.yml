@@ -21,6 +21,7 @@ tasks:
     desc: 'Test most'
     deps:
       - go-test
+      - test-mcp
 
   test-all:
     desc: 'Test all'
@@ -28,6 +29,7 @@ tasks:
       - go-test
       - test-dbn-go-file
       - test-dbn-go-hist
+      - test-mcp
 
   clean:
     desc: 'Clean all'
@@ -94,6 +96,30 @@ tasks:
       - bin/dbn-go-hist
     cmds:
       - go build -o bin/dbn-go-hist cmd/dbn-go-hist/*.go
+
+  test-mcp:
+    desc: 'Smoke-test MCP servers (requires DATABENTO_API_KEY or DATABENTO_API_KEY_FILE)'
+    deps: [build-dbn-go-mcp-meta, build-dbn-go-mcp-data]
+    cmds:
+      - ./scripts/smoke-test-mcp.sh -q
+
+  test-mcp-meta:
+    desc: 'Smoke-test dbn-go-mcp-meta only'
+    deps: [build-dbn-go-mcp-meta]
+    cmds:
+      - ./scripts/smoke-test-mcp.sh -q meta
+
+  test-mcp-data:
+    desc: 'Smoke-test dbn-go-mcp-data only'
+    deps: [build-dbn-go-mcp-data]
+    cmds:
+      - ./scripts/smoke-test-mcp.sh -q data
+
+  test-mcp-verbose:
+    desc: 'Smoke-test MCP servers with full JSON output'
+    deps: [build-dbn-go-mcp-meta, build-dbn-go-mcp-data]
+    cmds:
+      - ./scripts/smoke-test-mcp.sh
 
   test-dbn-go-file:
     desc: 'Test dbn-go-file'
@@ -326,3 +352,22 @@ tasks:
     desc: 'Removes docs-databento'
     cmds:
       - rm -rf docs-databento
+
+  ###############################################################################
+  # Release
+  ###############################################################################
+
+  release:notarize:
+    desc: Notarize the build
+    deps: [build]
+    cmds:
+      - |
+        if [ -z "$MACOS_CODESIGN_ID" ]; then
+          echo "Error: MACOS_CODESIGN_ID env var not set"
+          exit 1
+        fi
+      - codesign --force --options runtime -s "$MACOS_CODESIGN_ID" {{.BIN_DIR}}/thinkt
+      - codesign -dv --verbose=4 {{.BIN_DIR}}/thinkt
+      - ditto -c -k ./bin/thinkt thinkt.zip
+      - xcrun notarytool submit thinkt.zip --key "$MACOS_NOTARY_KEY" --key-id "$MACOS_NOTARY_KEY_ID" --issuer "$MACOS_NOTARY_ISSUER_ID" --wait
+

@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## v0.8.6 (2026-02-12)
+## v0.8.7 (2026-02-12)
 
   * [MCP enhancements](./cmd/dbn-go-mcp/README.md)
   * `dbn-go-mcp-meta` for metadata-only queries

@@ -49,7 +49,9 @@ func (s *Server) InitCache() error {
 	// We keep local file access enabled because read_parquet() needs it for views.
 	// lock_configuration prevents user SQL from re-enabling these.
 	for _, stmt := range []string{
-		"SET allow_extensions_autoloading = false",
+		"SET autoinstall_known_extensions = false",
+		"SET autoload_known_extensions = false",
+		"SET allow_community_extensions = false",
 		"SET disabled_filesystems = 'HTTPFileSystem'",
 		"SET lock_configuration = true",
 	} {
