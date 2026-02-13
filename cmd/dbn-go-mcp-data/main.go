@@ -192,6 +192,7 @@ func run() error {
 	)
 
 	srv := mcp_data.NewServer(mcp_data.ServerConfig{
+		ApiKey:   config.ApiKey,
 		MaxCost:  config.MaxCost,
 		CacheDir: config.CacheDir,
 		CacheDB:  config.CacheDB,

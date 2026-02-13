@@ -24,12 +24,13 @@ tasks:
       - test-mcp
 
   test-all:
-    desc: 'Test all'
+    desc: 'Test all (including API smoke tests)'
     deps:
       - go-test
       - test-dbn-go-file
       - test-dbn-go-hist
       - test-mcp
+      - test-mcp-api
 
   clean:
     desc: 'Clean all'
@@ -114,6 +115,12 @@ tasks:
     deps: [build-dbn-go-mcp-data]
     cmds:
       - ./scripts/smoke-test-mcp.sh -q data
+
+  test-mcp-api:
+    desc: 'Smoke-test MCP servers with list_datasets API call'
+    deps: [build-dbn-go-mcp-meta, build-dbn-go-mcp-data]
+    cmds:
+      - ./scripts/smoke-test-mcp.sh -q -a
 
   test-mcp-verbose:
     desc: 'Smoke-test MCP servers with full JSON output'
