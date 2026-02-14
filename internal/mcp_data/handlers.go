@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/NimbleMarkets/dbn-go"
@@ -41,6 +42,50 @@ func (s *Server) fetchRangeHandler(ctx context.Context, request mcp.CallToolRequ
 		}
 	}
 
+	// Normalize symbol order for consistent cache keys
+	sort.Strings(p.Symbols)
+	symbolsStr := strings.Join(p.Symbols, ",")
+	stypeOutStr := stypeOut.String()
+	parquetPath := s.cacheParquetPath(p.Dataset, p.SchemaStr, symbolsStr, p.StypeIn.String(), stypeOutStr, p.StartStr, p.EndStr)
+	viewName := p.Dataset + "/" + p.SchemaStr
+
+	// Check for cache hit — if the parquet file already exists, return it directly
+	force := request.GetBool("force", false)
+	if !force {
+		if info, err := os.Stat(parquetPath); err == nil {
+			var recordCount int64
+			if s.db != nil {
+				row := s.db.QueryRow(fmt.Sprintf(`SELECT count(*) FROM read_parquet(%s)`, sqlLiteral(parquetPath)))
+				row.Scan(&recordCount)
+			}
+
+			result := map[string]any{
+				"status":       "cache_hit",
+				"view_name":    viewName,
+				"parquet_path": parquetPath,
+				"file_size":    info.Size(),
+				"record_count": recordCount,
+				"cost":         0.0,
+				"query": map[string]any{
+					"dataset":  p.Dataset,
+					"schema":   p.SchemaStr,
+					"symbols":  symbolsStr,
+					"stype_in": p.StypeIn.String(),
+					"start":    p.StartStr,
+					"end":      p.EndStr,
+				},
+			}
+
+			jbytes, err := json.Marshal(result)
+			if err != nil {
+				return mcp.NewToolResultErrorf("failed to marshal result: %s", err), nil
+			}
+			s.Logger.Info("fetch_range cache_hit", "dataset", p.Dataset, "schema", p.SchemaStr,
+				"symbols", len(p.Symbols), "start", p.StartStr, "end", p.EndStr, "records", recordCount)
+			return mcp.NewToolResultText(string(jbytes)), nil
+		}
+	}
+
 	metaParams := p.MetadataQueryParams()
 	cost, err := dbn_hist.GetCost(s.GetApiKey(), metaParams)
 	if err != nil {
@@ -53,7 +98,7 @@ func (s *Server) fetchRangeHandler(ctx context.Context, request mcp.CallToolRequ
 	// Fetch as DBN + ZStd
 	jobParams := dbn_hist.SubmitJobParams{
 		Dataset:      p.Dataset,
-		Symbols:      strings.Join(p.Symbols, ","),
+		Symbols:      symbolsStr,
 		Schema:       schema,
 		DateRange:    dbn_hist.DateRange{Start: p.StartTime, End: p.EndTime},
 		Encoding:     dbn.Encoding_Dbn,
@@ -83,9 +128,6 @@ func (s *Server) fetchRangeHandler(ctx context.Context, request mcp.CallToolRequ
 	tmpFile.Close()
 
 	// Convert DBN to parquet cache file
-	symbolsStr := strings.Join(p.Symbols, ",")
-	parquetPath := s.cacheParquetPath(p.Dataset, p.SchemaStr, symbolsStr, p.StypeIn.String(), p.StartStr, p.EndStr)
-
 	s.mu.Lock()
 	if err := os.MkdirAll(filepath.Dir(parquetPath), 0755); err != nil {
 		s.mu.Unlock()
@@ -99,16 +141,30 @@ func (s *Server) fetchRangeHandler(ctx context.Context, request mcp.CallToolRequ
 	s.mu.Unlock()
 
 	// Gather file info for response
-	viewName := p.Dataset + "/" + p.SchemaStr
 	var fileSize int64
 	if info, err := os.Stat(parquetPath); err == nil {
 		fileSize = info.Size()
 	}
 
-	// Count records via DuckDB
+	// Count records for this specific file
 	var recordCount int64
-	row := s.db.QueryRow(fmt.Sprintf(`SELECT count(*) FROM "%s"`, viewName))
-	row.Scan(&recordCount)
+	if s.db != nil {
+		row := s.db.QueryRow(fmt.Sprintf(`SELECT count(*) FROM read_parquet(%s)`, sqlLiteral(parquetPath)))
+		row.Scan(&recordCount)
+	}
+
+	// Write sidecar manifest
+	if err := writeManifest(parquetPath, CacheManifest{
+		Symbols:     p.Symbols,
+		StypeIn:     p.StypeIn.String(),
+		StypeOut:    stypeOutStr,
+		Start:       p.StartStr,
+		End:         p.EndStr,
+		RecordCount: recordCount,
+		Cost:        cost,
+	}); err != nil {
+		s.Logger.Warn("failed to write cache manifest", "error", err)
+	}
 
 	result := map[string]any{
 		"status":       "cached",

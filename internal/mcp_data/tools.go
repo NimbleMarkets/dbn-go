@@ -48,6 +48,9 @@ func (s *Server) RegisterDataTools(mcpServer *mcp_server.MCPServer) {
 				mcp.Required(),
 				mcp.Description("End of range (exclusive), as ISO 8601 datetime (e.g. 2024-01-16)"),
 			),
+			mcp.WithBoolean("force",
+				mcp.Description("Force re-fetch even if data is already cached (default: false)."),
+			),
 		),
 		s.fetchRangeHandler,
 	)
@@ -68,7 +71,7 @@ func (s *Server) RegisterDataTools(mcpServer *mcp_server.MCPServer) {
 	// list_cache - cache tool (no billing)
 	mcpServer.AddTool(
 		mcp.NewTool("list_cache",
-			mcp.WithDescription("Lists all cached datasets with their schema, symbols, date ranges, and size. Use this to see what data is available locally without additional billing."),
+			mcp.WithDescription("Lists all cached datasets with their schema, symbols, date ranges, and size. Use this to see what data is available locally without additional billing. This does not incur any billing."),
 			mcp.WithReadOnlyHintAnnotation(true),
 			mcp.WithDestructiveHintAnnotation(false),
 			mcp.WithIdempotentHintAnnotation(true),

@@ -6,12 +6,14 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/NimbleMarkets/dbn-go"
 	"github.com/NimbleMarkets/dbn-go/internal/file"
@@ -22,17 +24,104 @@ import (
 // Only alphanumeric, dot, hyphen, and underscore are allowed.
 var safeName = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 
+// sqlLiteral escapes a string for use as a SQL string literal,
+// preventing SQL injection via embedded single quotes.
+func sqlLiteral(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
+}
+
 // schemaSupportsParquet returns true if the schema can be converted to parquet.
 func schemaSupportsParquet(schema dbn.Schema) bool {
 	return file.ParquetGroupNodeForDbnSchema(schema) != nil
 }
 
+// normalizeDateForFilename strips hyphens and colons from date strings for filesystem-safe names.
+// e.g. "2024-01-15" -> "20240115", "2024-01-15T09:30:00Z" -> "20240115T093000Z"
+func normalizeDateForFilename(s string) string {
+	s = strings.ReplaceAll(s, "-", "")
+	s = strings.ReplaceAll(s, ":", "")
+	return s
+}
+
 // cacheParquetPath returns the parquet file path for a cache entry.
-// Hash input: symbols|stype_in|start|end
-func (s *Server) cacheParquetPath(dataset, schema, symbols, stypeIn, start, end string) string {
-	h := sha256.Sum256([]byte(symbols + "|" + stypeIn + "|" + start + "|" + end))
-	hash8 := fmt.Sprintf("%x", h[:4]) // 4 bytes = 8 hex chars
-	return filepath.Join(s.cacheDir, dataset, schema, hash8+".parquet")
+// Format: {symbols}__{stype_in}__{stype_out}__{start}__{end}.parquet
+// If the filename exceeds 200 chars, symbols are truncated and a hash suffix is added.
+func (s *Server) cacheParquetPath(dataset, schema, symbols, stypeIn, stypeOut, start, end string) string {
+	startNorm := normalizeDateForFilename(start)
+	endNorm := normalizeDateForFilename(end)
+
+	// Build filename: {symbols}__{stype_in}__{stype_out}__{start}__{end}
+	name := fmt.Sprintf("%s__%s__%s__%s__%s", symbols, stypeIn, stypeOut, startNorm, endNorm)
+
+	const maxLen = 200
+	if len(name)+len(".parquet") > maxLen {
+		// Truncate symbols and append hash
+		h := sha256.Sum256([]byte(symbols + "|" + stypeIn + "|" + stypeOut + "|" + start + "|" + end))
+		hash8 := fmt.Sprintf("%x", h[:4])
+		suffix := fmt.Sprintf("__%s__%s__%s__%s__%s", stypeIn, stypeOut, startNorm, endNorm, hash8)
+		// Count how many symbols we can fit
+		symParts := strings.Split(symbols, ",")
+		budget := maxLen - len(suffix) - len(".parquet")
+		var truncSymbols string
+		for i := range symParts {
+			candidate := strings.Join(symParts[:i+1], ",")
+			extra := fmt.Sprintf("+%dmore", len(symParts)-i-1)
+			if len(candidate)+len(extra) > budget && i > 0 {
+				truncSymbols = strings.Join(symParts[:i], ",") + fmt.Sprintf("+%dmore", len(symParts)-i)
+				break
+			}
+		}
+		if truncSymbols == "" {
+			truncSymbols = symParts[0]
+			if len(symParts) > 1 {
+				truncSymbols += fmt.Sprintf("+%dmore", len(symParts)-1)
+			}
+		}
+		name = truncSymbols + suffix
+	}
+
+	return filepath.Join(s.cacheDir, dataset, schema, name+".parquet")
+}
+
+// CacheManifest is the sidecar JSON manifest written alongside each cached parquet file.
+type CacheManifest struct {
+	Symbols     []string `json:"symbols"`
+	StypeIn     string   `json:"stype_in"`
+	StypeOut    string   `json:"stype_out"`
+	Start       string   `json:"start"`
+	End         string   `json:"end"`
+	FetchedAt   string   `json:"fetched_at"`
+	RecordCount int64    `json:"record_count"`
+	Cost        float64  `json:"cost"`
+}
+
+// manifestPath returns the .json sidecar path for a given .parquet path.
+func manifestPath(parquetPath string) string {
+	return strings.TrimSuffix(parquetPath, ".parquet") + ".json"
+}
+
+// writeManifest writes a sidecar JSON manifest alongside a parquet cache file.
+func writeManifest(parquetPath string, m CacheManifest) error {
+	m.FetchedAt = time.Now().UTC().Format(time.RFC3339)
+	data, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(manifestPath(parquetPath), data, 0644)
+}
+
+// readManifest reads a sidecar JSON manifest for a parquet cache file.
+// Returns nil if the manifest does not exist or cannot be parsed.
+func readManifest(parquetPath string) *CacheManifest {
+	data, err := os.ReadFile(manifestPath(parquetPath))
+	if err != nil {
+		return nil
+	}
+	var m CacheManifest
+	if err := json.Unmarshal(data, &m); err != nil {
+		return nil
+	}
+	return &m
 }
 
 // InitCache opens an in-memory DuckDB database and creates views for any existing cached parquet files.
@@ -103,7 +192,7 @@ func (s *Server) refreshViews() error {
 
 	// Create or replace views for existing parquet files
 	for viewName, globPath := range wantViews {
-		stmt := fmt.Sprintf(`CREATE OR REPLACE VIEW "%s" AS SELECT * FROM read_parquet('%s')`, viewName, globPath)
+		stmt := fmt.Sprintf(`CREATE OR REPLACE VIEW "%s" AS SELECT * FROM read_parquet(%s)`, viewName, sqlLiteral(globPath))
 		if _, err := s.db.Exec(stmt); err != nil {
 			s.Logger.Warn("failed to create view", "view", viewName, "error", err)
 		}
@@ -146,7 +235,7 @@ func (s *Server) refreshViewForSchema(dataset, schema string) {
 	matches, _ := filepath.Glob(parquetGlob)
 
 	if len(matches) > 0 {
-		stmt := fmt.Sprintf(`CREATE OR REPLACE VIEW "%s" AS SELECT * FROM read_parquet('%s')`, viewName, parquetGlob)
+		stmt := fmt.Sprintf(`CREATE OR REPLACE VIEW "%s" AS SELECT * FROM read_parquet(%s)`, viewName, sqlLiteral(parquetGlob))
 		if _, err := s.db.Exec(stmt); err != nil {
 			s.Logger.Warn("failed to create view", "view", viewName, "error", err)
 		}
@@ -209,13 +298,27 @@ func (s *Server) queryDuckDB(userSQL string) (string, error) {
 	return buf.String(), nil
 }
 
+// CacheFileInfo describes a single cached parquet file and its manifest metadata.
+type CacheFileInfo struct {
+	Filename    string   `json:"filename"`
+	Symbols     []string `json:"symbols,omitempty"`
+	StypeIn     string   `json:"stype_in,omitempty"`
+	StypeOut    string   `json:"stype_out,omitempty"`
+	Start       string   `json:"start,omitempty"`
+	End         string   `json:"end,omitempty"`
+	FetchedAt   string   `json:"fetched_at,omitempty"`
+	RecordCount int64    `json:"record_count,omitempty"`
+	Cost        float64  `json:"cost,omitempty"`
+	SizeBytes   int64    `json:"size_bytes"`
+}
+
 // CacheEntry describes a cached dataset/schema in the cache directory.
 type CacheEntry struct {
-	ViewName  string `json:"view_name"`
-	Dataset   string `json:"dataset"`
-	Schema    string `json:"schema"`
-	FileCount int    `json:"file_count"`
-	TotalSize int64  `json:"total_size_bytes"`
+	ViewName  string          `json:"view_name"`
+	Dataset   string          `json:"dataset"`
+	Schema    string          `json:"schema"`
+	Files     []CacheFileInfo `json:"files"`
+	TotalSize int64           `json:"total_size_bytes"`
 }
 
 // listCacheEntries scans the cache directory and returns information about cached data.
@@ -238,16 +341,35 @@ func (s *Server) listCacheEntries() []CacheEntry {
 				continue
 			}
 			var totalSize int64
+			var files []CacheFileInfo
 			for _, m := range matches {
+				var fileSize int64
 				if info, err := os.Stat(m); err == nil {
-					totalSize += info.Size()
+					fileSize = info.Size()
 				}
+				totalSize += fileSize
+
+				fi := CacheFileInfo{
+					Filename:  filepath.Base(m),
+					SizeBytes: fileSize,
+				}
+				if manifest := readManifest(m); manifest != nil {
+					fi.Symbols = manifest.Symbols
+					fi.StypeIn = manifest.StypeIn
+					fi.StypeOut = manifest.StypeOut
+					fi.Start = manifest.Start
+					fi.End = manifest.End
+					fi.FetchedAt = manifest.FetchedAt
+					fi.RecordCount = manifest.RecordCount
+					fi.Cost = manifest.Cost
+				}
+				files = append(files, fi)
 			}
 			entries = append(entries, CacheEntry{
 				ViewName:  ds.Name() + "/" + sc.Name(),
 				Dataset:   ds.Name(),
 				Schema:    sc.Name(),
-				FileCount: len(matches),
+				Files:     files,
 				TotalSize: totalSize,
 			})
 		}
@@ -266,12 +388,12 @@ func (s *Server) clearCache(dataset, schema string) int {
 
 	if dataset != "" && schema != "" {
 		dir := filepath.Join(s.cacheDir, dataset, schema)
-		removed += removeParquetFiles(dir, s.cacheDir)
+		removed += removeCacheFiles(dir, s.cacheDir)
 	} else if dataset != "" {
 		schemas, _ := os.ReadDir(filepath.Join(s.cacheDir, dataset))
 		for _, sc := range schemas {
 			if sc.IsDir() {
-				removed += removeParquetFiles(filepath.Join(s.cacheDir, dataset, sc.Name()), s.cacheDir)
+				removed += removeCacheFiles(filepath.Join(s.cacheDir, dataset, sc.Name()), s.cacheDir)
 			}
 		}
 	} else {
@@ -283,7 +405,7 @@ func (s *Server) clearCache(dataset, schema string) int {
 			schemas, _ := os.ReadDir(filepath.Join(s.cacheDir, ds.Name()))
 			for _, sc := range schemas {
 				if sc.IsDir() {
-					removed += removeParquetFiles(filepath.Join(s.cacheDir, ds.Name(), sc.Name()), s.cacheDir)
+					removed += removeCacheFiles(filepath.Join(s.cacheDir, ds.Name(), sc.Name()), s.cacheDir)
 				}
 			}
 		}
@@ -293,11 +415,17 @@ func (s *Server) clearCache(dataset, schema string) int {
 	return removed
 }
 
-// removeParquetFiles removes all .parquet files in a directory and cleans up
-// empty parent directories, stopping at (and never removing) boundDir.
-func removeParquetFiles(dir string, boundDir string) int {
+// removeCacheFiles removes all .parquet and .json sidecar files in a directory
+// and cleans up empty parent directories, stopping at (and never removing) boundDir.
+func removeCacheFiles(dir string, boundDir string) int {
 	matches, _ := filepath.Glob(filepath.Join(dir, "*.parquet"))
 	for _, m := range matches {
+		os.Remove(m)
+		os.Remove(manifestPath(m)) // remove sidecar .json if it exists
+	}
+	// Also remove any orphaned .json files
+	jsonMatches, _ := filepath.Glob(filepath.Join(dir, "*.json"))
+	for _, m := range jsonMatches {
 		os.Remove(m)
 	}
 	// Remove empty directories walking up, but never past boundDir
