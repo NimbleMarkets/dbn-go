@@ -467,3 +467,34 @@ func TestClearCache_All(t *testing.T) {
 		t.Error("sidecar json should have been removed")
 	}
 }
+
+func TestValidateQueryCacheSQL_AllowsReadOnlySelects(t *testing.T) {
+	queries := []string{
+		`SELECT * FROM "XNAS.ITCH/trades" LIMIT 10`,
+		`WITH q AS (SELECT instrument_id FROM "XNAS.ITCH/trades") SELECT * FROM q`,
+		`-- comment
+SELECT * FROM "GLBX.MDP3/ohlcv-1d"`,
+	}
+	for _, q := range queries {
+		if err := validateQueryCacheSQL(q); err != nil {
+			t.Fatalf("validateQueryCacheSQL unexpectedly rejected %q: %v", q, err)
+		}
+	}
+}
+
+func TestValidateQueryCacheSQL_BlocksExternalReadsAndDDL(t *testing.T) {
+	blocked := []string{
+		`SELECT * FROM read_csv_auto('/etc/hosts')`,
+		`SELECT * FROM read_parquet('/tmp/data.parquet')`,
+		`SELECT * FROM parquet_scan('/tmp/data.parquet')`,
+		`SELECT * FROM '/etc/hosts'`,
+		`PRAGMA show_tables`,
+		`SELECT 1; SELECT 2`,
+		`CREATE TABLE t AS SELECT 1`,
+	}
+	for _, q := range blocked {
+		if err := validateQueryCacheSQL(q); err == nil {
+			t.Fatalf("validateQueryCacheSQL should reject %q", q)
+		}
+	}
+}
