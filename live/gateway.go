@@ -14,7 +14,16 @@ import (
 // The format is: "k1=v1|k2=v2|k3=v3\n"
 func parseControlMessage(b []byte) map[string]string {
 	m := make(map[string]string)
-	kvs := bytes.Split(b[:len(b)-1], []byte{'|'})
+	if len(b) == 0 {
+		return m
+	}
+	if b[len(b)-1] == '\n' {
+		b = b[:len(b)-1]
+	}
+	if len(b) == 0 {
+		return m
+	}
+	kvs := bytes.Split(b, []byte{'|'})
 	for _, kv := range kvs {
 		equals := bytes.IndexByte(kv, '=')
 		if equals == -1 {
