@@ -378,3 +378,7 @@ tasks:
       - ditto -c -k ./bin/thinkt thinkt.zip
       - xcrun notarytool submit thinkt.zip --key "$MACOS_NOTARY_KEY" --key-id "$MACOS_NOTARY_KEY_ID" --issuer "$MACOS_NOTARY_ISSUER_ID" --wait
 
+  release:test:
+    desc: Test release build with goreleaser
+    cmds:
+      - goreleaser release --snapshot --clean
