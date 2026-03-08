@@ -1,5 +1,8 @@
 version: '3'
 
+vars:
+  GORELEASER_CROSS_VERSION: v1.25.6
+
 tasks:
   default:
     desc: 'Default task is to "test" and "build"'
@@ -22,7 +25,6 @@ tasks:
     deps:
       - go-test
       - test-mcp
-      - test-mcp-api
 
   test-all:
     desc: 'Test offline + integration paths'
@@ -42,6 +44,7 @@ tasks:
     desc: 'Test paths that require Databento credentials'
     deps:
       - go-test-integration
+      - test-mcp-api
 
   clean:
     desc: 'Clean all'
@@ -390,6 +393,6 @@ tasks:
       - xcrun notarytool submit thinkt.zip --key "$MACOS_NOTARY_KEY" --key-id "$MACOS_NOTARY_KEY_ID" --issuer "$MACOS_NOTARY_ISSUER_ID" --wait
 
   release:test:
-    desc: Test release build with goreleaser
+    desc: Test release build with goreleaser-cross
     cmds:
-      - goreleaser release --snapshot --clean
+      - docker run --rm -v "$PWD":/work -w /work ghcr.io/goreleaser/goreleaser-cross:{{.GORELEASER_CROSS_VERSION}} build --clean --snapshot

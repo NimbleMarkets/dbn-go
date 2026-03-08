@@ -116,7 +116,6 @@ func main() {
 		} else {
 			config.ApiKey = os.Getenv("DATABENTO_API_KEY")
 		}
-		requireValOrExit(config.ApiKey, "missing Databento API key, use --key or --file or set either DATABENTO_API_KEY or DATABENTO_API_KEY_FILE envvar\n")
 	}
 
 	if config.SSEHostPort == "" {
@@ -155,6 +154,9 @@ func main() {
 	} else {
 		logger = slog.New(slog.NewTextHandler(logWriter, &slog.HandlerOptions{Level: logLevel}))
 	}
+	if config.ApiKey == "" {
+		logger.Warn("Databento API key not configured; API-backed tools are unavailable and cache-only tools remain available")
+	}
 
 	// Run our MCP server
 	if err := run(); err != nil {
@@ -162,14 +164,6 @@ func main() {
 		os.Exit(1)
 	}
 
-}
-
-// requireValOrExit exits with an error message if `val` is empty.
-func requireValOrExit(val string, errstr string) {
-	if val == "" {
-		fmt.Fprintf(os.Stderr, "%s\n", errstr)
-		os.Exit(1)
-	}
 }
 
 // expandHome replaces a leading ~ with the user's home directory.

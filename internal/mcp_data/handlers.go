@@ -111,6 +111,10 @@ func (s *Server) cachedFetchRangeResult(parquetPath, viewName string, p *mcp_met
 }
 
 func (s *Server) fetchRangeHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	if errResult := s.RequireAPIKey(); errResult != nil {
+		return errResult, nil
+	}
+
 	p, errResult := mcp_meta.ParseCommonParams(request)
 	if errResult != nil {
 		return errResult, nil

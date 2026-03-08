@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 # smoke-test-mcp.sh — launch each MCP server and verify the JSON-RPC handshake.
 # Usage:
-#   ./scripts/smoke-test-mcp.sh              # test both servers (handshake only)
-#   ./scripts/smoke-test-mcp.sh meta         # test only dbn-go-mcp-meta
+#   ./scripts/smoke-test-mcp.sh              # test available servers (handshake only)
+#   ./scripts/smoke-test-mcp.sh meta         # test only dbn-go-mcp-meta (requires API key)
 #   ./scripts/smoke-test-mcp.sh data         # test only dbn-go-mcp-data
 #   ./scripts/smoke-test-mcp.sh -q           # quiet mode (no JSON output)
 #   ./scripts/smoke-test-mcp.sh -a           # also call list_datasets (requires valid API key)
 #   ./scripts/smoke-test-mcp.sh -q -a data   # quiet + API test + target
 #
-# Requires DATABENTO_API_KEY or DATABENTO_API_KEY_FILE to be set.
+# Handshake-only mode does not require Databento credentials for dbn-go-mcp-data.
+# dbn-go-mcp-meta always requires DATABENTO_API_KEY or DATABENTO_API_KEY_FILE.
+# API mode (-a/--api) requires credentials for the tested server.
 
 set -euo pipefail
 
@@ -25,6 +27,7 @@ die()  { echo "FATAL: $*" >&2; exit 1; }
 info() { echo "--- $*"; }
 ok()   { echo "  PASS: $*"; PASS=$((PASS + 1)); }
 fail() { echo "  FAIL: $*" >&2; FAIL=$((FAIL + 1)); }
+skip() { echo "  SKIP: $*"; }
 
 resolve_key() {
   if [[ -n "${DATABENTO_API_KEY:-}" ]]; then
@@ -61,9 +64,14 @@ send_mcp() {
   # Indirect array expansion (bash 3 compatible)
   eval 'local msgs=("${'${msg_arr_name}'[@]}")'
 
+  local cmd=("$bin")
+  if [[ -n "${DATABENTO_API_KEY:-}" ]]; then
+    cmd+=(--key "$DATABENTO_API_KEY")
+  fi
+
   # Send all messages; server exits when stdin closes.
   printf '%s\n' "${msgs[@]}" \
-    | timeout "$TIMEOUT" "$bin" --key "$DATABENTO_API_KEY" \
+    | timeout "$TIMEOUT" "${cmd[@]}" \
     >"$tmpout" 2>"$tmperr" || true
 
   # Show stderr/stdout only in verbose mode
@@ -166,7 +174,9 @@ while [[ $# -gt 0 && "$1" == -* ]]; do
   esac
 done
 
-resolve_key
+if [[ "$TEST_API" == true ]]; then
+  resolve_key
+fi
 
 what="${1:-all}"
 
@@ -191,13 +201,20 @@ fi
 
 case "$what" in
   meta)
+    if [[ -z "${DATABENTO_API_KEY:-}" ]]; then
+      die "dbn-go-mcp-meta requires DATABENTO_API_KEY or DATABENTO_API_KEY_FILE"
+    fi
     send_mcp "$(find_bin dbn-go-mcp-meta)" "dbn-go-mcp-meta" "$msg_var" "$check_fn"
     ;;
   data)
     send_mcp "$(find_bin dbn-go-mcp-data)" "dbn-go-mcp-data" "$msg_var" "$check_fn"
     ;;
   all)
-    send_mcp "$(find_bin dbn-go-mcp-meta)" "dbn-go-mcp-meta" "$msg_var" "$check_fn"
+    if [[ -n "${DATABENTO_API_KEY:-}" ]]; then
+      send_mcp "$(find_bin dbn-go-mcp-meta)" "dbn-go-mcp-meta" "$msg_var" "$check_fn"
+    else
+      skip "dbn-go-mcp-meta: requires API key"
+    fi
     send_mcp "$(find_bin dbn-go-mcp-data)" "dbn-go-mcp-data" "$msg_var" "$check_fn"
     ;;
   *) die "Unknown target: $what (use meta, data, or all)" ;;

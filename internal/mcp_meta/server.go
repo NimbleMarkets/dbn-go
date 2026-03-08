@@ -2,7 +2,11 @@
 
 package mcp_meta
 
-import "log/slog"
+import (
+	"log/slog"
+
+	"github.com/mark3labs/mcp-go/mcp"
+)
 
 // Server holds shared state for MCP metadata tool handlers.
 type Server struct {
@@ -18,4 +22,11 @@ func NewServer(apiKey string, logger *slog.Logger) *Server {
 // GetApiKey returns the Databento API key.
 func (s *Server) GetApiKey() string {
 	return s.apiKey
+}
+
+func (s *Server) RequireAPIKey() *mcp.CallToolResult {
+	if s.apiKey == "" {
+		return mcp.NewToolResultError("Databento API key not configured")
+	}
+	return nil
 }

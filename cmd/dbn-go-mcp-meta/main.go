@@ -101,8 +101,8 @@ func main() {
 		} else {
 			config.ApiKey = os.Getenv("DATABENTO_API_KEY")
 		}
-		requireValOrExit(config.ApiKey, "missing Databento API key, use --key or --file or set either DATABENTO_API_KEY or DATABENTO_API_KEY_FILE envvar\n")
 	}
+	requireValOrExit(config.ApiKey, "no API key specified, use --key or --file or set either DATABENTO_API_KEY or DATABENTO_API_KEY_FILE envvar")
 
 	if config.SSEHostPort == "" {
 		config.SSEHostPort = defaultSSEHostPort
@@ -145,15 +145,12 @@ func main() {
 
 }
 
-// requireValOrExit exits with an error message if `val` is empty.
-func requireValOrExit(val string, errstr string) {
-	if val == "" {
-		fmt.Fprintf(os.Stderr, "%s\n", errstr)
+func requireValOrExit(s, msg string) {
+	if s == "" {
+		fmt.Fprintln(os.Stderr, msg)
 		os.Exit(1)
 	}
 }
-
-///////////////////////////////////////////////////////////////////////////////
 
 func run() error {
 	// Create the MCP Server

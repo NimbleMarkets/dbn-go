@@ -17,6 +17,10 @@ import (
 ///////////////////////////////////////////////////////////////////////////////
 
 func (s *Server) listDatasetsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	if errResult := s.RequireAPIKey(); errResult != nil {
+		return errResult, nil
+	}
+
 	dateRange, errResult := ParseOptionalDateRange(request)
 	if errResult != nil {
 		return errResult, nil
@@ -37,6 +41,10 @@ func (s *Server) listDatasetsHandler(ctx context.Context, request mcp.CallToolRe
 }
 
 func (s *Server) listSchemasHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	if errResult := s.RequireAPIKey(); errResult != nil {
+		return errResult, nil
+	}
+
 	dataset, err := request.RequireString("dataset")
 	if err != nil {
 		return mcp.NewToolResultError("dataset must be set"), nil
@@ -58,6 +66,10 @@ func (s *Server) listSchemasHandler(ctx context.Context, request mcp.CallToolReq
 }
 
 func (s *Server) listFieldsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	if errResult := s.RequireAPIKey(); errResult != nil {
+		return errResult, nil
+	}
+
 	schemaStr, err := request.RequireString("schema")
 	if err != nil {
 		return mcp.NewToolResultError("schema must be set"), nil
@@ -84,6 +96,10 @@ func (s *Server) listFieldsHandler(ctx context.Context, request mcp.CallToolRequ
 }
 
 func (s *Server) listPublishersHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	if errResult := s.RequireAPIKey(); errResult != nil {
+		return errResult, nil
+	}
+
 	publishers, err := dbn_hist.ListPublishers(s.apiKey)
 	if err != nil {
 		return mcp.NewToolResultErrorf("failed to list publishers: %s", err), nil
@@ -111,6 +127,10 @@ func (s *Server) listPublishersHandler(ctx context.Context, request mcp.CallTool
 }
 
 func (s *Server) getDatasetRangeHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	if errResult := s.RequireAPIKey(); errResult != nil {
+		return errResult, nil
+	}
+
 	dataset, err := request.RequireString("dataset")
 	if err != nil {
 		return mcp.NewToolResultError("dataset must be set"), nil
@@ -136,6 +156,10 @@ func (s *Server) getDatasetRangeHandler(ctx context.Context, request mcp.CallToo
 }
 
 func (s *Server) getDatasetConditionHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	if errResult := s.RequireAPIKey(); errResult != nil {
+		return errResult, nil
+	}
+
 	dataset, err := request.RequireString("dataset")
 	if err != nil {
 		return mcp.NewToolResultError("dataset must be set"), nil
@@ -162,6 +186,10 @@ func (s *Server) getDatasetConditionHandler(ctx context.Context, request mcp.Cal
 }
 
 func (s *Server) listUnitPricesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	if errResult := s.RequireAPIKey(); errResult != nil {
+		return errResult, nil
+	}
+
 	dataset, err := request.RequireString("dataset")
 	if err != nil {
 		return mcp.NewToolResultError("dataset must be set"), nil
@@ -183,6 +211,10 @@ func (s *Server) listUnitPricesHandler(ctx context.Context, request mcp.CallTool
 }
 
 func (s *Server) resolveSymbolsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	if errResult := s.RequireAPIKey(); errResult != nil {
+		return errResult, nil
+	}
+
 	dataset, err := request.RequireString("dataset")
 	if err != nil {
 		return mcp.NewToolResultError("dataset must be set"), nil
@@ -242,6 +274,10 @@ func (s *Server) resolveSymbolsHandler(ctx context.Context, request mcp.CallTool
 }
 
 func (s *Server) getCostHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	if errResult := s.RequireAPIKey(); errResult != nil {
+		return errResult, nil
+	}
+
 	p, errResult := ParseCommonParams(request)
 	if errResult != nil {
 		return errResult, nil
