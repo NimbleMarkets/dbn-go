@@ -8,7 +8,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func testServer(t *testing.T) *Server {
@@ -465,6 +468,52 @@ func TestClearCache_All(t *testing.T) {
 	// JSON sidecar should also be gone
 	if _, err := os.Stat(filepath.Join(dir1, "a.json")); err == nil {
 		t.Error("sidecar json should have been removed")
+	}
+}
+
+func TestFetchRangeOnce_DeduplicatesConcurrentCalls(t *testing.T) {
+	s := testServer(t)
+
+	start := make(chan struct{})
+	entered := make(chan struct{}, 1)
+	release := make(chan struct{})
+
+	var calls atomic.Int32
+	var wg sync.WaitGroup
+	results := make([]string, 8)
+	errs := make([]error, 8)
+
+	for i := 0; i < len(results); i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			<-start
+			results[idx], errs[idx] = s.fetchRangeOnce("same-cache-key", func() (string, error) {
+				if calls.Add(1) == 1 {
+					entered <- struct{}{}
+				}
+				<-release
+				return "ok", nil
+			})
+		}(i)
+	}
+
+	close(start)
+	<-entered
+	time.Sleep(25 * time.Millisecond)
+	close(release)
+	wg.Wait()
+
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("fetchRangeOnce invoked callback %d times, want 1", got)
+	}
+	for i := range results {
+		if errs[i] != nil {
+			t.Fatalf("call %d returned error: %v", i, errs[i])
+		}
+		if results[i] != "ok" {
+			t.Fatalf("call %d result = %q, want ok", i, results[i])
+		}
 	}
 }
 

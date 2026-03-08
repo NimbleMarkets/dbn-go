@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/NimbleMarkets/dbn-go/internal/mcp_meta"
+	"golang.org/x/sync/singleflight"
 )
 
 type ServerConfig struct {
@@ -27,6 +28,7 @@ type Server struct {
 	cacheDB  string  // Path to DuckDB database file (reserved for future use)
 	db       *sql.DB // DuckDB in-memory connection
 	mu       sync.Mutex
+	fetches  singleflight.Group
 }
 
 // NewServer creates a new Server with the given API key, and logger.

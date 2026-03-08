@@ -3,14 +3,15 @@
 ## v0.8.8 (2026-03-08)
 
   * [MCP enhancements](./cmd/dbn-go-mcp/README.md)
-  * `dbn-go-mcp-meta` for metadata-only queries
-    * [9 MCP tools](./cmd/dbn-go-mcp-meta/README.md#discovery-tools-no-billing) reflecting the DataBento Metadata API
-    * No billable DataBento API calls 
-  * `dbn-go-mcp-data` for data retrieval and analysis
-    * 1 billable tool `fetch_range` which fills a local Parquet cache
-    * `query_cache` for DuckDB-SQL queries against the cache
+    * `dbn-go-mcp-meta` for metadata-only queries
+      * [9 MCP tools](./cmd/dbn-go-mcp-meta/README.md#discovery-tools-no-billing) reflecting   the DataBento Metadata API
+      * No billable DataBento API calls 
+    * `dbn-go-mcp-data` for data retrieval and analysis
+      * 1 billable tool `fetch_range` which fills a local Parquet cache
+      * `query_cache` for DuckDB-SQL queries against the cache
   * Releases are now notarized by [Neomantra Corp](https://www.neomantra.com) for MacOS installs
   * Fix Parquet conversion for `mbp-1`, `tbbo`, `imbalances`, `statistics`
+  * fix(live): LiveClient could lose the first bytes of the DBN/JSON stream after authentication.
 
 ## v0.7.1 (2026-02-11)
 
