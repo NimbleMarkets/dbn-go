@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 // Copyright (c) 2024 Neomantra Corp
 
 package dbn_hist
@@ -14,9 +17,9 @@ import (
 )
 
 // Test Launcher
-func TestDbnHist(t *testing.T) {
+func TestDbnHistIntegration(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "dbn-go hist suite")
+	RunSpecs(t, "dbn-go hist integration suite")
 }
 
 var databentoApiKey string
@@ -24,7 +27,7 @@ var databentoApiKey string
 var _ = BeforeSuite(func() {
 	databentoApiKey = os.Getenv("DATABENTO_API_KEY")
 	if databentoApiKey == "" {
-		Fail("DATABENTO_API_KEY not set")
+		Skip("DATABENTO_API_KEY not set")
 	}
 })
 

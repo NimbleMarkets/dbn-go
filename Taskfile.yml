@@ -18,19 +18,30 @@ tasks:
       - go-build
 
   test:
-    desc: 'Test most'
+    desc: 'Test offline-safe paths'
     deps:
       - go-test
       - test-mcp
+      - test-mcp-api
 
   test-all:
-    desc: 'Test all (including API smoke tests)'
+    desc: 'Test offline + integration paths'
+    deps:
+      - test
+      - test-cli
+      - test-integration
+
+  test-cli:
+    desc: 'Test local CLI paths'
     deps:
       - go-test
       - test-dbn-go-file
       - test-dbn-go-hist
-      - test-mcp
-      - test-mcp-api
+
+  test-integration:
+    desc: 'Test paths that require Databento credentials'
+    deps:
+      - go-test-integration
 
   clean:
     desc: 'Clean all'
@@ -207,7 +218,7 @@ tasks:
       - go build -o bin/dbn-go-slurp-docs cmd/dbn-go-slurp-docs/*.go
 
   go-test:
-    desc: 'Test Go'
+    desc: 'Test Go (offline-safe)'
     deps: [go-tidy]
     sources:
       - ./*.go
@@ -223,11 +234,11 @@ tasks:
     cmds:
       - go test ./...
 
-  go-test-no-api:
-    desc: 'Test Go, but no API calls'
+  go-test-integration:
+    desc: 'Test Go integration paths requiring Databento credentials'
     deps: [go-tidy]
     cmds:
-      - go test && go test ./live
+      - go test -tags=integration ./hist
 
 ###############################################################################
 

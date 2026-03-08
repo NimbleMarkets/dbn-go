@@ -26,5 +26,16 @@ jobs:
 
     - name: Test
       run: go test -v ./...
+
+    - name: Integration Tests
+      if: ${{ secrets.DATABENTO_API_KEY != '' }}
       env:
         DATABENTO_API_KEY: ${{ secrets.DATABENTO_API_KEY }}
+        CGO_ENABLED: "1"
+      run: |
+        go test -v -tags=integration ./hist
+        go build -o bin/dbn-go-hist ./cmd/dbn-go-hist
+        DBN_GO_HIST=./bin/dbn-go-hist ./tests/exercise_dbn-go-hist.sh > /dev/null
+        go build -o bin/dbn-go-mcp-meta ./cmd/dbn-go-mcp-meta
+        go build -o bin/dbn-go-mcp-data ./cmd/dbn-go-mcp-data
+        ./scripts/smoke-test-mcp.sh -q -a
