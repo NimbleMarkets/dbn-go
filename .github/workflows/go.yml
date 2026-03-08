@@ -13,6 +13,8 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    env:
+      DATABENTO_API_KEY: ${{ secrets.DATABENTO_API_KEY }}
     steps:
     - uses: actions/checkout@v4
 
@@ -28,9 +30,8 @@ jobs:
       run: go test -v ./...
 
     - name: Integration Tests
-      if: ${{ secrets.DATABENTO_API_KEY != '' }}
+      if: ${{ env.DATABENTO_API_KEY != '' }}
       env:
-        DATABENTO_API_KEY: ${{ secrets.DATABENTO_API_KEY }}
         CGO_ENABLED: "1"
       run: |
         go test -v -tags=integration ./hist

@@ -37,8 +37,8 @@ WORKDIR /src
 # Regular build for smoke-test
 RUN mkdir -p bin && task go-build
 
-# Unit Tests
-RUN task go-test-no-api
+# Offline Unit Tests
+RUN task test
 
 # Labels
 LABEL DBNGO_BUILD_BASE="${DBNGO_BUILD_BASE}"
