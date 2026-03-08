@@ -448,6 +448,39 @@ func TestClearCache_ByDataset(t *testing.T) {
 	}
 }
 
+func TestClearCache_BySchema(t *testing.T) {
+	s := testServer(t)
+
+	dir1 := filepath.Join(s.cacheDir, "XNAS.ITCH", "trades")
+	dir2 := filepath.Join(s.cacheDir, "GLBX.MDP3", "trades")
+	dir3 := filepath.Join(s.cacheDir, "XNAS.ITCH", "ohlcv-1d")
+	os.MkdirAll(dir1, 0755)
+	os.MkdirAll(dir2, 0755)
+	os.MkdirAll(dir3, 0755)
+
+	pq1 := filepath.Join(dir1, "a.parquet")
+	pq2 := filepath.Join(dir2, "b.parquet")
+	pq3 := filepath.Join(dir3, "c.parquet")
+	os.WriteFile(pq1, []byte("data"), 0644)
+	os.WriteFile(pq2, []byte("data"), 0644)
+	os.WriteFile(pq3, []byte("data"), 0644)
+
+	removed := s.clearCache("", "trades")
+	if removed != 2 {
+		t.Fatalf("removed = %d, want 2", removed)
+	}
+
+	if _, err := os.Stat(pq1); err == nil {
+		t.Error("XNAS.ITCH/trades should have been removed")
+	}
+	if _, err := os.Stat(pq2); err == nil {
+		t.Error("GLBX.MDP3/trades should have been removed")
+	}
+	if _, err := os.Stat(pq3); err != nil {
+		t.Error("XNAS.ITCH/ohlcv-1d should still exist")
+	}
+}
+
 func TestClearCache_All(t *testing.T) {
 	s := testServer(t)
 

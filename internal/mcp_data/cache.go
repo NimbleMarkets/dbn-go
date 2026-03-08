@@ -547,6 +547,15 @@ func (s *Server) clearCache(dataset, schema string) int {
 				removed += removeCacheFiles(filepath.Join(s.cacheDir, dataset, sc.Name()), s.cacheDir)
 			}
 		}
+	} else if schema != "" {
+		datasets, _ := os.ReadDir(s.cacheDir)
+		for _, ds := range datasets {
+			if !ds.IsDir() {
+				continue
+			}
+			dir := filepath.Join(s.cacheDir, ds.Name(), schema)
+			removed += removeCacheFiles(dir, s.cacheDir)
+		}
 	} else {
 		datasets, _ := os.ReadDir(s.cacheDir)
 		for _, ds := range datasets {
