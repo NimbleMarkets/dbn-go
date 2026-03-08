@@ -3,9 +3,13 @@
 package file
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/NimbleMarkets/dbn-go"
+	pqfile "github.com/apache/arrow-go/v18/parquet/file"
 )
 
 func TestWriteDbnFileAsParquet_ValidInput(t *testing.T) {
@@ -45,4 +49,82 @@ func TestWriteDbnFileAsParquet_TruncatedInputReturnsError(t *testing.T) {
 	if err := WriteDbnFileAsParquet(src, false, dst); err == nil {
 		t.Fatalf("expected error for truncated input, got nil")
 	}
+}
+
+func TestWriteDbnFileAsParquet_WritesAllRowsForAffectedSchemas(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+	}{
+		{
+			name: "mbp1",
+			src:  filepath.Join("..", "..", "tests", "data", "test_data.mbp-1.v2.dbn.zst"),
+		},
+		{
+			name: "tbbo",
+			src:  filepath.Join("..", "..", "tests", "data", "test_data.tbbo.v2.dbn.zst"),
+		},
+		{
+			name: "imbalance",
+			src:  filepath.Join("..", "..", "tests", "data", "test_data.imbalance.v2.dbn.zst"),
+		},
+		{
+			name: "statistics",
+			src:  filepath.Join("..", "..", "tests", "data", "test_data.statistics.v2.dbn.zst"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wantRows := countDBNRecords(t, tt.src, false)
+			dst := filepath.Join(t.TempDir(), "out.parquet")
+
+			if err := WriteDbnFileAsParquet(tt.src, false, dst); err != nil {
+				t.Fatalf("WriteDbnFileAsParquet(%s) returned error: %v", tt.name, err)
+			}
+
+			gotRows := countParquetRows(t, dst)
+			if gotRows != wantRows {
+				t.Fatalf("parquet row count mismatch for %s: got %d want %d", tt.name, gotRows, wantRows)
+			}
+		})
+	}
+}
+
+func countDBNRecords(t *testing.T, filename string, forceZstd bool) int64 {
+	t.Helper()
+
+	reader, closer, err := dbn.MakeCompressedReader(filename, forceZstd)
+	if err != nil {
+		t.Fatalf("MakeCompressedReader(%q): %v", filename, err)
+	}
+	defer closer.Close()
+
+	scanner := dbn.NewDbnScanner(reader)
+	if _, err := scanner.Metadata(); err != nil {
+		t.Fatalf("Metadata(%q): %v", filename, err)
+	}
+
+	var rows int64
+	for scanner.Next() {
+		rows++
+	}
+
+	if err := scanner.Error(); err != nil && err != io.EOF {
+		t.Fatalf("scanner error for %q: %v", filename, err)
+	}
+
+	return rows
+}
+
+func countParquetRows(t *testing.T, filename string) int64 {
+	t.Helper()
+
+	reader, err := pqfile.OpenParquetFile(filename, false)
+	if err != nil {
+		t.Fatalf("OpenParquetFile(%q): %v", filename, err)
+	}
+	defer reader.Close()
+
+	return reader.NumRows()
 }

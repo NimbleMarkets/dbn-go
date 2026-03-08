@@ -116,7 +116,9 @@ func scanAndWriteParquet(scanner *dbn.DbnScanner, rgw pqfile.BufferedRowGroupWri
 			if r, err := dbn.DbnScannerDecode[dbn.Mbp1Msg](scanner); err != nil {
 				return err
 			} else {
-				return ParquetWriteRow_Mbp1Msg(rgw, r, dbnSymbolMap)
+				if err := ParquetWriteRow_Mbp1Msg(rgw, r, dbnSymbolMap); err != nil {
+					return err
+				}
 			}
 		}
 	case dbn.Schema_Imbalance:
@@ -124,7 +126,9 @@ func scanAndWriteParquet(scanner *dbn.DbnScanner, rgw pqfile.BufferedRowGroupWri
 			if r, err := dbn.DbnScannerDecode[dbn.ImbalanceMsg](scanner); err != nil {
 				return err
 			} else {
-				return ParquetWriteRow_ImbalanceMsg(rgw, r, dbnSymbolMap)
+				if err := ParquetWriteRow_ImbalanceMsg(rgw, r, dbnSymbolMap); err != nil {
+					return err
+				}
 			}
 		}
 	case dbn.Schema_Statistics:
@@ -132,7 +136,9 @@ func scanAndWriteParquet(scanner *dbn.DbnScanner, rgw pqfile.BufferedRowGroupWri
 			if r, err := dbn.DbnScannerDecode[dbn.StatMsg](scanner); err != nil {
 				return err
 			} else {
-				return ParquetWriteRow_StatMsg(rgw, r, dbnSymbolMap)
+				if err := ParquetWriteRow_StatMsg(rgw, r, dbnSymbolMap); err != nil {
+					return err
+				}
 			}
 		}
 	default:
