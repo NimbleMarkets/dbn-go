@@ -245,11 +245,15 @@ func (c *LiveClient) Start() error {
 		c.logger.Info("[LiveClient.Start] sent start_session")
 	}
 
+	if c.bufReader == nil {
+		c.bufReader = bufio.NewReaderSize(c.conn, MAX_STR_LENGTH)
+	}
+
 	// Create a DbnScanner and ensure we get the metadata
 	if c.config.Encoding == dbn.Encoding_Json {
-		c.jsonScanner = dbn.NewJsonScanner(c.conn)
+		c.jsonScanner = dbn.NewJsonScanner(c.bufReader)
 	} else {
-		c.dbnScanner = dbn.NewDbnScanner(c.conn)
+		c.dbnScanner = dbn.NewDbnScanner(c.bufReader)
 		_, err := c.dbnScanner.Metadata()
 		if err != nil {
 			return fmt.Errorf("failed to get metadata: %v", err)

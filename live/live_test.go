@@ -4,8 +4,13 @@ package dbn_live
 
 import (
 	"bufio"
+	"bytes"
+	"io"
 	"net"
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/NimbleMarkets/dbn-go"
 	. "github.com/onsi/ginkgo/v2"
@@ -133,4 +138,147 @@ var _ = Describe("DbnLive", func() {
 			Expect(err.Error()).To(ContainSubstring("failed to authenticate"))
 		})
 	})
+
+	Context("start", func() {
+		It("should preserve buffered DBN bytes after authentication", func() {
+			dbnBytes, err := os.ReadFile(filepath.Join("..", "tests", "data", "test_data.ohlcv-1s.dbn"))
+			Expect(err).To(BeNil())
+
+			conn := &scriptedConn{
+				reads: [][]byte{
+					[]byte("lsg_version=1.0\n"),
+					[]byte("cram=challenge-value\n"),
+					append([]byte("success=1|session_id=sess-42\n"), dbnBytes...),
+				},
+			}
+
+			client := &LiveClient{
+				config: LiveConfig{
+					Dataset:  "GLBX.MDP3",
+					Encoding: dbn.Encoding_Dbn,
+				},
+				conn:      conn,
+				bufReader: bufio.NewReaderSize(conn, MAX_STR_LENGTH),
+			}
+
+			sessionID, err := client.Authenticate("db-89s9vCvwDDKPdQJ5Pb30Fyj9mNUM6")
+			Expect(err).To(BeNil())
+			Expect(sessionID).To(Equal("sess-42"))
+
+			err = client.Start()
+			Expect(err).To(BeNil())
+			Expect(conn.writes.String()).To(ContainSubstring("start_session="))
+
+			scanner := client.GetDbnScanner()
+			Expect(scanner).ToNot(BeNil())
+			Expect(scanner.Next()).To(BeTrue())
+
+			record, err := dbn.DbnScannerDecode[dbn.OhlcvMsg](scanner)
+			Expect(err).To(BeNil())
+			Expect(record.Header.InstrumentID).To(Equal(uint32(5482)))
+		})
+
+		It("should preserve buffered JSON bytes after authentication", func() {
+			jsonBytes, err := os.ReadFile(filepath.Join("..", "tests", "data", "test_data.ohlcv-1s.json"))
+			Expect(err).To(BeNil())
+
+			firstLine, _, ok := bytes.Cut(jsonBytes, []byte{'\n'})
+			Expect(ok).To(BeTrue())
+
+			conn := &scriptedConn{
+				reads: [][]byte{
+					[]byte("lsg_version=1.0\n"),
+					[]byte("cram=challenge-value\n"),
+					append([]byte("success=1|session_id=sess-43\n"), append(firstLine, '\n')...),
+				},
+			}
+
+			client := &LiveClient{
+				config: LiveConfig{
+					Dataset:  "GLBX.MDP3",
+					Encoding: dbn.Encoding_Json,
+				},
+				conn:      conn,
+				bufReader: bufio.NewReaderSize(conn, MAX_STR_LENGTH),
+			}
+
+			sessionID, err := client.Authenticate("db-89s9vCvwDDKPdQJ5Pb30Fyj9mNUM6")
+			Expect(err).To(BeNil())
+			Expect(sessionID).To(Equal("sess-43"))
+
+			err = client.Start()
+			Expect(err).To(BeNil())
+
+			scanner := client.GetJsonScanner()
+			Expect(scanner).ToNot(BeNil())
+			Expect(scanner.Next()).To(BeTrue())
+
+			record, err := dbn.JsonScannerDecode[dbn.OhlcvMsg](scanner)
+			Expect(err).To(BeNil())
+			Expect(record.Header.InstrumentID).To(Equal(uint32(5482)))
+		})
+	})
 })
+
+type scriptedConn struct {
+	reads   [][]byte
+	pending []byte
+	writes  bytes.Buffer
+	closed  bool
+}
+
+func (c *scriptedConn) Read(p []byte) (int, error) {
+	if len(c.pending) == 0 {
+		if len(c.reads) == 0 {
+			return 0, io.EOF
+		}
+		c.pending = c.reads[0]
+		c.reads = c.reads[1:]
+	}
+
+	n := copy(p, c.pending)
+	c.pending = c.pending[n:]
+	return n, nil
+}
+
+func (c *scriptedConn) Write(p []byte) (int, error) {
+	if c.closed {
+		return 0, net.ErrClosed
+	}
+	return c.writes.Write(p)
+}
+
+func (c *scriptedConn) Close() error {
+	c.closed = true
+	return nil
+}
+
+func (c *scriptedConn) LocalAddr() net.Addr {
+	return dummyAddr("local")
+}
+
+func (c *scriptedConn) RemoteAddr() net.Addr {
+	return dummyAddr("remote")
+}
+
+func (c *scriptedConn) SetDeadline(time.Time) error {
+	return nil
+}
+
+func (c *scriptedConn) SetReadDeadline(time.Time) error {
+	return nil
+}
+
+func (c *scriptedConn) SetWriteDeadline(time.Time) error {
+	return nil
+}
+
+type dummyAddr string
+
+func (a dummyAddr) Network() string {
+	return string(a)
+}
+
+func (a dummyAddr) String() string {
+	return string(a)
+}
