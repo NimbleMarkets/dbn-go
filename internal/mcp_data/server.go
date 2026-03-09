@@ -16,13 +16,15 @@ type ServerConfig struct {
 	MaxCost  float64 // Max cost for a query
 	CacheDir string  // Directory for cached data files
 	CacheDB  string  // Path to DuckDB database file (reserved for future use)
+	ReadOnly bool    // When true, fetch_range is disabled (no billing possible)
 }
 
 // Server holds state for MCP data tool handlers.
 // It embeds *mcp_meta.Server for access to MaxCost and Logger.
 type Server struct {
 	*mcp_meta.Server
-	maxCost float64
+	maxCost  float64
+	readOnly bool // When true, fetch_range is not registered
 
 	cacheDir string  // Directory for cached data files
 	cacheDB  string  // Path to DuckDB database file (reserved for future use)
@@ -36,6 +38,7 @@ func NewServer(config ServerConfig, logger *slog.Logger) *Server {
 	return &Server{
 		Server:   mcp_meta.NewServer(config.ApiKey, logger),
 		maxCost:  config.MaxCost,
+		readOnly: config.ReadOnly,
 		cacheDir: config.CacheDir,
 		cacheDB:  config.CacheDB,
 	}

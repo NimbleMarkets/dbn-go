@@ -18,6 +18,7 @@ usage: dbn-go-mcp-data -k <api_key> [opts]
   -c, --max-cost float    Max cost, in dollars, for a query (<=0 is unlimited) (default 1)
       --cache-dir string  Directory for cached data files (default "~/.dbn-go/cache/")
       --cache-db string   Path to DuckDB database file (default "~/.dbn-go/cache.duckdb")
+      --read-only         Disable fetch_range tool (no billing possible)
   -p, --hostport string   host:port to listen to SSE connections (default "127.0.0.1:8889")
       --sse               Use SSE Transport (default is STDIO transport)
   -v, --verbose           Verbose logging
@@ -58,6 +59,16 @@ Supported schemas for `fetch_range`: `ohlcv-1s`, `ohlcv-1m`, `ohlcv-1h`, `ohlcv-
 | `clear_cache` | `dataset`?, `schema`? | Removes cached data, optionally filtered by dataset/schema. |
 
 The recommended workflow for an LLM is: `list_datasets` -> `list_schemas` -> `list_fields` -> `get_cost` -> `fetch_range` -> `query_cache`.
+
+## Read-Only Mode
+
+Use `--read-only` to disable the `fetch_range` tool entirely. In this mode, the server only exposes metadata discovery tools and cache tools — no new data can be fetched and no Databento billing can be incurred. This is useful for environments where you want to query previously cached data without risk of accidental charges.
+
+```bash
+dbn-go-mcp-data --read-only --key-file /path/to/databento_api_key.txt
+```
+
+Metadata tools (`list_datasets`, `get_cost`, etc.) still require an API key and remain fully functional. Cache tools (`query_cache`, `list_cache`, `clear_cache`) work as normal against any previously fetched data.
 
 ## How Caching Works
 

@@ -65,7 +65,7 @@ type Config struct {
 
 	Verbose bool // Verbose logging
 
-	mcp_data.ServerConfig // MCP data config (MaxCost, CacheDir, CacheDB)
+	mcp_data.ServerConfig // MCP data config (MaxCost, CacheDir, CacheDB, ReadOnly)
 
 	// TODO:
 	//   allow/deny lists for schema/dataset
@@ -90,6 +90,7 @@ func main() {
 	pflag.Float64VarP(&config.MaxCost, "max-cost", "c", defaultMaxCost, "Max cost, in dollars, for a query (<=0 is unlimited)")
 	pflag.StringVar(&config.CacheDir, "cache-dir", defaultCacheDir, "Directory for cached data files")
 	pflag.StringVar(&config.CacheDB, "cache-db", defaultCacheDB, "Path to DuckDB database file")
+	pflag.BoolVar(&config.ReadOnly, "read-only", false, "Disable fetch_range tool (no billing possible)")
 	pflag.BoolVarP(&config.UseSSE, "sse", "", false, "Use SSE Transport (default is STDIO transport)")
 	pflag.BoolVarP(&config.Verbose, "verbose", "v", false, "Verbose logging")
 	pflag.BoolVarP(&showHelp, "help", "h", false, "Show help")
@@ -190,6 +191,7 @@ func run() error {
 		MaxCost:  config.MaxCost,
 		CacheDir: config.CacheDir,
 		CacheDB:  config.CacheDB,
+		ReadOnly: config.ReadOnly,
 	}, logger)
 
 	if err := srv.InitCache(); err != nil {
