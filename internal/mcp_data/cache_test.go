@@ -615,3 +615,221 @@ func TestValidateQueryCacheSQL_BlocksExternalReadsAndDDL(t *testing.T) {
 		}
 	}
 }
+
+func TestQueryDuckDB_JSONRows(t *testing.T) {
+	s := testServerWithDB(t)
+	result, err := s.queryDuckDB(
+		"SELECT 1 AS id, 'alice' AS name UNION ALL SELECT 2, 'bob'",
+		queryDuckDBOptions{Format: "json_rows"},
+	)
+	if err != nil {
+		t.Fatalf("queryDuckDB failed: %v", err)
+	}
+
+	var rows []map[string]any
+	if err := json.Unmarshal([]byte(result), &rows); err != nil {
+		t.Fatalf("failed to parse JSON: %v\nraw: %s", err, result)
+	}
+	if len(rows) != 2 {
+		t.Fatalf("expected 2 rows, got %d", len(rows))
+	}
+	if rows[0]["name"] != "alice" {
+		t.Errorf("row 0 name = %v, want alice", rows[0]["name"])
+	}
+}
+
+func TestQueryDuckDB_JSONRows_Empty(t *testing.T) {
+	s := testServerWithDB(t)
+	result, err := s.queryDuckDB(
+		"SELECT 1 AS id WHERE false",
+		queryDuckDBOptions{Format: "json_rows"},
+	)
+	if err != nil {
+		t.Fatalf("queryDuckDB failed: %v", err)
+	}
+	if result != "[]" {
+		t.Errorf("expected empty array, got: %s", result)
+	}
+}
+
+func TestQueryDuckDB_JSONRows_NullValues(t *testing.T) {
+	s := testServerWithDB(t)
+	result, err := s.queryDuckDB(
+		"SELECT 1 AS id, NULL AS val",
+		queryDuckDBOptions{Format: "json_rows"},
+	)
+	if err != nil {
+		t.Fatalf("queryDuckDB failed: %v", err)
+	}
+
+	var rows []map[string]any
+	if err := json.Unmarshal([]byte(result), &rows); err != nil {
+		t.Fatalf("failed to parse JSON: %v", err)
+	}
+	if rows[0]["val"] != nil {
+		t.Errorf("expected null val, got: %v", rows[0]["val"])
+	}
+}
+
+func TestQueryDuckDB_JSONColumnar(t *testing.T) {
+	s := testServerWithDB(t)
+	result, err := s.queryDuckDB(
+		"SELECT 1 AS id, 'alice' AS name UNION ALL SELECT 2, 'bob'",
+		queryDuckDBOptions{Format: "json_columnar"},
+	)
+	if err != nil {
+		t.Fatalf("queryDuckDB failed: %v", err)
+	}
+
+	var cols map[string][]any
+	if err := json.Unmarshal([]byte(result), &cols); err != nil {
+		t.Fatalf("failed to parse JSON: %v\nraw: %s", err, result)
+	}
+	if len(cols) != 2 {
+		t.Fatalf("expected 2 columns, got %d", len(cols))
+	}
+	if len(cols["id"]) != 2 {
+		t.Fatalf("expected 2 values in 'id' column, got %d", len(cols["id"]))
+	}
+	if len(cols["name"]) != 2 {
+		t.Fatalf("expected 2 values in 'name' column, got %d", len(cols["name"]))
+	}
+	if cols["name"][0] != "alice" || cols["name"][1] != "bob" {
+		t.Errorf("name column = %v, want [alice, bob]", cols["name"])
+	}
+}
+
+func TestQueryDuckDB_JSONColumnar_Empty(t *testing.T) {
+	s := testServerWithDB(t)
+	result, err := s.queryDuckDB(
+		"SELECT 1 AS id, 'x' AS name WHERE false",
+		queryDuckDBOptions{Format: "json_columnar"},
+	)
+	if err != nil {
+		t.Fatalf("queryDuckDB failed: %v", err)
+	}
+
+	var cols map[string][]any
+	if err := json.Unmarshal([]byte(result), &cols); err != nil {
+		t.Fatalf("failed to parse JSON: %v\nraw: %s", err, result)
+	}
+	if len(cols["id"]) != 0 {
+		t.Errorf("expected empty id column, got %d values", len(cols["id"]))
+	}
+}
+
+func TestQueryDuckDB_JSONColumnar_PreservesColumnOrder(t *testing.T) {
+	s := testServerWithDB(t)
+	result, err := s.queryDuckDB(
+		"SELECT 'z' AS z_col, 'a' AS a_col, 'm' AS m_col",
+		queryDuckDBOptions{Format: "json_columnar"},
+	)
+	if err != nil {
+		t.Fatalf("queryDuckDB failed: %v", err)
+	}
+
+	zIdx := strings.Index(result, `"z_col"`)
+	aIdx := strings.Index(result, `"a_col"`)
+	mIdx := strings.Index(result, `"m_col"`)
+	if zIdx < 0 || aIdx < 0 || mIdx < 0 {
+		t.Fatalf("missing column keys in output: %s", result)
+	}
+	if !(zIdx < aIdx && aIdx < mIdx) {
+		t.Errorf("column order not preserved: z=%d, a=%d, m=%d\nraw: %s", zIdx, aIdx, mIdx, result)
+	}
+}
+
+func TestQueryDuckDB_MaxRows(t *testing.T) {
+	s := testServerWithDB(t)
+
+	result, err := s.queryDuckDB(
+		"SELECT unnest(range(100)) AS n",
+		queryDuckDBOptions{Format: "json_rows", MaxRows: 5},
+	)
+	if err != nil {
+		t.Fatalf("queryDuckDB failed: %v", err)
+	}
+
+	var rows []map[string]any
+	if err := json.Unmarshal([]byte(result), &rows); err != nil {
+		t.Fatalf("failed to parse JSON: %v", err)
+	}
+	if len(rows) != 5 {
+		t.Errorf("expected 5 rows, got %d", len(rows))
+	}
+}
+
+func TestQueryDuckDB_MaxRows_Zero_UsesDefault(t *testing.T) {
+	s := testServerWithDB(t)
+	_, err := s.queryDuckDB(
+		"SELECT 1 AS val",
+		queryDuckDBOptions{MaxRows: 0},
+	)
+	if err != nil {
+		t.Fatalf("queryDuckDB with MaxRows=0 failed: %v", err)
+	}
+}
+
+func TestQueryDuckDB_MaxRows_CSV(t *testing.T) {
+	s := testServerWithDB(t)
+
+	result, err := s.queryDuckDB(
+		"SELECT unnest(range(100)) AS n",
+		queryDuckDBOptions{Format: "csv", MaxRows: 3},
+	)
+	if err != nil {
+		t.Fatalf("queryDuckDB failed: %v", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(result), "\n")
+	if len(lines) != 4 {
+		t.Errorf("expected 4 lines (header + 3 rows), got %d:\n%s", len(lines), result)
+	}
+}
+
+func TestQueryDuckDB_InvalidFormat(t *testing.T) {
+	s := testServerWithDB(t)
+	_, err := s.queryDuckDB(
+		"SELECT 1 AS val",
+		queryDuckDBOptions{Format: "xml"},
+	)
+	if err == nil {
+		t.Fatal("expected error for unsupported format")
+	}
+	if !strings.Contains(err.Error(), "unsupported format") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestQueryDuckDB_JSONRows_NumericTypes(t *testing.T) {
+	s := testServerWithDB(t)
+	result, err := s.queryDuckDB(
+		"SELECT 42 AS int_val, CAST(3.14 AS DOUBLE) AS float_val, true AS bool_val",
+		queryDuckDBOptions{Format: "json_rows"},
+	)
+	if err != nil {
+		t.Fatalf("queryDuckDB failed: %v", err)
+	}
+
+	var rows []map[string]any
+	if err := json.Unmarshal([]byte(result), &rows); err != nil {
+		t.Fatalf("failed to parse JSON: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("expected 1 row, got %d", len(rows))
+	}
+
+	intVal, ok := rows[0]["int_val"].(float64)
+	if !ok {
+		t.Errorf("int_val should be a number, got %T: %v", rows[0]["int_val"], rows[0]["int_val"])
+	} else if intVal != 42 {
+		t.Errorf("int_val = %v, want 42", intVal)
+	}
+
+	floatVal, ok := rows[0]["float_val"].(float64)
+	if !ok {
+		t.Errorf("float_val should be a number, got %T: %v", rows[0]["float_val"], rows[0]["float_val"])
+	} else if floatVal != 3.14 {
+		t.Errorf("float_val = %v, want 3.14", floatVal)
+	}
+}
