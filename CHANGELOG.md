@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## v0.8.9 (2026-03-13)
+
+  * [MCP enhancements](./cmd/dbn-go-mcp/README.md)
+    * `query_cache` now supports `format` parameter: `csv` (default), `json_rows`, and `json_columnar` output formats
+    * `query_cache` now supports `max_rows` parameter for explicit row limits
+    * Add `--read-only` flag to `dbn-go-mcp-data` to disable `fetch_range` (no billing possible)
+  * fix(mcp): Ensure API key validation in MCP handlers
+  * fix(mcp): Fix schema-only `clear_cache` filtering
+  * fix(mcp): Fix streaming and cache correctness issues
+  * fix(mcp): SQL injection hardening
+  * fix(parquet): Fix parquet writers that only wrote one row
+  * chore(test): Break out integration tests that need `DATABENTO_API_KEY`
+  * fix(ci): Resolve CI and Docker issues
+
 ## v0.8.8 (2026-03-08)
 
   * [MCP enhancements](./cmd/dbn-go-mcp/README.md)
