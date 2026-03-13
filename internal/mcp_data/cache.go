@@ -394,8 +394,14 @@ func (s *Server) refreshViewForSchema(dataset, schema string) {
 	s.db.Exec(fmt.Sprintf(`DROP VIEW IF EXISTS "%s"`, viewName))
 }
 
-// queryDuckDB executes a SQL query against DuckDB and returns results as CSV.
-func (s *Server) queryDuckDB(userSQL string) (string, error) {
+// queryDuckDBOptions controls query execution and output formatting.
+type queryDuckDBOptions struct {
+	Format  string // "csv" (default), "json_rows", "json_columnar"
+	MaxRows int    // 0 = use default limit (10000)
+}
+
+// queryDuckDB executes a SQL query against DuckDB and returns results in the requested format.
+func (s *Server) queryDuckDB(userSQL string, opts queryDuckDBOptions) (string, error) {
 	if s.db == nil {
 		return "", fmt.Errorf("cache not initialized")
 	}
@@ -403,7 +409,11 @@ func (s *Server) queryDuckDB(userSQL string) (string, error) {
 		return "", err
 	}
 
-	wrappedSQL := fmt.Sprintf("SELECT * FROM (%s) LIMIT 10000", userSQL)
+	limit := 10000
+	if opts.MaxRows > 0 {
+		limit = opts.MaxRows
+	}
+	wrappedSQL := fmt.Sprintf("SELECT * FROM (%s) LIMIT %d", userSQL, limit)
 
 	rows, err := s.db.Query(wrappedSQL)
 	if err != nil {
@@ -416,20 +426,73 @@ func (s *Server) queryDuckDB(userSQL string) (string, error) {
 		return "", err
 	}
 
+	format := opts.Format
+	if format == "" {
+		format = "csv"
+	}
+
+	switch format {
+	case "csv":
+		return formatCSV(columns, rows)
+	case "json_rows":
+		return formatJSONRows(columns, rows)
+	case "json_columnar":
+		return formatJSONColumnar(columns, rows)
+	default:
+		return "", fmt.Errorf("unsupported format: %s", format)
+	}
+}
+
+// scanRowValues scans a single row into a []any slice.
+func scanRowValues(rows *sql.Rows, numCols int) ([]any, error) {
+	values := make([]any, numCols)
+	valuePtrs := make([]any, numCols)
+	for i := range values {
+		valuePtrs[i] = &values[i]
+	}
+	if err := rows.Scan(valuePtrs...); err != nil {
+		return nil, err
+	}
+	return values, nil
+}
+
+// formatValue converts a scanned database value to a JSON-appropriate type.
+// Numbers stay as numbers, nil becomes nil, everything else becomes a string.
+func formatValue(val any) any {
+	if val == nil {
+		return nil
+	}
+	switch v := val.(type) {
+	case int64:
+		return v
+	case float64:
+		return v
+	case int32:
+		return int64(v)
+	case float32:
+		return float64(v)
+	case bool:
+		return v
+	case []byte:
+		return string(v)
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
+// formatCSV writes query results as CSV with a header row.
+func formatCSV(columns []string, rows *sql.Rows) (string, error) {
 	var buf strings.Builder
 	w := csv.NewWriter(&buf)
 
 	w.Write(columns)
+	numCols := len(columns)
 	for rows.Next() {
-		values := make([]any, len(columns))
-		valuePtrs := make([]any, len(columns))
-		for i := range values {
-			valuePtrs[i] = &values[i]
-		}
-		if err := rows.Scan(valuePtrs...); err != nil {
+		values, err := scanRowValues(rows, numCols)
+		if err != nil {
 			return "", err
 		}
-		record := make([]string, len(columns))
+		record := make([]string, numCols)
 		for i, val := range values {
 			if val == nil {
 				record[i] = ""
@@ -446,6 +509,73 @@ func (s *Server) queryDuckDB(userSQL string) (string, error) {
 	if err := w.Error(); err != nil {
 		return "", err
 	}
+	return buf.String(), nil
+}
+
+// formatJSONRows writes query results as a JSON array of row objects.
+func formatJSONRows(columns []string, rows *sql.Rows) (string, error) {
+	numCols := len(columns)
+	var result []map[string]any
+
+	for rows.Next() {
+		values, err := scanRowValues(rows, numCols)
+		if err != nil {
+			return "", err
+		}
+		row := make(map[string]any, numCols)
+		for i, col := range columns {
+			row[col] = formatValue(values[i])
+		}
+		result = append(result, row)
+	}
+
+	if result == nil {
+		result = []map[string]any{}
+	}
+
+	data, err := json.Marshal(result)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+// formatJSONColumnar writes query results as a JSON object mapping column names to value arrays.
+func formatJSONColumnar(columns []string, rows *sql.Rows) (string, error) {
+	numCols := len(columns)
+	colData := make([][]any, numCols)
+	for i := range colData {
+		colData[i] = []any{}
+	}
+
+	for rows.Next() {
+		values, err := scanRowValues(rows, numCols)
+		if err != nil {
+			return "", err
+		}
+		for i, val := range values {
+			colData[i] = append(colData[i], formatValue(val))
+		}
+	}
+
+	// Build JSON manually to maintain column order (Go maps don't guarantee order).
+	var buf strings.Builder
+	buf.WriteByte('{')
+	for i, col := range columns {
+		if i > 0 {
+			buf.WriteByte(',')
+		}
+		colKey, _ := json.Marshal(col)
+		colVals, err := json.Marshal(colData[i])
+		if err != nil {
+			return "", err
+		}
+		buf.Write(colKey)
+		buf.WriteByte(':')
+		buf.Write(colVals)
+	}
+	buf.WriteByte('}')
+
 	return buf.String(), nil
 }
 

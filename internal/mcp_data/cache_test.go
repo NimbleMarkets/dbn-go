@@ -564,6 +564,41 @@ SELECT * FROM "GLBX.MDP3/ohlcv-1d"`,
 	}
 }
 
+func testServerWithDB(t *testing.T) *Server {
+	t.Helper()
+	s := testServer(t)
+	if err := s.InitCache(); err != nil {
+		t.Fatalf("InitCache failed: %v", err)
+	}
+	t.Cleanup(func() { s.Close() })
+	return s
+}
+
+func TestQueryDuckDB_CSV_Default(t *testing.T) {
+	s := testServerWithDB(t)
+	result, err := s.queryDuckDB("SELECT 1 AS a, 'hello' AS b", queryDuckDBOptions{})
+	if err != nil {
+		t.Fatalf("queryDuckDB failed: %v", err)
+	}
+	if !strings.Contains(result, "a,b") {
+		t.Errorf("expected CSV header, got: %s", result)
+	}
+	if !strings.Contains(result, "1,hello") {
+		t.Errorf("expected CSV data row, got: %s", result)
+	}
+}
+
+func TestQueryDuckDB_CSV_Explicit(t *testing.T) {
+	s := testServerWithDB(t)
+	result, err := s.queryDuckDB("SELECT 42 AS val", queryDuckDBOptions{Format: "csv"})
+	if err != nil {
+		t.Fatalf("queryDuckDB failed: %v", err)
+	}
+	if !strings.Contains(result, "val") || !strings.Contains(result, "42") {
+		t.Errorf("expected CSV output, got: %s", result)
+	}
+}
+
 func TestValidateQueryCacheSQL_BlocksExternalReadsAndDDL(t *testing.T) {
 	blocked := []string{
 		`SELECT * FROM read_csv_auto('/etc/hosts')`,

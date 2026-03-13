@@ -249,12 +249,18 @@ func (s *Server) queryCacheHandler(ctx context.Context, request mcp.CallToolRequ
 		return mcp.NewToolResultError("sql must be set"), nil
 	}
 
-	result, err := s.queryDuckDB(sqlStr)
+	format := request.GetString("format", "csv")
+	maxRows := request.GetInt("max_rows", 0)
+
+	result, err := s.queryDuckDB(sqlStr, queryDuckDBOptions{
+		Format:  format,
+		MaxRows: maxRows,
+	})
 	if err != nil {
 		return mcp.NewToolResultErrorf("query failed: %s", err), nil
 	}
 
-	s.Logger.Info("query_cache", "sql", sqlStr)
+	s.Logger.Info("query_cache", "sql", sqlStr, "format", format, "max_rows", maxRows)
 	return mcp.NewToolResultText(result), nil
 }
 
