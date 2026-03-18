@@ -94,12 +94,13 @@ func NewAuthenticationResponseMsgFromBytes(b []byte) *AuthenticationResponseMsg 
 // AuthenticationRequestMsg is an authentication request is sent to the gateway after a challenge response is received.
 // This is required to authenticate a user.
 type AuthenticationRequestMsg struct {
-	Auth     string       // key: auth
-	Dataset  string       // key: dataset
-	Encoding dbn.Encoding // key: encoding
-	Details  string       // key: details
-	TsOut    bool         // key: ts_out
-	Client   string       // key: client
+	Auth              string        // key: auth
+	Dataset           string        // key: dataset
+	Encoding          dbn.Encoding  // key: encoding
+	Details           string        // key: details
+	TsOut             bool          // key: ts_out
+	Client            string        // key: client
+	HeartbeatInterval time.Duration // key: heartbeat_interval (in seconds); 0 means use server default
 }
 
 // NewAuthenticationRequestMsg parses a control message and returns a AuthenticationRequestMsg
@@ -117,8 +118,14 @@ func (m *AuthenticationRequestMsg) Encode() []byte {
 	if m.TsOut {
 		tsOutStr = "1"
 	}
-	return fmt.Appendf(nil, "auth=%s|dataset=%s|encoding=%s|ts_out=%s|client=%s\n",
+	b := fmt.Appendf(nil, "auth=%s|dataset=%s|encoding=%s|ts_out=%s|client=%s",
 		m.Auth, m.Dataset, m.Encoding.String(), tsOutStr, m.Client)
+	if m.HeartbeatInterval > 0 {
+		secs := int(m.HeartbeatInterval / time.Second)
+		b = fmt.Appendf(b, "|heartbeat_interval_s=%d", secs)
+	}
+	b = append(b, '\n')
+	return b
 }
 
 // A subscription request is sent to the gateway upon request from the client.
