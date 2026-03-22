@@ -1018,6 +1018,80 @@ func (s *SystemCode) UnmarshalJSON(data []byte) error {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+// SlowReaderBehavior is the behavior when clients lag behind, either "skip" or "warn".
+// See: https://databento.com/docs/api-reference-live/basics/slow-reader-behavior
+type SlowReaderBehavior string
+
+const (
+	/// SystemMsg with system code SlowReaderWarning will be sent to the client.  The session will not skip any records and will attempt to replay every single record in the subscription.
+	SlowReaderBehavior_Warn SlowReaderBehavior = "warn"
+	/// An ErrorMsg with error code SkippedRecordsAfterSlowReading will be sent to the client and the session will skip records until caught up with real-time data.  Default.
+	SlowReaderBehavior_Skip SlowReaderBehavior = "skip"
+)
+
+// Returns the string representation of the SlowReaderBehavior ('skip' or 'warn'), or empty string if unknown.
+func (s SlowReaderBehavior) String() string {
+	switch s {
+	case SlowReaderBehavior_Skip:
+		return "skip"
+	case SlowReaderBehavior_Warn:
+		return "warn"
+	default:
+		return ""
+	}
+}
+
+// SlowReaderBehaviorFromString converts a string to a SlowReaderBehavior.
+// Returns an error if the string is unknown.
+func SlowReaderBehaviorFromString(str string) (SlowReaderBehavior, error) {
+	str = strings.ToLower(str)
+	switch str {
+	case "":
+		// In JSON marshalling, null is turned into the empty string
+		// We accept that as the default of "warn" and don't consider it an error.
+		return SlowReaderBehavior_Warn, nil
+	case "skip":
+		return SlowReaderBehavior_Skip, nil
+	case "warn":
+		return SlowReaderBehavior_Warn, nil
+	default:
+		return SlowReaderBehavior_Warn, fmt.Errorf("unknown SlowReaderBehavior: '%s'", str)
+	}
+}
+
+func (s SlowReaderBehavior) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.String())
+}
+
+func (s *SlowReaderBehavior) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
+	}
+	js, err := SlowReaderBehaviorFromString(str)
+	if err != nil {
+		return err
+	}
+	*s = js
+	return nil
+}
+
+// Type implements pflag.Value.Type.  Returns "dbn.SlowReaderBehavior".
+func (*SlowReaderBehavior) Type() string {
+	return "dbn.SlowReaderBehavior"
+}
+
+// Set implements the flag.Value interface.
+func (s *SlowReaderBehavior) Set(value string) error {
+	srb, err := SlowReaderBehaviorFromString(value)
+	if err == nil {
+		*s = srb
+	}
+	return err
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 // An error code from the live subscription gateway.
 type ErrorCode uint8
 
@@ -1034,6 +1108,8 @@ const (
 	ErrorCode_InvalidSubscription = 5
 	/// An error occurred in the gateway.
 	ErrorCode_InternalError = 6
+	/// A slow client was detected and records were skipped by the gateway to allow catching up.
+	ErrorCode_SkippedRecordsAfterSlowReading = 7
 	/// No error code was specified or this record was upgraded from a version 1 struct where the code field didn't exist.
 	ErrorCode_Unset = 255
 )
@@ -1053,6 +1129,8 @@ func (e ErrorCode) String() string {
 		return "INVALID_SUBSCRIPTION"
 	case ErrorCode_InternalError:
 		return "INTERNAL_ERROR"
+	case ErrorCode_SkippedRecordsAfterSlowReading:
+		return "SKIPPED_RECORDS_AFTER_SLOW_READING"
 	case ErrorCode_Unset:
 		return "UNSET"
 	default:
@@ -1077,6 +1155,8 @@ func ErrorCodeFromString(str string) (ErrorCode, error) {
 		return ErrorCode_InvalidSubscription, nil
 	case "INTERNAL_ERROR":
 		return ErrorCode_InternalError, nil
+	case "SKIPPED_RECORDS_AFTER_SLOW_READING":
+		return ErrorCode_SkippedRecordsAfterSlowReading, nil
 	case "UNSET":
 		return ErrorCode_Unset, nil
 	default:

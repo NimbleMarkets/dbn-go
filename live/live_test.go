@@ -36,6 +36,139 @@ var _ = Describe("DbnLive", func() {
 		})
 	})
 
+	Context("AuthenticationRequestMsg.Encode", func() {
+		It("should encode only required fields and client when all defaults", func() {
+			msg := AuthenticationRequestMsg{
+				Auth:    "my-auth",
+				Dataset: "XNAS.ITCH",
+				Client:  "test-client",
+			}
+			encoded := string(msg.Encode())
+			Expect(encoded).To(Equal("auth=my-auth|dataset=XNAS.ITCH|client=test-client\n"))
+		})
+
+		It("should omit encoding when dbn (default)", func() {
+			msg := AuthenticationRequestMsg{
+				Auth:     "a",
+				Dataset:  "d",
+				Client:   "c",
+				Encoding: dbn.Encoding_Dbn,
+			}
+			Expect(string(msg.Encode())).ToNot(ContainSubstring("encoding="))
+		})
+
+		It("should include encoding when non-default", func() {
+			msg := AuthenticationRequestMsg{
+				Auth:     "a",
+				Dataset:  "d",
+				Client:   "c",
+				Encoding: dbn.Encoding_Json,
+			}
+			Expect(string(msg.Encode())).To(ContainSubstring("|encoding=json"))
+		})
+
+		It("should include compression when non-default", func() {
+			msg := AuthenticationRequestMsg{
+				Auth:        "a",
+				Dataset:     "d",
+				Client:      "c",
+				Compression: dbn.Compress_ZStd,
+			}
+			Expect(string(msg.Encode())).To(ContainSubstring("|compression=zstd"))
+		})
+
+		It("should include boolean flags only when true", func() {
+			msg := AuthenticationRequestMsg{
+				Auth:     "a",
+				Dataset:  "d",
+				Client:   "c",
+				TsOut:    true,
+				PrettyPx: true,
+				PrettyTs: true,
+			}
+			encoded := string(msg.Encode())
+			Expect(encoded).To(ContainSubstring("|ts_out=1"))
+			Expect(encoded).To(ContainSubstring("|pretty_px=1"))
+			Expect(encoded).To(ContainSubstring("|pretty_ts=1"))
+		})
+
+		It("should omit boolean flags when false", func() {
+			msg := AuthenticationRequestMsg{
+				Auth:    "a",
+				Dataset: "d",
+				Client:  "c",
+			}
+			encoded := string(msg.Encode())
+			Expect(encoded).ToNot(ContainSubstring("ts_out"))
+			Expect(encoded).ToNot(ContainSubstring("pretty_px"))
+			Expect(encoded).ToNot(ContainSubstring("pretty_ts"))
+		})
+
+		It("should include heartbeat_interval_s when non-zero", func() {
+			msg := AuthenticationRequestMsg{
+				Auth:               "a",
+				Dataset:            "d",
+				Client:             "c",
+				HeartbeatIntervalS: 10,
+			}
+			Expect(string(msg.Encode())).To(ContainSubstring("|heartbeat_interval_s=10"))
+		})
+
+		It("should omit heartbeat_interval_s when zero", func() {
+			msg := AuthenticationRequestMsg{
+				Auth:    "a",
+				Dataset: "d",
+				Client:  "c",
+			}
+			Expect(string(msg.Encode())).ToNot(ContainSubstring("heartbeat_interval_s"))
+		})
+
+		It("should include slow_reader_behavior when skip (non-default)", func() {
+			msg := AuthenticationRequestMsg{
+				Auth:               "a",
+				Dataset:            "d",
+				Client:             "c",
+				SlowReaderBehavior: dbn.SlowReaderBehavior_Skip,
+			}
+			Expect(string(msg.Encode())).To(ContainSubstring("|slow_reader_behavior=skip"))
+		})
+
+		It("should omit slow_reader_behavior when warn (default)", func() {
+			msg := AuthenticationRequestMsg{
+				Auth:               "a",
+				Dataset:            "d",
+				Client:             "c",
+				SlowReaderBehavior: dbn.SlowReaderBehavior_Warn,
+			}
+			Expect(string(msg.Encode())).ToNot(ContainSubstring("slow_reader_behavior"))
+		})
+
+		It("should encode all non-default fields together", func() {
+			msg := AuthenticationRequestMsg{
+				Auth:               "my-auth",
+				Dataset:            "GLBX.MDP3",
+				Client:             "my-client",
+				Encoding:           dbn.Encoding_Json,
+				Compression:        dbn.Compress_ZStd,
+				TsOut:              true,
+				PrettyPx:           true,
+				PrettyTs:           true,
+				HeartbeatIntervalS: 30,
+				SlowReaderBehavior: dbn.SlowReaderBehavior_Skip,
+			}
+			encoded := string(msg.Encode())
+			Expect(encoded).To(HavePrefix("auth=my-auth|dataset=GLBX.MDP3|client=my-client"))
+			Expect(encoded).To(ContainSubstring("|encoding=json"))
+			Expect(encoded).To(ContainSubstring("|compression=zstd"))
+			Expect(encoded).To(ContainSubstring("|ts_out=1"))
+			Expect(encoded).To(ContainSubstring("|pretty_px=1"))
+			Expect(encoded).To(ContainSubstring("|pretty_ts=1"))
+			Expect(encoded).To(ContainSubstring("|heartbeat_interval_s=30"))
+			Expect(encoded).To(ContainSubstring("|slow_reader_behavior=skip"))
+			Expect(encoded).To(HaveSuffix("\n"))
+		})
+	})
+
 	Context("control messages", func() {
 		It("should not panic on empty input", func() {
 			Expect(func() {
@@ -103,7 +236,6 @@ var _ = Describe("DbnLive", func() {
 
 			line := <-authLine
 			Expect(line).To(ContainSubstring("dataset=XNAS.ITCH"))
-			Expect(line).To(ContainSubstring("encoding=dbn"))
 			Expect(line).To(ContainSubstring("client=dbn-go-live-test"))
 			Expect(line).To(ContainSubstring("auth="))
 
