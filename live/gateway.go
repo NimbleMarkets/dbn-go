@@ -132,7 +132,7 @@ func (m *AuthenticationRequestMsg) Encode() []byte {
 	}
 	if m.Compression != defaultGatewayCompression {
 		if str := m.Compression.String(); str != "" {
-			b = fmt.Appendf(b, "|compressions=%s", str)
+			b = fmt.Appendf(b, "|compression=%s", str)
 		}
 	}
 	if m.TsOut {

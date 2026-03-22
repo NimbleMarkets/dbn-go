@@ -1023,10 +1023,10 @@ func (s *SystemCode) UnmarshalJSON(data []byte) error {
 type SlowReaderBehavior string
 
 const (
-	///  SystemMsg with system code SlowReaderWarning will be sent to the client.  he session will not skip any records and will attempt to replay every single record in the subscription.
-	SlowReaderBehavior_Skip SlowReaderBehavior = "skip"
-	/// An ErrorMsg with error code SkippedRecordsAfterSlowReading will be sent to the client and the session will skip records until caught up with real-time data.  Default.
+	/// SystemMsg with system code SlowReaderWarning will be sent to the client.  The session will not skip any records and will attempt to replay every single record in the subscription.
 	SlowReaderBehavior_Warn SlowReaderBehavior = "warn"
+	/// An ErrorMsg with error code SkippedRecordsAfterSlowReading will be sent to the client and the session will skip records until caught up with real-time data.  Default.
+	SlowReaderBehavior_Skip SlowReaderBehavior = "skip"
 )
 
 // Returns the string representation of the SlowReaderBehavior ('skip' or 'warn'), or empty string if unknown.

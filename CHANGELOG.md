@@ -5,6 +5,7 @@
  * Add support for missing [Authentication Request](https://databento.com/docs/api-reference-live/client-control-messages/authentication-request) fields
    * `compression`, `pretty_px`, `pretty_ts`, `slow_reader_behavior`
    * `heartbeat_interval_s` (#17, thanks @hongzhengwang-ondo)
+   * Only send non-default fields on the wire
 
 ## v0.8.9 (2026-03-13)
 
