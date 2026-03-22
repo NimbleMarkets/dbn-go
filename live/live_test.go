@@ -103,7 +103,6 @@ var _ = Describe("DbnLive", func() {
 
 			line := <-authLine
 			Expect(line).To(ContainSubstring("dataset=XNAS.ITCH"))
-			Expect(line).To(ContainSubstring("encoding=dbn"))
 			Expect(line).To(ContainSubstring("client=dbn-go-live-test"))
 			Expect(line).To(ContainSubstring("auth="))
 

@@ -72,6 +72,7 @@ type LiveConfig struct {
 	Encoding             dbn.Encoding // nil mean Encoding_Dbn
 	SendTsOut            bool
 	HeartbeatInterval    time.Duration // Heartbeat interval; 0 means use server default
+	SlowReaderBehavior   dbn.SlowReaderBehavior
 	VersionUpgradePolicy dbn.VersionUpgradePolicy
 	Verbose              bool
 }
@@ -303,12 +304,13 @@ func (c *LiveClient) Authenticate(apiKey string) (string, error) {
 
 	// Write out the auth request
 	request := AuthenticationRequestMsg{
-		Auth:              auth,
-		Dataset:           c.config.Dataset,
-		Encoding:          c.config.Encoding,
-		TsOut:             c.config.SendTsOut,
-		Client:            c.config.Client,
-		HeartbeatInterval: c.config.HeartbeatInterval,
+		Auth:               auth,
+		Dataset:            c.config.Dataset,
+		Encoding:           c.config.Encoding,
+		TsOut:              c.config.SendTsOut,
+		Client:             c.config.Client,
+		HeartbeatIntervalS: uint32(c.config.HeartbeatInterval.Seconds()),
+		SlowReaderBehavior: c.config.SlowReaderBehavior,
 	}
 	requestBytes := request.Encode()
 	if n, err := c.conn.Write(requestBytes); err != nil {
