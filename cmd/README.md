@@ -63,10 +63,10 @@ Use "dbn-go-file [command] --help" for more information about a command.
 
 ```sh
 ./dbn_to_parquet.py tests/data/test_data.ohlcv-1s.dbn
-parquet-reader tests/data/test_data.ohlcv-1s.dbn.parquet > py.parquet.txt
+parquet cat tests/data/test_data.ohlcv-1s.dbn.parquet > py.parquet.txt
 
 dbn-go-file parquet tests/data/test_data.ohlcv-1s.dbn
-parquet-reader tests/data/test_data.ohlcv-1s.dbn.parquet > go.parquet.txt
+parquet cat tests/data/test_data.ohlcv-1s.dbn.parquet > go.parquet.txt
 
 diff py.parquet.txt go.parquet.txt
 ```

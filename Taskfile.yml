@@ -15,6 +15,12 @@ tasks:
     cmds:
       - task --list-all
 
+  dev-deps:
+    desc: 'Install developer dependencies'
+    platforms: [ darwin ]
+    cmds:
+      - brew install parquet-cli
+
   build:
     desc: 'Build all'
     deps:
