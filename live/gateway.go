@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/NimbleMarkets/dbn-go"
+	"github.com/NimbleMarkets/dbn-go/internal/version"
 )
 
 // Returns a string key/value map from a Databento control message
@@ -113,7 +114,7 @@ type AuthenticationRequestMsg struct {
 func NewAuthenticationRequestMsg() AuthenticationRequestMsg {
 	return AuthenticationRequestMsg{
 		Encoding: dbn.Encoding_Dbn,
-		Client:   "USER_AGENT", // TODO
+		Client:   "dbn-go_" + version.Get(),
 	}
 }
 

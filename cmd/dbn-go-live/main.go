@@ -12,6 +12,7 @@ import (
 	"time"
 
 	dbn "github.com/NimbleMarkets/dbn-go"
+	"github.com/NimbleMarkets/dbn-go/internal/version"
 	dbn_live "github.com/NimbleMarkets/dbn-go/live"
 	"github.com/relvacode/iso8601"
 	"github.com/spf13/pflag"
@@ -39,6 +40,7 @@ func main() {
 	var config Config
 	var startTimeArg string
 	var showHelp bool
+	var showVersion bool
 
 	config.STypeIn = dbn.SType_RawSymbol
 
@@ -52,9 +54,15 @@ func main() {
 	pflag.BoolVarP(&config.Snapshot, "snapshot", "n", false, "Enable snapshot on subscription request")
 	pflag.BoolVarP(&config.Verbose, "verbose", "v", false, "Verbose logging")
 	pflag.BoolVarP(&showHelp, "help", "h", false, "Show help")
+	pflag.BoolVar(&showVersion, "version", false, "Show version")
 	pflag.Parse()
 
 	config.Symbols = pflag.Args()
+
+	if showVersion {
+		fmt.Println(version.String("dbn-go-live"))
+		os.Exit(0)
+	}
 
 	if showHelp {
 		fmt.Fprintf(os.Stdout, "usage: %s -d <dataset> -s <schema> [opts] symbol1 symbol2 ...\n\n", os.Args[0])

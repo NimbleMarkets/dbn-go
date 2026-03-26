@@ -25,6 +25,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/NimbleMarkets/dbn-go/internal/version"
 	"github.com/chromedp/chromedp"
 )
 
@@ -142,14 +143,20 @@ type ExtractedData struct {
 
 func main() {
 	var (
-		outputDir   = flag.String("output", "docs-corpus", "Output directory for documentation corpus")
-		shouldFetch = flag.Bool("fetch", false, "Fetch page content (requires Chrome)")
-		genSitemap  = flag.Bool("generate-sitemap", false, "Generate sitemap from Databento docs (requires Chrome)")
-		delay       = flag.Duration("delay", defaultDelay, "Base delay between requests")
-		verbose     = flag.Bool("v", false, "Verbose logging")
-		noResume    = flag.Bool("no-resume", false, "Don't resume from previous run")
+		outputDir    = flag.String("output", "docs-corpus", "Output directory for documentation corpus")
+		shouldFetch  = flag.Bool("fetch", false, "Fetch page content (requires Chrome)")
+		genSitemap   = flag.Bool("generate-sitemap", false, "Generate sitemap from Databento docs (requires Chrome)")
+		delay        = flag.Duration("delay", defaultDelay, "Base delay between requests")
+		verbose      = flag.Bool("v", false, "Verbose logging")
+		noResume     = flag.Bool("no-resume", false, "Don't resume from previous run")
+		showVersion  = flag.Bool("version", false, "Show version")
 	)
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println(version.String("dbn-go-slurp-docs"))
+		os.Exit(0)
+	}
 
 	// Allow positional argument for output directory
 	if len(flag.Args()) >= 1 {

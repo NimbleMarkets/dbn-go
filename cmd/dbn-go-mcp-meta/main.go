@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/NimbleMarkets/dbn-go/internal/mcp_meta"
+	"github.com/NimbleMarkets/dbn-go/internal/version"
 	mcp_server "github.com/mark3labs/mcp-go/server"
 	"github.com/spf13/pflag"
 )
@@ -67,6 +68,7 @@ var logger *slog.Logger
 
 func main() {
 	var showHelp bool
+	var showVersion bool
 	var apikeyFilename string
 	var logFilename string
 
@@ -78,7 +80,13 @@ func main() {
 	pflag.BoolVarP(&config.UseSSE, "sse", "", false, "Use SSE Transport (default is STDIO transport)")
 	pflag.BoolVarP(&config.Verbose, "verbose", "v", false, "Verbose logging")
 	pflag.BoolVarP(&showHelp, "help", "h", false, "Show help")
+	pflag.BoolVar(&showVersion, "version", false, "Show version")
 	pflag.Parse()
+
+	if showVersion {
+		fmt.Println(version.String("dbn-go-mcp-meta"))
+		os.Exit(0)
+	}
 
 	if showHelp {
 		fmt.Fprintf(os.Stdout, "usage: %s -k <api_key> [opts]\n\n", os.Args[0])

@@ -7,6 +7,7 @@ import (
 	"os"
 
 	dbn_tui "github.com/NimbleMarkets/dbn-go/internal/tui"
+	"github.com/NimbleMarkets/dbn-go/internal/version"
 	"github.com/spf13/pflag"
 )
 
@@ -17,11 +18,18 @@ const defaultMaxActiveDownloads = 4
 func main() {
 	var config dbn_tui.Config
 	var showHelp bool
+	var showVersion bool
 
 	pflag.BoolVarP(&showHelp, "help", "h", false, "Show help")
+	pflag.BoolVar(&showVersion, "version", false, "Show version")
 	pflag.StringVarP(&config.DatabentoApiKey, "key", "k", "", "Databento API key (or set 'DATABENTO_API_KEY' envvar)")
 	pflag.IntVarP(&config.MaxActiveDownloads, "limit", "l", defaultMaxActiveDownloads, "Limit maximum concurrent downloads")
 	pflag.Parse()
+
+	if showVersion {
+		fmt.Println(version.String("dbn-go-tui"))
+		os.Exit(0)
+	}
 
 	if showHelp {
 		fmt.Fprintf(os.Stdout, "usage: %s [options]\n\n", os.Args[0])

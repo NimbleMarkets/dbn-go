@@ -10,6 +10,7 @@ import (
 
 	"github.com/NimbleMarkets/dbn-go"
 	dbn_file "github.com/NimbleMarkets/dbn-go/internal/file"
+	"github.com/NimbleMarkets/dbn-go/internal/version"
 	"github.com/spf13/cobra"
 )
 
@@ -63,9 +64,10 @@ func main() {
 ///////////////////////////////////////////////////////////////////////////////
 
 var rootCmd = &cobra.Command{
-	Use:   "dbn-go-file",
-	Short: "dbn-go-file processes Databento DBN files",
-	Long:  "dbn-go-file processes Databento DBN files",
+	Use:     "dbn-go-file",
+	Short:   "dbn-go-file processes Databento DBN files",
+	Long:    "dbn-go-file processes Databento DBN files",
+	Version: version.Get(),
 }
 
 ///////////////////////////////////////////////////////////////////////////////

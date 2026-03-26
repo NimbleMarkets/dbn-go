@@ -52,6 +52,7 @@ Available Commands:
 Flags:
   -h, --help      help for dbn-go-file
   -v, --verbose   Verbose output
+      --version   version for dbn-go-file
 
 Use "dbn-go-file [command] --help" for more information about a command.
 ```
@@ -135,6 +136,7 @@ Available Commands:
 Flags:
   -h, --help         help for dbn-go-hist
   -k, --key string   Databento API key (or use DATABENT_API_KEY envvar)
+  -v, --version      version for dbn-go-hist
 
 Use "dbn-go-hist [command] --help" for more information about a command.
 ```
@@ -179,7 +181,7 @@ $ dbn-go-hist schemas -d EQUS.MINI --json
 $ dbn-go-live --help
 usage: dbn-go-live -d <dataset> -s <schema> [opts] symbol1 symbol2 ...
 
-  -d, --dataset string          Dataset to subscribe to 
+  -d, --dataset string          Dataset to subscribe to
   -e, --encoding dbn.Encoding   Encoding of the output ('dbn', 'csv', 'json') (default dbn)
   -h, --help                    Show help
   -k, --key string              Databento API key (or set 'DATABENTO_API_KEY' envvar)
@@ -188,6 +190,7 @@ usage: dbn-go-live -d <dataset> -s <schema> [opts] symbol1 symbol2 ...
   -i, --sin dbn.SType           Input SType of the symbols. One of instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms (default raw_symbol)
   -t, --start string            Start time to request as ISO 8601 format (default: now)
   -v, --verbose                 Verbose logging
+      --version                 Show version
 ```
 
 Simple invocation:
@@ -234,6 +237,8 @@ Usage of dbn-go-slurp-docs:
   -output string
         Output directory for documentation corpus (default "docs-databento")
   -v    Verbose logging
+  -version
+        Show version
 ```
 
 ### Usage
@@ -319,6 +324,7 @@ usage: ./bin/dbn-go-tui [options]
   -h, --help         Show help
   -k, --key string   Databento API key (or set 'DATABENTO_API_KEY' envvar)
   -l, --limit int    Limit maximum concurrent downloads (default 4)
+      --version      Show version
   
 $ dbn-go-tui
 ```

@@ -18,6 +18,7 @@ import (
 	dbn_hist "github.com/NimbleMarkets/dbn-go/hist"
 	dbn_file "github.com/NimbleMarkets/dbn-go/internal/file"
 	dbn_tui "github.com/NimbleMarkets/dbn-go/internal/tui"
+	"github.com/NimbleMarkets/dbn-go/internal/version"
 	"github.com/charmbracelet/huh"
 	"github.com/dustin/go-humanize"
 	"github.com/relvacode/iso8601"
@@ -333,9 +334,10 @@ func main() {
 ///////////////////////////////////////////////////////////////////////////////
 
 var rootCmd = &cobra.Command{
-	Use:   "dbn-go-hist",
-	Short: "dbn-go-hist queries the Databento Historical API.",
-	Long:  "dbn-go-hist queries the Databento Historical API.",
+	Use:     "dbn-go-hist",
+	Short:   "dbn-go-hist queries the Databento Historical API.",
+	Long:    "dbn-go-hist queries the Databento Historical API.",
+	Version: version.Get(),
 }
 
 var listDatasetsCmd = &cobra.Command{
