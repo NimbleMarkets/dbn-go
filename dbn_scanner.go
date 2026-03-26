@@ -178,7 +178,7 @@ func (s *DbnScanner) DecodeSymbolMappingMsg() (*SymbolMappingMsg, error) {
 		return nil, unexpectedRTypeError(rtype, rp.RType())
 	}
 
-	err := rp.Fill_Raw(s.lastRecord[0:s.lastSize], s.metadata.SymbolCstrLen)
+	err := SymbolMappingMsgFillRaw(rp, s.lastRecord[0:s.lastSize], s.metadata.SymbolCstrLen)
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +268,7 @@ func (s *DbnScanner) Visit(visitor Visitor) error {
 			return ErrNoMetadata
 		}
 		record := SymbolMappingMsg{}
-		if err := record.Fill_Raw(s.lastRecord[:s.lastSize], s.metadata.SymbolCstrLen); err != nil {
+		if err := SymbolMappingMsgFillRaw(&record, s.lastRecord[:s.lastSize], s.metadata.SymbolCstrLen); err != nil {
 			return err // TODO: OnError()
 		} else {
 			return visitor.OnSymbolMappingMsg(&record)

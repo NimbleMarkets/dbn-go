@@ -25,3 +25,7 @@ func unexpectedBytesError(got int, want int) error {
 func unexpectedRTypeError(got RType, want RType) error {
 	return fmt.Errorf("expected RType %d , got %d", want, got)
 }
+
+func unexpectedCStrLenError(got uint16) error {
+	return fmt.Errorf("expected CStrLen of %d bytes", got)
+}
