@@ -14,12 +14,12 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/huh/v2"
 	"github.com/NimbleMarkets/dbn-go"
 	dbn_hist "github.com/NimbleMarkets/dbn-go/hist"
 	dbn_file "github.com/NimbleMarkets/dbn-go/internal/file"
 	dbn_tui "github.com/NimbleMarkets/dbn-go/internal/tui"
 	"github.com/NimbleMarkets/dbn-go/internal/version"
-	"github.com/charmbracelet/huh"
 	"github.com/dustin/go-humanize"
 	"github.com/relvacode/iso8601"
 	"github.com/segmentio/encoding/json"

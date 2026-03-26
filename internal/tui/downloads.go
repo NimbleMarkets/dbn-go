@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/progress"
+	"charm.land/bubbles/v2/table"
 	dbn_hist "github.com/NimbleMarkets/dbn-go/hist"
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/progress"
-	"github.com/charmbracelet/bubbles/table"
 	"github.com/dustin/go-humanize"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 type QueueDownloadMsg struct {
@@ -82,7 +82,7 @@ func NewDownloadsPage(config Config) DownloadsPageModel {
 		table.WithFocused(true))
 
 	progressBar := progress.New(
-		progress.WithGradient(rgbaNimbleLightPurple, rgbaNimbleGrue),
+		progress.WithColors(colorDarkPurple, colorGrue),
 		progress.WithWidth(20))
 
 	m := DownloadsPageModel{
@@ -183,7 +183,7 @@ func (m DownloadsPageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View renders the DownloadsPageModel's view.
-func (m DownloadsPageModel) View() string {
+func (m DownloadsPageModel) View() tea.View {
 	viewStr := nimbleBorderStyle.Render(m.downloadsTable.View()) + "\n"
 	if m.lastError != nil {
 		viewStr += fmt.Sprintf("Error: %s ", m.lastError)
@@ -196,7 +196,7 @@ func (m DownloadsPageModel) View() string {
 		Render(fmt.Sprintf(countsReportFormat, past, (past + queued + active), active))
 
 	viewStr += lipgloss.JoinHorizontal(lipgloss.Top, helpStr, countsStr)
-	return viewStr
+	return tea.NewView(viewStr)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -212,7 +212,7 @@ func (m *DownloadsPageModel) updateSizes() {
 	if m.lastError != nil {
 		availWidth -= lipgloss.Width(fmt.Sprintf("Error: %s ", m.lastError))
 	}
-	m.help.Width = availWidth
+	m.help.SetWidth(availWidth)
 }
 
 // renderProgressBar renders a string progress bar with a given [0, 1] times width

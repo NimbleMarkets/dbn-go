@@ -5,10 +5,10 @@ package tui
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 type Config struct {
@@ -18,7 +18,7 @@ type Config struct {
 
 func Run(config Config) error {
 	model := NewAppModel(config)
-	p := tea.NewProgram(model, tea.WithAltScreen())
+	p := tea.NewProgram(model)
 	_, err := p.Run()
 	return err
 }
@@ -66,14 +66,14 @@ func NewAppModel(config Config) AppModel {
 			Foreground(colorYellow).
 			Background(colorDarkPurple),
 		footerStyle: lipgloss.NewStyle().
-			Foreground(lipgloss.Color(colorYellow)).
-			Background(lipgloss.Color(colorDarkPurple)),
+			Foreground(colorYellow).
+			Background(colorDarkPurple),
 		inactiveTabStyle: lipgloss.NewStyle().
-			Foreground(lipgloss.Color(colorYellow)).
-			Background(lipgloss.Color(colorDarkPurple)),
+			Foreground(colorYellow).
+			Background(colorDarkPurple),
 		activeTabStyle: lipgloss.NewStyle().
-			Foreground(lipgloss.Color(colorYellow)).
-			Background(lipgloss.Color(colorGrue)),
+			Foreground(colorYellow).
+			Background(colorGrue),
 	}
 	return m
 }
@@ -193,15 +193,18 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View renders the AppModels's view.
-func (m AppModel) View() string {
+func (m AppModel) View() tea.View {
 	viewStr := m.headerView() + "\n"
 	if m.currentPage < 0 || m.currentPage >= len(m.pages) {
 		viewStr += "Error: bad page\n"
 	} else {
-		viewStr += m.pages[m.currentPage].View() + "\n"
+		viewStr += m.pages[m.currentPage].View().Content + "\n"
 	}
 	viewStr += m.footerView()
-	return viewStr
+
+	view := tea.NewView(viewStr)
+	view.AltScreen = true
+	return view
 }
 
 ///////////////////////////////////////////////////////////////////////////////

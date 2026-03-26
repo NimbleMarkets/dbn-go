@@ -5,10 +5,10 @@ package tui
 import (
 	"fmt"
 
+	"charm.land/bubbles/v2/table"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	dbn_hist "github.com/NimbleMarkets/dbn-go/hist"
-	"github.com/charmbracelet/bubbles/table"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // Datasets page
@@ -135,18 +135,18 @@ func (m *DatasetsPageModel) onDatasetSelection() tea.Cmd {
 }
 
 // View renders the DatasetsPageModel's view.
-func (m DatasetsPageModel) View() string {
+func (m DatasetsPageModel) View() tea.View {
 	if m.lastError != nil {
-		return fmt.Sprintf("Error: %s", m.lastError.Error())
+		return tea.NewView(fmt.Sprintf("Error: %s", m.lastError.Error()))
 	}
 
 	datasetPane := nimbleBorderStyle.Render(m.datasetTable.View())
 	schemaPane := nimbleBorderStyle.Render(m.schemasTable.View())
 
-	return lipgloss.JoinHorizontal(lipgloss.Top,
+	return tea.NewView(lipgloss.JoinHorizontal(lipgloss.Top,
 		datasetPane,
 		schemaPane,
-	)
+	))
 }
 
 //////////////////////////////////////////////////////////////////////////////

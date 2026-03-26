@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.9.0 (unreleased)
+
+ * tui: Upgrade BubbleTea v2
+ 
 ## v0.8.10 (2026-03-22)
 
  * Add support for missing [Authentication Request](https://databento.com/docs/api-reference-live/client-control-messages/authentication-request) fields

@@ -3,9 +3,9 @@
 package tui
 
 import (
+	"charm.land/bubbles/v2/table"
+	"charm.land/lipgloss/v2"
 	stickersTable "github.com/76creates/stickers/table"
-	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/lipgloss"
 )
 
 var (

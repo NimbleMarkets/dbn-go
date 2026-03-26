@@ -139,7 +139,40 @@ func (dm *DownloadManager) CancelDownload(jobID string, file dbn_hist.BatchFileD
 	if httpsUrl == "" {
 		return false // we only support https
 	}
-	// TODO
+
+	desc := DownloadDesc{
+		JobID:    jobID,
+		Url:      httpsUrl,
+		Filename: file.Filename,
+		FileHash: file.Hash,
+		Size:     file.Size,
+	}
+
+	dm.queueMtx.Lock()
+	defer dm.queueMtx.Unlock()
+
+	// Try to find and cancel active download
+	for i, download := range dm.activeDownloads {
+		if download.Desc == desc {
+			if download.ContextCancel != nil {
+				download.ContextCancel()
+			}
+			// Move from active to past with failed state
+			download.State = DownloadFailed
+			dm.activeDownloads = slices.Delete(dm.activeDownloads, i, i+1)
+			dm.pastDownloads = append(dm.pastDownloads, download)
+			return true
+		}
+	}
+
+	// Try to remove from queue if still queued
+	for i, download := range dm.queuedDownloads {
+		if download.Desc == desc {
+			dm.queuedDownloads = slices.Delete(dm.queuedDownloads, i, i+1)
+			return true
+		}
+	}
+
 	return false
 }
 
@@ -147,7 +180,14 @@ func (dm *DownloadManager) CancelDownload(jobID string, file dbn_hist.BatchFileD
 func (dm *DownloadManager) Close() {
 	dm.queueTicker.Stop()
 	dm.queueExitCh <- 0
-	// TODO cancel all active contexts
+	// Cancel all active download contexts
+	dm.queueMtx.Lock()
+	for _, download := range dm.activeDownloads {
+		if download.ContextCancel != nil {
+			download.ContextCancel()
+		}
+	}
+	dm.queueMtx.Unlock()
 }
 
 // enqueueDownload adds a download item to the queue.  Returns true if added or false if duplicate.
@@ -281,8 +321,17 @@ func (dm *DownloadManager) performDownload(item DownloadItem) error {
 		return err
 	}
 
-	//ctx, _ := context.WithCancel(context.Background()) // TODO: use cancelFunc
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Store the cancel function in the item so it can be cancelled later
+	dm.queueMtx.Lock()
+	for i := range dm.activeDownloads {
+		if dm.activeDownloads[i].Desc == item.Desc {
+			dm.activeDownloads[i].ContextCancel = cancel
+			break
+		}
+	}
+	dm.queueMtx.Unlock()
 	req, err := retryablehttp.NewRequestWithContext(ctx, "GET", apiUrl.String(), nil)
 	if err != nil {
 		return err

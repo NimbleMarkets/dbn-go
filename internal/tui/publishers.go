@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"strconv"
 
+	"charm.land/bubbles/v2/table"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	dbn_hist "github.com/NimbleMarkets/dbn-go/hist"
-	"github.com/charmbracelet/bubbles/table"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // Publishers page
@@ -85,7 +85,7 @@ func (m PublishersPageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View renders the PublishersPageModel's view.
-func (m PublishersPageModel) View() string {
+func (m PublishersPageModel) View() tea.View {
 	var pane string
 	if m.lastError == nil {
 		pane = m.table.View()
@@ -94,7 +94,7 @@ func (m PublishersPageModel) View() string {
 			fmt.Sprintf("Error: %s", m.lastError.Error()))
 	}
 
-	return nimbleBorderStyle.Render(pane)
+	return tea.NewView(nimbleBorderStyle.Render(pane))
 }
 
 //////////////////////////////////////////////////////////////////////////////

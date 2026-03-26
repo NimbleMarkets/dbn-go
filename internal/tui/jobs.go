@@ -7,12 +7,12 @@ import (
 	"slices"
 	"time"
 
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/table"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	dbn_hist "github.com/NimbleMarkets/dbn-go/hist"
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/table"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/dustin/go-humanize"
 )
 
@@ -293,7 +293,7 @@ func (m JobsPageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View renders the JobsPageModel's view.
-func (m JobsPageModel) View() string {
+func (m JobsPageModel) View() tea.View {
 	var jobsPane, filesPane, detailPane string
 
 	if m.lastJobsError == nil {
@@ -343,7 +343,7 @@ func (m JobsPageModel) View() string {
 	viewStr += "\n" + helpView
 	viewStr += lipgloss.NewStyle().Width(m.width - lipgloss.Width(helpView)).Align(lipgloss.Right).
 		Render(" " + m.statusLine)
-	return viewStr
+	return tea.NewView(viewStr)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -397,7 +397,7 @@ func (m *JobsPageModel) updateWidths() {
 		availbleWidth = maxInt(1, availbleWidth-tableDetailsWidth) - 2 // -2 for details border
 	}
 
-	m.help.Width = m.width
+	m.help.SetWidth(m.width)
 	m.jobsTable.SetWidth(availbleWidth)
 
 	m.filesTable.SetWidth(availbleWidth)
