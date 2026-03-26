@@ -17,6 +17,7 @@ tasks:
 
   dev-deps:
     desc: 'Install developer dependencies'
+    deps: [ go-lint:deps ]
     platforms: [ darwin ]
     cmds:
       - brew install parquet-cli
@@ -81,6 +82,25 @@ tasks:
     desc: 'Update Go dependencies'
     cmds:
       - go get -u ./...
+
+  go-lint:
+    desc: Run golangci-lint with errcheck
+    cmds:
+      - golangci-lint run --enable=errcheck --timeout=5m
+
+  go-lint:strict:
+    desc: Run golangci-lint and errcheck (strict mode)
+    deps: [go-lint]
+    cmds:
+      - |
+        echo "Running errcheck (blank assignments and ignored asserts)..."
+        errcheck -blank -asserts ./...
+
+  go-lint:deps:
+    desc: Install linting tools
+    cmds:
+      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+      - go install github.com/kisielk/errcheck@latest
 
   go-build:
     desc: 'Build Go binaries'
