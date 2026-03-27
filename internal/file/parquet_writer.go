@@ -641,7 +641,7 @@ func ParquetGroupNode_StatMsg() *pqschema.GroupNode {
 		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("publisher_id", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(16, false), parquet.Types.Int32, 0, -1)),
 		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("instrument_id", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(32, false), parquet.Types.Int32, 0, -1)),
 		pqschema.NewFloat64Node("price", parquet.Repetitions.Optional, -1),
-		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("quantity", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(32, true), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("quantity", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(64, true), parquet.Types.Int64, 0, -1)),
 		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("sequence", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(16, false), parquet.Types.Int32, 0, -1)),
 		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("stat_type", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(16, false), parquet.Types.Int32, 0, -1)),
 		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("channel_id", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(16, false), parquet.Types.Int32, 0, -1)),
@@ -670,7 +670,7 @@ func ParquetWriteRow_StatMsg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Stat
 	if err := writeFloat64Column(rgw, 4, dbn.Fixed9ToFloat64(record.Price)); err != nil {
 		return err
 	}
-	if err := writeInt32Column(rgw, 5, int32(record.Quantity)); err != nil {
+	if err := writeInt64Column(rgw, 5, record.Quantity); err != nil {
 		return err
 	}
 	if err := writeInt32Column(rgw, 6, int32(record.Sequence)); err != nil {

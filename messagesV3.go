@@ -74,7 +74,7 @@ func (r *StatMsgV3) Fill_Json(val *fastjson.Value, header *RHeader) error {
 	r.TsRecv = fastjson_GetUint64FromString(val, "ts_recv")
 	r.TsRef = fastjson_GetUint64FromString(val, "ts_ref")
 	r.Price = fastjson_GetInt64FromString(val, "price")
-	r.Quantity = fastjson_GetInt64FromString(val, "quantity")
+	r.Quantity = fastjson_GetInt64Tolerant(val, "quantity") // V2=number, V3=quoted string
 	r.Sequence = uint32(val.GetUint("sequence"))
 	r.TsInDelta = int32(val.GetUint("ts_in_delta"))
 	r.StatType = uint16(val.GetUint("stat_type"))
@@ -266,7 +266,7 @@ func (r *InstrumentDefMsgV3) Fill_Json(val *fastjson.Value, header *RHeader) err
 	r.MinPriceIncrementAmount = fastjson_GetInt64FromString(val, "min_price_increment_amount")
 	r.PriceRatio = fastjson_GetInt64FromString(val, "price_ratio")
 	r.StrikePrice = fastjson_GetInt64FromString(val, "strike_price")
-	r.RawInstrumentID = fastjson_GetUint64FromString(val, "raw_instrument_id")
+	r.RawInstrumentID = fastjson_GetUint64Tolerant(val, "raw_instrument_id") // V2=number, V3=quoted string
 	r.LegPrice = fastjson_GetInt64FromString(val, "leg_price")
 	r.LegDelta = fastjson_GetInt64FromString(val, "leg_delta")
 	r.InstAttribValue = int32(val.GetInt("inst_attrib_value"))

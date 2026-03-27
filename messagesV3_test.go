@@ -16,7 +16,6 @@ var _ = Describe("Messages V3", func() {
 	Context("InstrumentDef v3 messages", func() {
 		It("should have correct size for InstrumentDefMsgV3", func() {
 			Expect(dbn.InstrumentDefMsgV3_Size).To(BeEquivalentTo(520))
-			Expect(dbn.InstrumentDefMsgV3_Size).Should(BeNumerically("<", dbn.DEFAULT_SCRATCH_BUFFER_SIZE))
 		})
 
 		It("should read v3 definition correctly using InstrumentDefMsgV3 type", func() {

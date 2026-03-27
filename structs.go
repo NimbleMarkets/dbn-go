@@ -53,6 +53,30 @@ func fastjson_GetUint64FromString(val *fastjson.Value, key string) uint64 {
 	return fastfloat.ParseUint64BestEffort(string(val.GetStringBytes(key)))
 }
 
+// Decodes a fastjson.Value as int64, tolerant of both quoted strings (V3) and bare numbers (V2).
+func fastjson_GetInt64Tolerant(val *fastjson.Value, key string) int64 {
+	v := val.Get(key)
+	if v == nil {
+		return 0
+	}
+	if v.Type() == fastjson.TypeString {
+		return fastfloat.ParseInt64BestEffort(string(v.GetStringBytes()))
+	}
+	return v.GetInt64()
+}
+
+// Decodes a fastjson.Value as uint64, tolerant of both quoted strings (V3) and bare numbers (V2).
+func fastjson_GetUint64Tolerant(val *fastjson.Value, key string) uint64 {
+	v := val.Get(key)
+	if v == nil {
+		return 0
+	}
+	if v.Type() == fastjson.TypeString {
+		return fastfloat.ParseUint64BestEffort(string(v.GetStringBytes()))
+	}
+	return v.GetUint64()
+}
+
 func (rtype RType) IsCompatibleWith(rtype2 RType) bool {
 	// If they are equal, they are compatible
 	if rtype == rtype2 {
