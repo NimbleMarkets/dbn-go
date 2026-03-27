@@ -282,7 +282,7 @@ func (r *InstrumentDefMsgV3) Fill_Json(val *fastjson.Value, header *RHeader) err
 	r.ContractMultiplier = int32(val.GetInt("contract_multiplier"))
 	r.DecayQuantity = int32(val.GetInt("decay_quantity"))
 	r.OriginalContractSize = int32(val.GetInt("original_contract_size"))
-	r.LegInstrumentID = uint32(val.GetUint("leg_rnstrument_id"))
+	r.LegInstrumentID = uint32(val.GetUint("leg_instrument_id"))
 	r.LegRatioPriceNumerator = int32(val.GetInt("leg_ratio_price_numerator"))
 	r.LegRatioPriceDenominator = int32(val.GetInt("leg_ratio_price_denominator"))
 	r.LegRatioQtyNumerator = int32(val.GetInt("leg_ratio_qty_numerator"))
