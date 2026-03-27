@@ -10,8 +10,8 @@ import (
 ///////////////////////////////////////////////////////////////////////////////
 
 // Default buffer size for decoding
-const DEFAULT_DECODE_BUFFER_SIZE = 16 * 1024
-const DEFAULT_SCRATCH_BUFFER_SIZE = 512 // bigger than largest record size
+const DEFAULT_DECODE_BUFFER_SIZE = 64 * 1024
+const DEFAULT_SCRATCH_BUFFER_SIZE = 1024 // bigger than largest record size
 
 // DbnScanner scans a raw DBN stream
 type DbnScanner struct {

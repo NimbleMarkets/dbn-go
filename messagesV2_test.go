@@ -37,7 +37,7 @@ var _ = Describe("Messages V2", func() {
 		})
 	})
 
-	Context("Stat v2 messages", func() {
+	Context("Stats v2 messages", func() {
 		It("should read v2 statistics correctly using StatMsgV2 type", func() {
 			file, closer, err := dbn.MakeCompressedReader("./tests/data/test_data.statistics.v2.dbn.zst", false)
 			Expect(err).To(BeNil())
@@ -46,7 +46,7 @@ var _ = Describe("Messages V2", func() {
 			records, metadata, err := dbn.ReadDBNToSlice[dbn.StatMsgV2](file)
 			Expect(err).To(BeNil())
 			Expect(metadata).ToNot(BeNil())
-			Expect(metadata.VersionNum).To(Equal(uint8(2)))
+			Expect(metadata.VersionNum).To(Equal(uint8(dbn.HeaderVersion2)))
 			Expect(len(records)).To(Equal(2))
 
 			// dbn -J ./tests/data/test_data.statistics.v2.dbn.zst
@@ -99,7 +99,7 @@ var _ = Describe("Messages V2", func() {
 			records, metadata, err := dbn.ReadDBNToSlice[dbn.InstrumentDefMsgV2](file)
 			Expect(err).To(BeNil())
 			Expect(metadata).ToNot(BeNil())
-			Expect(metadata.VersionNum).To(Equal(uint8(2)))
+			Expect(metadata.VersionNum).To(Equal(uint8(dbn.HeaderVersion2)))
 			Expect(len(records)).To(Equal(2))
 
 			// dbn -J ./tests/data/test_data.definition.dbn
@@ -146,7 +146,7 @@ var _ = Describe("Messages V2", func() {
 			Expect(string(r0.RawSymbol[:])).To(Equal("MSFT" + strings.Repeat("\x00", dbn.MetadataV2_SymbolCstrLen-len("MSFT"))))
 			Expect(string(r0.Group[:])).To(Equal("pxnas-1" + strings.Repeat("\x00", 21-len("pxnas-1"))))
 			Expect(string(r0.Exchange[:])).To(Equal("XNAS" + strings.Repeat("\x00", 5-len("XNAS"))))
-			Expect(string(r0.Asset[:])).To(Equal(strings.Repeat("\x00", 7)))
+			Expect(string(r0.Asset[:])).To(Equal(strings.Repeat("\x00", dbn.MetadataV2_AssetCStrLen)))
 			Expect(string(r0.Cfi[:])).To(Equal(strings.Repeat("\x00", 7)))
 			Expect(string(r0.SecurityType[:])).To(Equal(strings.Repeat("\x00", 7)))
 			Expect(string(r0.UnitOfMeasure[:])).To(Equal(strings.Repeat("\x00", 31)))

@@ -152,7 +152,8 @@ We include [some tools](./cmd/README.md) to make our lives easier. [Installation
  * [`dbn-go-file`](./cmd/README.md#dbn-go-file): a CLI to process DBN files
  * [`dbn-go-hist`](./cmd/README.md#dbn-go-hist): a CLI to use the Historical API
  * [`dbn-go-live`](./cmd/README.md#dbn-go-live): a simple Live API feed handler
- * [`dbn-go-mcp`](./cmd/README.md#dbn-go-mcp): a LLM Model Context Protocol (MCP) server
+ * [`dbn-go-mcp-meta`](./cmd/README.md#dbn-go-mcp-meta): Metadata-only MCP server (no billing risk)
+ * [`dbn-go-mcp-data`](./cmd/README.md#dbn-go-mcp-data): Database-Backed Data Ingestion MCP server
  * [`dbn-go-slurp-docs`](./cmd/README.md#dbn-go-slurp-docs): a tool to scrape Databento docs for offline use
  * [`dbn-go-tui`](./cmd/README.md#dbn-go-tui): a TUI for your Databento account
 
@@ -170,7 +171,7 @@ Released under the [Apache License, version 2.0](https://www.apache.org/licenses
 
 Portions adapted from [`databento/dbn`](https://github.com/databento/dbn) [`databendo/databento-rs`](https://github.com/databento/databento-rs) under the same Apache license.
 
-Copyright (c) 2024-2025 [Neomantra Corp](https://www.neomantra.com).   
+Copyright (c) 2024-2026 [Neomantra Corp](https://www.neomantra.com).   
 
 ----
 Made with :heart: and :fire: by the team behind [Nimble.Markets](https://nimble.markets).

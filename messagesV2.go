@@ -12,6 +12,7 @@ package dbn
 
 import (
 	"encoding/binary"
+	"math"
 
 	"github.com/valyala/fastjson"
 )
@@ -94,6 +95,8 @@ type StatMsgV2 struct {
 }
 
 const StatMsgV2_Size = RHeader_Size + 48
+
+const StatMsgV2_UNDEF_STAT_QUANTITY = math.MaxInt32
 
 func (*StatMsgV2) RType() RType {
 	return RType_Statistics
@@ -183,7 +186,7 @@ type InstrumentDefMsgV2 struct {
 	RawSymbol               [MetadataV2_SymbolCstrLen]byte `json:"raw_symbol" csv:"raw_symbol"`                                 // The instrument raw symbol assigned by the publisher.
 	Group                   [21]byte                       `json:"group" csv:"group"`                                           // The security group code of the instrument.
 	Exchange                [5]byte                        `json:"exchange" csv:"exchange"`                                     // The exchange used to identify the instrument.
-	Asset                   [7]byte                        `json:"asset" csv:"asset"`                                           // The underlying asset code (product code) of the instrument.
+	Asset                   [MetadataV2_AssetCStrLen]byte  `json:"asset" csv:"asset"`                                           // The underlying asset code (product code) of the instrument.
 	Cfi                     [7]byte                        `json:"cfi" csv:"cfi"`                                               // The ISO standard instrument categorization code.
 	SecurityType            [7]byte                        `json:"security_type" csv:"security_type"`                           // The [Security type](https://databento.com/docs/schemas-and-data-formats/instrument-definitions#security-type) of the instrument, e.g. FUT for future or future spread.
 	UnitOfMeasure           [31]byte                       `json:"unit_of_measure" csv:"unit_of_measure"`                       // The unit of measure for the instrument's original contract size, e.g. USD or LBS.
@@ -265,7 +268,7 @@ func (r *InstrumentDefMsgV2) Fill_Raw(b []byte) error {
 	copy(r.RawSymbol[:], body[184:184+MetadataV2_SymbolCstrLen])
 	copy(r.Group[:], body[255:276])
 	copy(r.Exchange[:], body[276:281])
-	copy(r.Asset[:], body[281:288])
+	copy(r.Asset[:], body[281:281+MetadataV2_AssetCStrLen])
 	copy(r.Cfi[:], body[288:295])
 	copy(r.SecurityType[:], body[295:302])
 	copy(r.UnitOfMeasure[:], body[302:333])

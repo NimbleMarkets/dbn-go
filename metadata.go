@@ -10,18 +10,35 @@ import (
 )
 
 const (
-	HeaderVersion1            = 1
-	HeaderVersion2            = 2
-	MetadataV1_SymbolCstrLen  = 22
-	MetadataV1_ReservedLen    = 47
-	MetadataV2_SymbolCstrLen  = 71
-	MetadataV2_ReservedLen    = 53
-	Metadata_DatasetCstrLen   = 16
-	Metadata_PrefixSize       = 8
-	MetadataHeaderV1_Size     = 100 // Size of the fixed-size portion of Metadata v1, without Prefix
-	MetadataHeaderV2_Size     = 100 // Size of the fixed-size portion of Metadata v2, without Prefix
-	MetadataHeaderV1_SizeFuzz = 12  // Difference between actual layout size and Golang struct
-	MetadataHeaderV2_SizeFuzz = 12  // Difference between actual layout size and Golang struct
+	HeaderVersion1 = 1
+	HeaderVersion2 = 2
+	HeaderVersion3 = 3
+
+	// Symbol Lengths
+	MetadataV1_SymbolCstrLen = 22
+	MetadataV2_SymbolCstrLen = 71
+	MetadataV3_SymbolCstrLen = MetadataV2_SymbolCstrLen
+
+	// Reserved Lengths
+	MetadataV1_ReservedLen = 47
+	MetadataV2_ReservedLen = 53
+	MetadataV3_ReservedLen = MetadataV2_ReservedLen
+
+	// Asset field lengths (InstrumentDefMsg)
+	MetadataV1_AssetCStrLen = 7
+	MetadataV2_AssetCStrLen = 7
+	MetadataV3_AssetCStrLen = 11
+
+	Metadata_DatasetCstrLen = 16
+	Metadata_PrefixSize     = 8
+
+	MetadataHeaderV1_Size = 100                   // Size of the fixed-size portion of Metadata v1, without Prefix
+	MetadataHeaderV2_Size = 100                   // Size of the fixed-size portion of Metadata v2, without Prefix
+	MetadataHeaderV3_Size = MetadataHeaderV2_Size // Size of the fixed-size portion of Metadata v3, without Prefix
+
+	MetadataHeaderV1_SizeFuzz = 12 // Difference between actual layout size and Golang struct
+	MetadataHeaderV2_SizeFuzz = 12 // Difference between actual layout size and Golang struct
+	MetadataHeaderV3_SizeFuzz = MetadataHeaderV2_SizeFuzz
 )
 
 // Normalized Metadata about the data contained in a DBN file or stream. DBN requires the
@@ -284,6 +301,12 @@ func (m2 *MetadataHeaderV2) FillFixed_Raw(b []byte) error {
 	return nil
 }
 
+// Raw DBN Metadata Header V3.
+// Every DBN file begins with this header, followed by variable length fields.
+// See Metadata for the full nomralized decoded structure.
+// V3 is same as V2, so we use a type alias
+type MetadataHeaderV3 = MetadataHeaderV2
+
 ///////////////////////////////////////////////////////////////////////////////
 
 // ReadMetadata reads the Metadata from a DBN stream over an io.Reader.
@@ -311,6 +334,8 @@ func ReadMetadata(r io.Reader) (*Metadata, error) {
 		return readMetadataV1(b, mp)
 	case HeaderVersion2:
 		return readMetadataV2(b, mp)
+	case HeaderVersion3:
+		return readMetadataV3(b, mp)
 	default:
 		return nil, ErrInvalidDBNVersion
 	}
@@ -430,6 +455,11 @@ func readMetadataV2(b []byte, mp MetadataPrefix) (*Metadata, error) {
 	}
 
 	return &m, nil
+}
+
+func readMetadataV3(b []byte, mp MetadataPrefix) (*Metadata, error) {
+	// DBN v2 and v3 use the same metadata structure
+	return readMetadataV2(b, mp)
 }
 
 ///////////////////////////////////////////////////////////////////////////////

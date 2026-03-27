@@ -47,6 +47,14 @@ tasks:
       - test-dbn-go-file
       - test-dbn-go-hist
 
+  test-files:
+    desc: 'Test datafiles through dbn-go-file'
+    deps:
+      - go-test
+      - test-dbn-go-file
+    cmds:
+      - ./tests/convert_all_files.sh
+
   test-integration:
     desc: 'Test paths that require Databento credentials'
     deps:
