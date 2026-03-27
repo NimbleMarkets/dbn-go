@@ -9,7 +9,7 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceFolder}/cmd/dbn-go-file/main.go",
+            "program": "${workspaceFolder}/cmd/dbn-go-file",
             "args": [
                 "metadata", "${workspaceFolder}/tests/data/test_data.ohlcv-1s.v1.dbn"
             ]
@@ -19,7 +19,7 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceFolder}/cmd/dbn-go-hist/main.go",
+            "program": "${workspaceFolder}/cmd/dbn-go-hist",
             "env": {
                 "DATABENTO_API_KEY": "<key>"
             },
@@ -43,7 +43,7 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceFolder}/cmd/dbn-go-live/main.go",
+            "program": "${workspaceFolder}/cmd/dbn-go-live",
             "env": {
                 "DATABENTO_API_KEY": "<key>",
             },

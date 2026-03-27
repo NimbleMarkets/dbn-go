@@ -11,11 +11,14 @@ import (
 )
 
 func WriteDbnFileAsJson(sourceFile string, forceZstdInput bool, writer io.Writer) error {
-	dbnFile, dbnCloser, _ := dbn.MakeCompressedReader(sourceFile, forceZstdInput)
+	dbnFile, dbnCloser, err := dbn.MakeCompressedReader(sourceFile, forceZstdInput)
+	if err != nil {
+		return err
+	}
 	defer dbnCloser.Close()
 
 	dbnScanner := dbn.NewDbnScanner(dbnFile)
-	_, err := dbnScanner.Metadata()
+	_, err = dbnScanner.Metadata()
 	if err != nil {
 		return fmt.Errorf("scanner failed to read metadata: %w", err)
 	}

@@ -55,7 +55,10 @@ Most `dbn-go` [types](./structs.go) and [enums](./consts.go) parallel Databento'
 If you want to read a homogeneous array of DBN records from a file, use the [`dbn.ReadDBNToSlice`](https://pkg.go.dev/github.com/NimbleMarkets/dbn-go#ReadDBNToSlice) generic function. We include an `io.Reader` wrapper, [`dbn.MakeCompressedReader`]https://pkg.go.dev/github.com/NimbleMarkets/dbn-go#MakeCompressedReader), that automatically handles `zstd`-named files.  The generic argument dicates which message type to read.
 
 ```go
-file, closer, _ := dbn.MakeCompressedReader("ohlcv-1s.dbn.zstd", false)
+file, closer, err := dbn.MakeCompressedReader("ohlcv-1s.dbn.zstd", false)
+if err != nil {
+    return err
+}
 defer closer.Close()
 records, metadata, err := dbn.ReadDBNToSlice[dbn.OhlcvMsg](file)
 ```
