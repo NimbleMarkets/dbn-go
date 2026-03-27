@@ -5,6 +5,7 @@
  * Support for DBN version 3:
    * Handle DBN v3 headers
    * Add `InstrumentDefMsgV3` and `StatMsgV3`
+   * `DbnScanner` upgrades messages to `v3`
  * tui: Upgrade BubbleTea v2
  
 ## v0.8.10 (2026-03-22)

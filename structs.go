@@ -913,17 +913,20 @@ type SymbolMappingMsg = SymbolMappingMsgV2
 // StatMsg is a statistics message. A catchall for various data disseminated by publishers.
 // The [`stat_type`](Self::stat_type) indicates the statistic contained in the message.
 //
-// StatMsg is an alias for the current version (V2)
-type StatMsg = StatMsgV2
+// StatMsg is an alias for the current version (V3).
+// The scanner upgrades V1/V2 records to V3 layout (low-velocity, no perf concern).
+type StatMsg = StatMsgV3
 
-const StatMsg_Size = StatMsgV2_Size
+const StatMsg_Size = StatMsgV3_Size
 
 // InstrumentDefMsg is a definition of an instrument.
 //
-// InstrumentDefMsg is an alias for the current version (V2)
-type InstrumentDefMsg = InstrumentDefMsgV2
+// InstrumentDefMsg is an alias for the current version (V3).
+// The scanner upgrades V2 records to V3 layout (very low-velocity, no perf concern).
+// NOTE: InstrumentDefMsgV1 (22-byte symbols) was never implemented; only V2+ is supported.
+type InstrumentDefMsg = InstrumentDefMsgV3
 
-const InstrumentDefMsg_Size = InstrumentDefMsgV2_Size
+const InstrumentDefMsg_Size = InstrumentDefMsgV3_Size
 
 // /////////////////////////////////////////////////////////////////////////////
 // SymbolMappingMsgFillRaw fills a SymbolMappingMsg from raw bytes based on DBN version.

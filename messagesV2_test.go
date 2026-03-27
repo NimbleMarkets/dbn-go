@@ -464,7 +464,7 @@ var _ = Describe("Messages V2", func() {
 			Expect(err).To(BeNil())
 			defer closer.Close()
 
-			records, metadata, err := dbn.ReadDBNToSlice[dbn.InstrumentDefMsg](file)
+			records, metadata, err := dbn.ReadDBNToSlice[dbn.InstrumentDefMsgV2](file)
 			Expect(err).To(BeNil())
 			Expect(metadata).ToNot(BeNil())
 			Expect(len(records)).To(Equal(2))
@@ -610,7 +610,7 @@ var _ = Describe("Messages V2", func() {
 			Expect(err).To(BeNil())
 			defer closer.Close()
 
-			records, metadata, err := dbn.ReadDBNToSlice[dbn.StatMsg](file)
+			records, metadata, err := dbn.ReadDBNToSlice[dbn.StatMsgV2](file)
 			Expect(err).To(BeNil())
 			Expect(metadata).ToNot(BeNil())
 			Expect(len(records)).To(Equal(2))
@@ -656,7 +656,7 @@ var _ = Describe("Messages V2", func() {
 			Expect(err).To(BeNil())
 			defer closer.Close()
 
-			records, metadata, err := dbn.ReadDBNToSlice[dbn.StatMsg](file)
+			records, metadata, err := dbn.ReadDBNToSlice[dbn.StatMsgV2](file)
 			Expect(err).To(BeNil())
 			Expect(metadata).ToNot(BeNil())
 			Expect(len(records)).To(Equal(2))

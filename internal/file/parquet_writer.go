@@ -133,7 +133,7 @@ func scanAndWriteParquet(scanner *dbn.DbnScanner, rgw pqfile.BufferedRowGroupWri
 		}
 	case dbn.Schema_Statistics:
 		for scanner.Next() {
-			if r, err := dbn.DbnScannerDecode[dbn.StatMsg](scanner); err != nil {
+			if r, err := scanner.DecodeStatMsg(); err != nil {
 				return err
 			} else {
 				if err := ParquetWriteRow_StatMsg(rgw, r, dbnSymbolMap); err != nil {
