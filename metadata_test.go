@@ -3,6 +3,8 @@
 package dbn_test
 
 import (
+	"bytes"
+	"encoding/binary"
 	"os"
 	"unsafe"
 
@@ -95,6 +97,93 @@ var _ = Describe("Metadata", func() {
 			Expect(intervals[0].StartDate).To(Equal(uint32(20201228)))
 			Expect(intervals[0].EndDate).To(Equal(uint32(20201229)))
 			Expect(intervals[0].Symbol).To(Equal("5482"))
+		})
+	})
+	Context("writing", func() {
+		It("should round-trip metadata and records", func() {
+			// Create a buffer to write to
+			buf := &bytes.Buffer{}
+
+			// Create metadata for the DBN file
+			originalMetadata := &dbn.Metadata{
+				VersionNum:    dbn.HeaderVersion2,
+				Schema:        dbn.Schema_Ohlcv1S,
+				Start:         1609160400000000000,
+				End:           1609200000000000000,
+				Limit:         0,
+				StypeIn:       dbn.SType_RawSymbol,
+				StypeOut:      dbn.SType_InstrumentId,
+				TsOut:         0,
+				SymbolCstrLen: dbn.MetadataV2_SymbolCstrLen,
+				Dataset:       "TEST.DATA",
+				Symbols:       []string{"AAPL"},
+				Partial:       []string{},
+				NotFound:      []string{},
+			}
+
+			// Write the metadata header
+			err := originalMetadata.Write(buf)
+			Expect(err).To(BeNil())
+
+			// Write a test record
+			record := &dbn.OhlcvMsg{
+				Header: dbn.RHeader{
+					Length:       dbn.OhlcvMsg_Size / 4,  // Size in 32-bit words
+					RType:        dbn.RType_OhlcvEod,
+					PublisherID:  1,
+					InstrumentID: 12345,
+					TsEvent:      1609160400000000000,
+				},
+				Open:   10000,
+				High:   10100,
+				Low:    9900,
+				Close:  10050,
+				Volume: 1000000,
+			}
+
+			// Write the record (just write the entire struct with binary.Write)
+			err = binary.Write(buf, binary.LittleEndian, record)
+			Expect(err).To(BeNil())
+
+			// Now read it back using a scanner which handles both metadata and records
+			reader := bytes.NewReader(buf.Bytes())
+			scanner := dbn.NewDbnScanner(reader)
+
+			// Read metadata from scanner
+			readMetadata, err := scanner.Metadata()
+			Expect(err).To(BeNil())
+			Expect(readMetadata).ToNot(BeNil())
+
+			// Verify metadata matches
+			Expect(readMetadata.VersionNum).To(Equal(originalMetadata.VersionNum))
+			Expect(readMetadata.Schema).To(Equal(originalMetadata.Schema))
+			Expect(readMetadata.Start).To(Equal(originalMetadata.Start))
+			Expect(readMetadata.End).To(Equal(originalMetadata.End))
+			Expect(readMetadata.Limit).To(Equal(originalMetadata.Limit))
+			Expect(readMetadata.StypeIn).To(Equal(originalMetadata.StypeIn))
+			Expect(readMetadata.StypeOut).To(Equal(originalMetadata.StypeOut))
+			Expect(readMetadata.TsOut).To(Equal(originalMetadata.TsOut))
+			Expect(readMetadata.Dataset).To(Equal(originalMetadata.Dataset))
+			Expect(readMetadata.Symbols).To(Equal(originalMetadata.Symbols))
+
+			// Read the record back
+			Expect(scanner.Next()).To(BeTrue())
+
+			// Decode the record
+			decodedRecord, err := dbn.DbnScannerDecode[dbn.OhlcvMsg](scanner)
+			Expect(err).To(BeNil())
+			Expect(decodedRecord).ToNot(BeNil())
+
+			// Verify record matches
+			Expect(decodedRecord.Header.RType).To(Equal(record.Header.RType))
+			Expect(decodedRecord.Header.PublisherID).To(Equal(record.Header.PublisherID))
+			Expect(decodedRecord.Header.InstrumentID).To(Equal(record.Header.InstrumentID))
+			Expect(decodedRecord.Header.TsEvent).To(Equal(record.Header.TsEvent))
+			Expect(decodedRecord.Open).To(Equal(record.Open))
+			Expect(decodedRecord.High).To(Equal(record.High))
+			Expect(decodedRecord.Low).To(Equal(record.Low))
+			Expect(decodedRecord.Close).To(Equal(record.Close))
+			Expect(decodedRecord.Volume).To(Equal(record.Volume))
 		})
 	})
 })

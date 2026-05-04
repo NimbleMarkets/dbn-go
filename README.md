@@ -14,6 +14,7 @@ This repository contains Golang bindings to [Databento's](https://databento.com)
  * [Library Usage](#library-usage)
  * [Reading DBN Files](#reading-dbn-files)
  * [Reading JSON Files](#reading-json-files)
+ * [Writing DBN Files](#writing-dbn-files)
  * [Historical API](#historical-api)
  * [Live API](#live-api)
  * [Tools](#tools)
@@ -120,6 +121,62 @@ if err := jsonScanner.Error(); err != nil {
 ```
 
 Many of the `dbn-go` structs are annotated with `json` tags to facilitate JSON serialization and deserialization using `json.Marshal` and `json.Unmarshal`.  That said, `dbn-go` uses [`valyala/fastjson`](https://github.com/valyala/fastjson) and hand-written extraction code.
+
+
+## Writing DBN Files
+
+To write a DBN file, you need to write metadata first, then write records. All writes use the binary format with little-endian byte order.
+
+```go
+// Create and open a file
+file, _ := os.Create("output.dbn")
+defer file.Close()
+
+// Create metadata for the DBN file
+metadata := &dbn.Metadata{
+    VersionNum:    dbn.HeaderVersion2,
+    Schema:        dbn.Schema_Ohlcv1S,
+    Start:         0,
+    End:           ^uint64(0),  // No end time
+    Limit:         0,           // No limit
+    StypeIn:       dbn.SType_RawSymbol,
+    StypeOut:      dbn.SType_InstrumentId,
+    TsOut:         0,
+    SymbolCstrLen: dbn.MetadataV2_SymbolCstrLen,
+    Dataset:       "EQUS.MINI",
+    Symbols:       []string{"AAPL"},
+    Partial:       []string{},
+    NotFound:      []string{},
+}
+
+// Write the metadata header
+if err := metadata.Write(file); err != nil {
+    return err
+}
+
+// Now write records
+record := &dbn.OhlcvMsg{
+    Header: dbn.RHeader{
+        Length:       dbn.OhlcvMsg_Size / 4,  // Size in 32-bit words
+        RType:        dbn.RType_OhlcvEod,
+        PublisherID:  1,
+        InstrumentID: 12345,
+        TsEvent:      1609459200000000000,  // timestamp in nanoseconds
+    },
+    Open:   10000,  // fixed-point price
+    High:   10100,
+    Low:    9900,
+    Close:  10050,
+    Volume: 1000000,
+}
+
+// Write the record
+if err := binary.Write(file, binary.LittleEndian, record); err != nil {
+    return err
+}
+```
+
+Records in DBN format are binary-encoded with all numeric values in little-endian byte order. The [`RHeader`](https://pkg.go.dev/github.com/NimbleMarkets/dbn-go#RHeader) is the first 16 bytes of every record, with its `Length` field indicating the record size in 32-bit words (including the header). See [`structs.go`](./structs.go) for the binary layout of each message type.
 
 
 ## Historical API
