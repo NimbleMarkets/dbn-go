@@ -180,3 +180,240 @@ func NewInstrumentDefMsgV2() InstrumentDefMsgV2 {
 		TickRule:                math.MaxUint8,
 	}
 }
+
+// NewBidAskPair returns a BidAskPair with the same defaults as the upstream DBN `Default` implementation.
+func NewBidAskPair() BidAskPair {
+	return BidAskPair{
+		BidPx: UNDEF_PRICE,
+		AskPx: UNDEF_PRICE,
+	}
+}
+
+// NewConsolidatedBidAskPair returns a ConsolidatedBidAskPair with the same defaults as the upstream DBN `Default` implementation.
+func NewConsolidatedBidAskPair() ConsolidatedBidAskPair {
+	return ConsolidatedBidAskPair{
+		BidPx: UNDEF_PRICE,
+		AskPx: UNDEF_PRICE,
+	}
+}
+
+// NewMbp0Msg returns an Mbp0Msg (upstream `TradeMsg`) with the same defaults as the upstream DBN `Default` implementation.
+func NewMbp0Msg() Mbp0Msg {
+	return Mbp0Msg{
+		Header: RHeader{
+			Length:       Mbp0Msg_Size / 4,
+			RType:        RType_Mbp0,
+			PublisherID:  0,
+			InstrumentID: 0,
+			TsEvent:      UNDEF_TIMESTAMP,
+		},
+		Price:  UNDEF_PRICE,
+		Action: uint8(Action_None),
+		Side:   uint8(Side_None),
+		TsRecv: UNDEF_TIMESTAMP,
+	}
+}
+
+// NewMbp1Msg returns an Mbp1Msg with the same defaults as the upstream DBN `Default` implementation.
+func NewMbp1Msg() Mbp1Msg {
+	return Mbp1Msg{
+		Header: RHeader{
+			Length:       Mbp1Msg_Size / 4,
+			RType:        RType_Mbp1,
+			PublisherID:  0,
+			InstrumentID: 0,
+			TsEvent:      UNDEF_TIMESTAMP,
+		},
+		Price:  UNDEF_PRICE,
+		Action: byte(Action_None),
+		Side:   byte(Side_None),
+		TsRecv: UNDEF_TIMESTAMP,
+		Level:  NewBidAskPair(),
+	}
+}
+
+// NewMbp10Msg returns an Mbp10Msg with the same defaults as the upstream DBN `Default` implementation.
+func NewMbp10Msg() Mbp10Msg {
+	msg := Mbp10Msg{
+		Header: RHeader{
+			Length:       Mbp10Msg_Size / 4,
+			RType:        RType_Mbp10,
+			PublisherID:  0,
+			InstrumentID: 0,
+			TsEvent:      UNDEF_TIMESTAMP,
+		},
+		Price:  UNDEF_PRICE,
+		Action: byte(Action_None),
+		Side:   byte(Side_None),
+		TsRecv: UNDEF_TIMESTAMP,
+	}
+	for i := range msg.Levels {
+		msg.Levels[i] = NewBidAskPair()
+	}
+	return msg
+}
+
+// NewCmbp1Msg returns a Cmbp1Msg with the same defaults as the upstream DBN `default_for_schema`.
+// Upstream takes a Schema; here `rtype` is the corresponding record type
+// (`RType_Cmbp1`, `RType_Cbbo1S`, `RType_Cbbo1M`, or `RType_Tcbbo`).
+func NewCmbp1Msg(rtype RType) Cmbp1Msg {
+	return Cmbp1Msg{
+		Header: RHeader{
+			Length:       Cmbp1Msg_Size / 4,
+			RType:        rtype,
+			PublisherID:  0,
+			InstrumentID: 0,
+			TsEvent:      UNDEF_TIMESTAMP,
+		},
+		Price:  UNDEF_PRICE,
+		Action: byte(Action_None),
+		Side:   byte(Side_None),
+		TsRecv: UNDEF_TIMESTAMP,
+		Level:  NewConsolidatedBidAskPair(),
+	}
+}
+
+// NewBboMsg returns a BboMsg with the same defaults as the upstream DBN `default_for_schema`.
+// Upstream takes a Schema; here `rtype` is the corresponding record type
+// (`RType_Bbo1S` or `RType_Bbo1M`).
+func NewBboMsg(rtype RType) BboMsg {
+	return BboMsg{
+		Header: RHeader{
+			Length:       BboMsg_Size / 4,
+			RType:        rtype,
+			PublisherID:  0,
+			InstrumentID: 0,
+			TsEvent:      UNDEF_TIMESTAMP,
+		},
+		Price:  UNDEF_PRICE,
+		Side:   byte(Side_None),
+		TsRecv: UNDEF_TIMESTAMP,
+		Level:  NewBidAskPair(),
+	}
+}
+
+// NewOhlcvMsg returns an OhlcvMsg with the same defaults as the upstream DBN `default_for_schema`.
+// Upstream takes a Schema; here `rtype` is the corresponding record type
+// (e.g. `RType_Ohlcv1S`, `RType_Ohlcv1M`, `RType_Ohlcv1H`, `RType_Ohlcv1D`, or `RType_OhlcvEod`).
+func NewOhlcvMsg(rtype RType) OhlcvMsg {
+	return OhlcvMsg{
+		Header: RHeader{
+			Length:       OhlcvMsg_Size / 4,
+			RType:        rtype,
+			PublisherID:  0,
+			InstrumentID: 0,
+			TsEvent:      UNDEF_TIMESTAMP,
+		},
+		Open:  UNDEF_PRICE,
+		High:  UNDEF_PRICE,
+		Low:   UNDEF_PRICE,
+		Close: UNDEF_PRICE,
+	}
+}
+
+// NewStatusMsg returns a StatusMsg with the same defaults as the upstream DBN `Default` implementation.
+func NewStatusMsg() StatusMsg {
+	return StatusMsg{
+		Header: RHeader{
+			Length:       StatusMsg_Size / 4,
+			RType:        RType_Status,
+			PublisherID:  0,
+			InstrumentID: 0,
+			TsEvent:      UNDEF_TIMESTAMP,
+		},
+		TsRecv:                UNDEF_TIMESTAMP,
+		IsTrading:             uint8(TriState_NotAvailable),
+		IsQuoting:             uint8(TriState_NotAvailable),
+		IsShortSellRestricted: uint8(TriState_NotAvailable),
+	}
+}
+
+// NewImbalanceMsg returns an ImbalanceMsg with the same defaults as the upstream DBN `Default` implementation.
+func NewImbalanceMsg() ImbalanceMsg {
+	return ImbalanceMsg{
+		Header: RHeader{
+			Length:       ImbalanceMsg_Size / 4,
+			RType:        RType_Imbalance,
+			PublisherID:  0,
+			InstrumentID: 0,
+			TsEvent:      UNDEF_TIMESTAMP,
+		},
+		TsRecv:               UNDEF_TIMESTAMP,
+		RefPrice:             UNDEF_PRICE,
+		AuctionTime:          UNDEF_TIMESTAMP,
+		ContBookClrPrice:     UNDEF_PRICE,
+		AuctInterestClrPrice: UNDEF_PRICE,
+		SsrFillingPrice:      UNDEF_PRICE,
+		IndMatchPrice:        UNDEF_PRICE,
+		UpperCollar:          UNDEF_PRICE,
+		LowerCollar:          UNDEF_PRICE,
+		PairedQty:            UNDEF_ORDER_SIZE,
+		TotalImbalanceQty:    UNDEF_ORDER_SIZE,
+		MarketImbalanceQty:   UNDEF_ORDER_SIZE,
+		// Upstream's `unpaired_qty` is a u32; Go decodes it as an int32, so UNDEF_ORDER_SIZE is -1 here.
+		UnpairedQty:          -1,
+		AuctionType:          '~',
+		Side:                 uint8(Side_None),
+		UnpairedSide:         uint8(Side_None),
+		SignificantImbalance: '~',
+	}
+}
+
+// NewErrorMsgV1 returns an ErrorMsgV1 with the same defaults as the upstream DBN `Default` implementation.
+func NewErrorMsgV1() ErrorMsgV1 {
+	return ErrorMsgV1{
+		Header: RHeader{
+			Length:       ErrorMsgV1_Size / 4,
+			RType:        RType_Error,
+			PublisherID:  0,
+			InstrumentID: 0,
+			TsEvent:      UNDEF_TIMESTAMP,
+		},
+	}
+}
+
+// NewErrorMsgV2 returns an ErrorMsgV2 with the same defaults as the upstream DBN `Default` implementation.
+func NewErrorMsgV2() ErrorMsgV2 {
+	return ErrorMsgV2{
+		Header: RHeader{
+			Length:       ErrorMsgV2_Size / 4,
+			RType:        RType_Error,
+			PublisherID:  0,
+			InstrumentID: 0,
+			TsEvent:      UNDEF_TIMESTAMP,
+		},
+		Code:   ErrorCode_Unset,
+		IsLast: math.MaxUint8,
+	}
+}
+
+// NewSymbolMappingMsgV2 returns a SymbolMappingMsgV2 with the same defaults as the upstream DBN `Default` implementation.
+func NewSymbolMappingMsgV2() SymbolMappingMsgV2 {
+	return SymbolMappingMsgV2{
+		Header: RHeader{
+			Length:       SymbolMappingMsgV2_Size / 4,
+			RType:        RType_SymbolMapping,
+			PublisherID:  0,
+			InstrumentID: 0,
+			TsEvent:      UNDEF_TIMESTAMP,
+		},
+		StypeIn:  SType(math.MaxUint8),
+		StypeOut: SType(math.MaxUint8),
+		StartTs:  UNDEF_TIMESTAMP,
+		EndTs:    UNDEF_TIMESTAMP,
+	}
+}
+
+// NewSystemMsg returns a SystemMsg with the same defaults as the upstream DBN `Default` implementation.
+func NewSystemMsg() SystemMsg {
+	return SystemMsg{
+		Header: RHeader{
+			Length:       SystemMsg_Size / 4,
+			RType:        RType_System,
+			PublisherID:  0,
+			InstrumentID: 0,
+			TsEvent:      UNDEF_TIMESTAMP,
+		},
+		Code: SystemCode_Unset,
+	}
+}

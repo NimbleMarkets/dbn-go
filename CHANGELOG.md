@@ -12,8 +12,11 @@ Synchronized constants with upstream DBN `0.71.0` (previously `0.34.0`).
    * `SystemCode_UnsubscribeAck`
    * `ErrorCode_ReplayDataAgedOut`
  * Add default record constructors matching upstream DBN's `Default` impls (including the `channel_id` default of `u8::MAX`/`u16::MAX` from DBN `0.41.0`, since `0` is a valid channel ID):
-   * `NewMboMsg`, `NewStatMsgV2`, `NewStatMsgV3`, `NewInstrumentDefMsgV2`, `NewInstrumentDefMsgV3`
-   * Add `UNDEF_PRICE` constant
+   * `NewMboMsg`, `NewMbp0Msg`, `NewMbp1Msg`, `NewMbp10Msg`, `NewCmbp1Msg`, `NewBboMsg`, `NewOhlcvMsg`
+   * `NewStatusMsg`, `NewImbalanceMsg`, `NewStatMsgV2`, `NewStatMsgV3`, `NewInstrumentDefMsgV2`, `NewInstrumentDefMsgV3`
+   * `NewErrorMsgV1`, `NewErrorMsgV2`, `NewSymbolMappingMsgV2`, `NewSystemMsg`, `NewBidAskPair`, `NewConsolidatedBidAskPair`
+   * `NewCmbp1Msg`, `NewBboMsg`, and `NewOhlcvMsg` take an `RType` where upstream takes a `Schema`
+   * Add `UNDEF_PRICE` and `UNDEF_ORDER_SIZE` constants
  * Venues, datasets and publishers regenerated from upstream `publishers.rs`
    * Venues 53 -> 72, datasets 41 -> 53, publishers 107 -> 153
    * Includes JPX, MEMX MX2, IEX Options, Cboe Global Indices (`MAIN`), US Equities SIPs, and Databento Core Indices (`DBIX`)
