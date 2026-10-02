@@ -72,7 +72,8 @@ func (*SymbolMappingMsgV1) RType() RType {
 	return RType_SymbolMapping
 }
 
-const SymbolMappingMsgV1_Size = RHeader_Size + 16 + (2 * MetadataV1_SymbolCstrLen)
+// The V1 layout is: header, stype_in_symbol, stype_out_symbol, 4 bytes of padding (`_dummy`), start_ts, end_ts.
+const SymbolMappingMsgV1_Size = RHeader_Size + 4 + 16 + (2 * MetadataV1_SymbolCstrLen)
 
 func (*SymbolMappingMsgV1) RSize() uint16 {
 	return SymbolMappingMsgV1_Size
@@ -93,7 +94,7 @@ func (r *SymbolMappingMsgV1) Fill_Raw(b []byte) error {
 	r.StypeInSymbol = TrimNullBytes(body[0:MetadataV1_SymbolCstrLen])
 	r.StypeOut = SType_RawSymbol
 	r.StypeOutSymbol = TrimNullBytes(body[MetadataV1_SymbolCstrLen : 2*MetadataV1_SymbolCstrLen])
-	pos := 2 * MetadataV1_SymbolCstrLen
+	pos := 2*MetadataV1_SymbolCstrLen + 4 // skip the 4-byte `_dummy` padding
 	r.StartTs = binary.LittleEndian.Uint64(body[pos : pos+8])
 	r.EndTs = binary.LittleEndian.Uint64(body[pos+8 : pos+16])
 	return nil

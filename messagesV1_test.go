@@ -5,6 +5,7 @@
 package dbn_test
 
 import (
+	"encoding/binary"
 	"os"
 
 	dbn "github.com/NimbleMarkets/dbn-go"
@@ -48,11 +49,32 @@ var _ = Describe("Messages V1", func() {
 	Context("SymbolMapping v1 messages", func() {
 		It("should have correct size for SymbolMappingMsgV1", func() {
 			// V1: RHeader (16) + 16 + 2*22 = 16 + 16 + 44 = 76
-			Expect(dbn.SymbolMappingMsgV1_Size).To(BeEquivalentTo(76))
+			Expect(dbn.SymbolMappingMsgV1_Size).To(BeEquivalentTo(80))
 		})
 
 		It("should be smaller than V2 due to shorter symbol strings", func() {
 			Expect(dbn.SymbolMappingMsgV1_Size).To(BeNumerically("<", dbn.SymbolMappingMsgV2_Size))
+		})
+
+		It("should decode the V1 layout, including the 4-byte padding before start_ts", func() {
+			// Layout (80 bytes): hd(16) + stype_in_symbol(22) + stype_out_symbol(22) + _dummy(4) + start_ts(8) + end_ts(8)
+			b := make([]byte, dbn.SymbolMappingMsgV1_Size)
+			b[0] = dbn.SymbolMappingMsgV1_Size / 4
+			b[1] = byte(dbn.RType_SymbolMapping)
+			copy(b[16:38], "ESZ4")
+			copy(b[38:60], "ESZ4.out")
+			binary.LittleEndian.PutUint32(b[60:64], 0xDEADBEEF) // _dummy, must be ignored
+			binary.LittleEndian.PutUint64(b[64:72], 1111)
+			binary.LittleEndian.PutUint64(b[72:80], 2222)
+
+			var msg dbn.SymbolMappingMsgV2
+			Expect(dbn.SymbolMappingMsgFillRaw(&msg, b, dbn.MetadataV1_SymbolCstrLen)).To(Succeed())
+			Expect(msg.StypeInSymbol).To(Equal("ESZ4"))
+			Expect(msg.StypeOutSymbol).To(Equal("ESZ4.out"))
+			Expect(msg.StartTs).To(BeEquivalentTo(1111))
+			Expect(msg.EndTs).To(BeEquivalentTo(2222))
+			Expect(msg.StypeIn).To(Equal(dbn.SType_RawSymbol))
+			Expect(msg.StypeOut).To(Equal(dbn.SType_RawSymbol))
 		})
 
 		It("should have implied SType_RawSymbol for StypeIn and StypeOut", func() {
