@@ -66,6 +66,8 @@ const (
 	InstrumentClass_Call InstrumentClass = 'C'
 	// A future.
 	InstrumentClass_Future InstrumentClass = 'F'
+	// An index.
+	InstrumentClass_Index InstrumentClass = 'I'
 	// A stock.
 	InstrumentClass_Stock InstrumentClass = 'K'
 	// A spread composed of multiple instrument classes
@@ -124,6 +126,8 @@ const (
 	// order is associated with. The second pass matches orders without an Institutional Group
 	// association. See [CME documentation](https://cmegroupclientsite.atlassian.net/wiki/spaces/EPICSANDBOX/pages/457217267#InstitutionalPrioritizationMatchAlgorithm).
 	MatchAlgorithm_InstitutionalPrioritization MatchAlgorithm = 'V'
+	// Like ProRata, but includes a configurable allocation to the first order that improves the market.
+	MatchAlgorithm_Allocation MatchAlgorithm = 'A'
 )
 
 // UserDefinedInstrument
@@ -169,6 +173,12 @@ const (
 	SType_Figi SType = 11
 	/// Symbology using Bloomberg exchange level tickers.
 	SType_FigiTicker SType = 12
+	/// Symbology using the Databento-specific listing ID, only available for the reference data API.
+	SType_ListingId SType = 13
+	/// Symbology using the Databento-specific issuer ID, only available for the reference data API.
+	SType_IssuerId SType = 14
+	/// Symbology using the Databento-specific security ID, only available for the reference data API.
+	SType_SecurityId SType = 15
 )
 
 // Returns the string representation of the SType, or empty string if unknown.
@@ -200,6 +210,12 @@ func (s SType) String() string {
 		return "figi"
 	case SType_FigiTicker:
 		return "figi_ticker"
+	case SType_ListingId:
+		return "listing_id"
+	case SType_IssuerId:
+		return "issuer_id"
+	case SType_SecurityId:
+		return "security_id"
 	default:
 		return ""
 	}
@@ -237,6 +253,12 @@ func STypeFromString(str string) (SType, error) {
 		return SType_Figi, nil
 	case "figi_ticker":
 		return SType_FigiTicker, nil
+	case "listing_id":
+		return SType_ListingId, nil
+	case "issuer_id":
+		return SType_IssuerId, nil
+	case "security_id":
+		return SType_SecurityId, nil
 	default:
 		return SType_InstrumentId, fmt.Errorf("unknown stype: %s", str)
 	}
@@ -776,9 +798,27 @@ const (
 	/// The number of Block contracts cleared for an instrument on the previous trading date.
 	/// `quantity` will be set. `ts_ref` will indicate the trading date of the volume.
 	StatType_BlockVolume StatType = 19
+	/// The probable price of the last trade of an instrument published during the trading
+	/// session. `price` will be set.
+	StatType_IndicativeClosePrice StatType = 20
+	/// The Market-Wide Circuit Breaker (MWCB) Level 1 threshold (7%), expressed as S&P 500 index points. `price` will be set.
+	StatType_MwcbLevel1 StatType = 21
+	/// The Market-Wide Circuit Breaker (MWCB) Level 2 threshold (13%), expressed as S&P 500 index points. `price` will be set.
+	StatType_MwcbLevel2 StatType = 22
+	/// The Market-Wide Circuit Breaker (MWCB) Level 3 threshold (20%), expressed as S&P 500 index points. `price` will be set.
+	StatType_MwcbLevel3 StatType = 23
+	/// The auction collar reference price. `price` will be set.
+	StatType_AuctionCollarReferencePrice StatType = 24
+	/// The auction collar upper price. `price` will be set.
+	StatType_AuctionCollarUpperPrice StatType = 25
+	/// The auction collar lower price. `price` will be set.
+	StatType_AuctionCollarLowerPrice StatType = 26
 	// A venue specific volume statistic. Refer to the venue documentation for more information.
 	// `quantity` will be set.
 	StatType_VenueSpecificVolume1 StatType = 10001
+	// A venue specific price statistic. Refer to the venue documentation for more information.
+	// `price` will be set.
+	StatType_VenueSpecificPrice1 StatType = 10002
 )
 
 // / The type of [`StatMsg`](crate::record::StatMsg) update.
@@ -965,6 +1005,8 @@ const (
 	SystemCode_ReplayCompleted = 3
 	/// Signals that all records for interval-based schemas have been published for the given timestamp.
 	SystemCode_EndOfInterval = 4
+	/// An acknowledgement of an unsubscribe request.
+	SystemCode_UnsubscribeAck = 5
 	/// No system code was specified or this record was upgraded from a version 1 struct where the code field didn't exist.
 	SystemCode_Unset = 255
 	// Heartbeat string
@@ -984,6 +1026,8 @@ func (s SystemCode) String() string {
 		return "REPLAY_COMPLETED"
 	case SystemCode_EndOfInterval:
 		return "END_OF_INTERVAL"
+	case SystemCode_UnsubscribeAck:
+		return "UNSUBSCRIBE_ACK"
 	case SystemCode_Unset:
 		return "UNSET"
 	default:
@@ -1006,6 +1050,8 @@ func SystemCodeFromString(str string) (SystemCode, error) {
 		return SystemCode_ReplayCompleted, nil
 	case "END_OF_INTERVAL":
 		return SystemCode_EndOfInterval, nil
+	case "UNSUBSCRIBE_ACK":
+		return SystemCode_UnsubscribeAck, nil
 	case "UNSET":
 		return SystemCode_Unset, nil
 	default:
@@ -1124,6 +1170,8 @@ const (
 	ErrorCode_InternalError ErrorCode = 6
 	/// A slow client was detected and records were skipped by the gateway to allow catching up.
 	ErrorCode_SkippedRecordsAfterSlowReading ErrorCode = 7
+	/// The data for a replay subscription is no longer retained and the schema is incompatible with skipping records.
+	ErrorCode_ReplayDataAgedOut ErrorCode = 8
 	/// No error code was specified or this record was upgraded from a version 1 struct where the code field didn't exist.
 	ErrorCode_Unset ErrorCode = 255
 )
@@ -1145,6 +1193,8 @@ func (e ErrorCode) String() string {
 		return "INTERNAL_ERROR"
 	case ErrorCode_SkippedRecordsAfterSlowReading:
 		return "SKIPPED_RECORDS_AFTER_SLOW_READING"
+	case ErrorCode_ReplayDataAgedOut:
+		return "REPLAY_DATA_AGED_OUT"
 	case ErrorCode_Unset:
 		return "UNSET"
 	default:
@@ -1171,6 +1221,8 @@ func ErrorCodeFromString(str string) (ErrorCode, error) {
 		return ErrorCode_InternalError, nil
 	case "SKIPPED_RECORDS_AFTER_SLOW_READING":
 		return ErrorCode_SkippedRecordsAfterSlowReading, nil
+	case "REPLAY_DATA_AGED_OUT":
+		return ErrorCode_ReplayDataAgedOut, nil
 	case "UNSET":
 		return ErrorCode_Unset, nil
 	default:
