@@ -17,6 +17,11 @@ Synchronized constants with upstream DBN `0.71.0` (previously `0.34.0`).
    * `NewErrorMsgV1`, `NewErrorMsgV2`, `NewSymbolMappingMsgV2`, `NewSystemMsg`, `NewBidAskPair`, `NewConsolidatedBidAskPair`
    * `NewCmbp1Msg`, `NewBboMsg`, and `NewOhlcvMsg` take an `RType` where upstream takes a `Schema`
    * Add `UNDEF_PRICE` and `UNDEF_ORDER_SIZE` constants
+ * Fix `SymbolMappingMsgV1` layout: it is 80 bytes with 4 bytes of padding before `start_ts`; `start_ts` and `end_ts` were previously read 4 bytes early
+ * Harden metadata decoding (follows upstream DBN `0.69.0`)
+   * Counts (schema definition length, symbols, partial, not found, mappings, intervals) are validated against the remaining metadata bytes, returning `ErrInvalidMetadataCount`
+   * `ReadMetadata` no longer allocates a header-declared length up front
+   * V1 schema definition length is treated as a byte length, as upstream does
  * Venues, datasets and publishers regenerated from upstream `publishers.rs`
    * Venues 53 -> 72, datasets 41 -> 53, publishers 107 -> 153
    * Includes JPX, MEMX MX2, IEX Options, Cboe Global Indices (`MAIN`), US Equities SIPs, and Databento Core Indices (`DBIX`)

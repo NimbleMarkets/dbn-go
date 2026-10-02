@@ -337,10 +337,13 @@ func ReadMetadata(r io.Reader) (*Metadata, error) {
 	}
 
 	// Extract the remaining bytes of the metadata header
-	b := make([]byte, mp.Length)
-	_, err := io.ReadFull(r, b)
+	// Read through a LimitReader so an overstated length can't force a huge allocation up front
+	b, err := io.ReadAll(io.LimitReader(r, int64(mp.Length)))
 	if err != nil {
 		return nil, err
+	}
+	if len(b) != int(mp.Length) {
+		return nil, io.ErrUnexpectedEOF
 	}
 
 	// Dispatch to the version's decoder
@@ -387,7 +390,10 @@ func readMetadataV1(b []byte, mp MetadataPrefix) (*Metadata, error) {
 	if err := binary.Read(r, binary.LittleEndian, &schemaDefLen); err != nil {
 		return nil, err
 	}
-	var schemaDefBytes = make([]byte, schemaDefLen*MetadataV1_SymbolCstrLen)
+	if err := checkedMetadataCount("schema definition length", schemaDefLen, 1, r.Len()); err != nil {
+		return nil, err
+	}
+	var schemaDefBytes = make([]byte, schemaDefLen)
 	if err := binary.Read(r, binary.LittleEndian, &schemaDefBytes); err != nil {
 		return nil, err
 	}
@@ -447,6 +453,9 @@ func readMetadataV2(b []byte, mp MetadataPrefix) (*Metadata, error) {
 	if err := binary.Read(r, binary.LittleEndian, &schemaDefLen); err != nil {
 		return nil, err
 	}
+	if err := checkedMetadataCount("schema definition length", schemaDefLen, 1, r.Len()); err != nil {
+		return nil, err
+	}
 	var schemaDefBytes = make([]byte, schemaDefLen)
 	if err := binary.Read(r, binary.LittleEndian, &schemaDefBytes); err != nil {
 		return nil, err
@@ -481,9 +490,13 @@ func readMetadataV3(b []byte, mp MetadataPrefix) (*Metadata, error) {
 
 // Decode a fixed-witdth string arrays from the Reader.
 // Returns number of bytes read and any error.
-func decodeToStringArray(r io.Reader, cstrLength uint16, strArray *[]string) error {
+func decodeToStringArray(r *bytes.Reader, cstrLength uint16, strArray *[]string) error {
 	var arrayLen uint32
 	if err := binary.Read(r, binary.LittleEndian, &arrayLen); err != nil {
+		return err
+	}
+
+	if err := checkedMetadataCount("symbol list count", arrayLen, int(cstrLength), r.Len()); err != nil {
 		return err
 	}
 
@@ -500,9 +513,14 @@ func decodeToStringArray(r io.Reader, cstrLength uint16, strArray *[]string) err
 
 // Decode "mappings" file data to Golang SymbolMapping structure
 // Returns number of bytes read and any error.
-func decodeToSymbolMapping(r io.Reader, cstrLength uint16, mappings *[]SymbolMapping) error {
+func decodeToSymbolMapping(r *bytes.Reader, cstrLength uint16, mappings *[]SymbolMapping) error {
 	var mappingLen uint32
 	if err := binary.Read(r, binary.LittleEndian, &mappingLen); err != nil {
+		return err
+	}
+
+	// A mapping is at least a symbol and an interval count
+	if err := checkedMetadataCount("symbol mapping count", mappingLen, int(cstrLength)+4, r.Len()); err != nil {
 		return err
 	}
 
@@ -517,6 +535,11 @@ func decodeToSymbolMapping(r io.Reader, cstrLength uint16, mappings *[]SymbolMap
 		// intervals
 		var intervalLen uint32
 		if err := binary.Read(r, binary.LittleEndian, &intervalLen); err != nil {
+			return err
+		}
+		// An interval is a start date (4), end date (4), and a symbol
+		if err := checkedMetadataCount(fmt.Sprintf("interval count of symbol mapping at index %d", i),
+			intervalLen, 8+int(cstrLength), r.Len()); err != nil {
 			return err
 		}
 		for j := uint32(0); j < intervalLen; j++ {

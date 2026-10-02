@@ -16,6 +16,7 @@ var (
 	ErrDateOutsideQueryRange = fmt.Errorf("date outside the query range")
 	ErrWrongStypesForMapping = fmt.Errorf("wrong stypes for mapping")
 	ErrNoMetadata            = fmt.Errorf("no metadata")
+	ErrInvalidMetadataCount  = fmt.Errorf("invalid metadata count")
 )
 
 func unexpectedBytesError(got int, want int) error {
@@ -28,4 +29,19 @@ func unexpectedRTypeError(got RType, want RType) error {
 
 func unexpectedCStrLenError(got uint16) error {
 	return fmt.Errorf("expected CStrLen of %d bytes", got)
+}
+
+// checkedMetadataCount verifies that `count` items of at least `minItemSize` bytes
+// can fit in the `remaining` bytes of the metadata, so that an overstated count
+// from a malformed header is rejected before it sizes an allocation or a loop.
+func checkedMetadataCount(what string, count uint32, minItemSize int, remaining int) error {
+	capacity := 0
+	if minItemSize > 0 {
+		capacity = remaining / minItemSize
+	}
+	if uint64(count) > uint64(capacity) {
+		return fmt.Errorf("%w: %s declares %d but only %d fit in the remaining %d bytes",
+			ErrInvalidMetadataCount, what, count, capacity, remaining)
+	}
+	return nil
 }
