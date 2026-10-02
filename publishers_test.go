@@ -25,6 +25,8 @@ func TestVenue_Values(t *testing.T) {
 		{dbn.Venue_Ifus, 48, "IFUS"},
 		{dbn.Venue_Xcbf, 52, "XCBF"},
 		{dbn.Venue_Ocea, 53, "OCEA"},
+		{dbn.Venue_Main, 56, "MAIN"},
+		{dbn.Venue_Dbix, 72, "DBIX"},
 	}
 
 	for _, tt := range tests {
@@ -105,6 +107,8 @@ func TestDataset_Values(t *testing.T) {
 		{dbn.Dataset_IfusImpact, 36, "IFUS.IMPACT"},
 		{dbn.Dataset_XcbfPitch, 40, "XCBF.PITCH"},
 		{dbn.Dataset_OceaMemoir, 41, "OCEA.MEMOIR"},
+		{dbn.Dataset_MainCgif, 42, "MAIN.CGIF"},
+		{dbn.Dataset_DbixCore, 53, "DBIX.CORE"},
 	}
 
 	for _, tt := range tests {
@@ -152,8 +156,8 @@ func TestDataset_Publishers(t *testing.T) {
 
 	// Test multi-publisher dataset
 	pubs = dbn.Dataset_OpraPillar.Publishers()
-	if len(pubs) != 19 {
-		t.Errorf("Dataset_OpraPillar.Publishers(): got %d publishers, want 19", len(pubs))
+	if len(pubs) != 21 {
+		t.Errorf("Dataset_OpraPillar.Publishers(): got %d publishers, want 21", len(pubs))
 	}
 
 	// Test deprecated dataset
@@ -196,6 +200,7 @@ func TestPublisher_Values(t *testing.T) {
 		{dbn.Publisher_EqusMiniEqus, 95, "EQUS.MINI.EQUS"},
 		{dbn.Publisher_IfusImpactIfus, 97, "IFUS.IMPACT.IFUS"},
 		{dbn.Publisher_OceaMemoirOcea, 107, "OCEA.MEMOIR.OCEA"},
+		{dbn.Publisher_DbixCoreCdef, 153, "DBIX.CORE.CDEF"},
 	}
 
 	for _, tt := range tests {
@@ -340,14 +345,14 @@ func TestPublisher_JSON(t *testing.T) {
 // Count Constants
 
 func TestCounts(t *testing.T) {
-	if dbn.VENUE_COUNT != 53 {
-		t.Errorf("VENUE_COUNT: got %d, want 53", dbn.VENUE_COUNT)
+	if dbn.VENUE_COUNT != 72 {
+		t.Errorf("VENUE_COUNT: got %d, want 72", dbn.VENUE_COUNT)
 	}
-	if dbn.DATASET_COUNT != 41 {
-		t.Errorf("DATASET_COUNT: got %d, want 41", dbn.DATASET_COUNT)
+	if dbn.DATASET_COUNT != 53 {
+		t.Errorf("DATASET_COUNT: got %d, want 53", dbn.DATASET_COUNT)
 	}
-	if dbn.PUBLISHER_COUNT != 107 {
-		t.Errorf("PUBLISHER_COUNT: got %d, want 107", dbn.PUBLISHER_COUNT)
+	if dbn.PUBLISHER_COUNT != 153 {
+		t.Errorf("PUBLISHER_COUNT: got %d, want 153", dbn.PUBLISHER_COUNT)
 	}
 }
 

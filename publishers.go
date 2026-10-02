@@ -84,7 +84,7 @@ const (
 	Venue_Mprl Venue = 31
 	// Nasdaq Options
 	Venue_Xndq Venue = 32
-	// Nasdaq BX Options
+	// Nasdaq Texas Options
 	Venue_Xbxo Venue = 33
 	// Cboe C2 Options
 	Venue_C2Ox Venue = 34
@@ -126,9 +126,47 @@ const (
 	Venue_Xcbf Venue = 52
 	// Blue Ocean ATS
 	Venue_Ocea Venue = 53
+	// MX2 Options
+	Venue_Mxto Venue = 54
+	// IEX Options LLC
+	Venue_Iexo Venue = 55
+	// Cboe Global Indices Feed
+	Venue_Main Venue = 56
+	// Texas Stock Exchange, LLC
+	Venue_Txse Venue = 57
+	// 24X National Exchange, LLC
+	Venue__24Eq Venue = 58
+	// Consolidated Tape Association
+	Venue_Cta Venue = 59
+	// Unlisted Trading Privileges
+	Venue_Utp Venue = 60
+	// FINRA Alternative Display Facility
+	Venue_Xadf Venue = 61
+	// CGIF Morgan Stanley Capital International
+	Venue_Msci Venue = 62
+	// CGIF FTSE Russell
+	Venue_Ftse Venue = 63
+	// CGIF Intraday Net Asset Values
+	Venue_Inav Venue = 64
+	// CGIF Morning Star
+	Venue_Mstar Venue = 65
+	// CGIF Crypto Currency
+	Venue_Cccy Venue = 66
+	// CGIF CBOE Global Indices
+	Venue_Cgi Venue = 67
+	// CGIF Definitions
+	Venue_Cdef Venue = 68
+	// Tokyo Stock Exchange
+	Venue_Xtks Venue = 69
+	// Tokyo Commodity Exchange
+	Venue_Xtkt Venue = 70
+	// Osaka Exchange
+	Venue_Xose Venue = 71
+	// Databento Core Indices
+	Venue_Dbix Venue = 72
 )
 
-const VENUE_COUNT = 53
+const VENUE_COUNT = 72
 
 // Returns the string representation of the Venue, or empty string if unknown.
 func (v Venue) String() string {
@@ -239,6 +277,44 @@ func (v Venue) String() string {
 		return "XCBF"
 	case Venue_Ocea:
 		return "OCEA"
+	case Venue_Mxto:
+		return "MXTO"
+	case Venue_Iexo:
+		return "IEXO"
+	case Venue_Main:
+		return "MAIN"
+	case Venue_Txse:
+		return "TXSE"
+	case Venue__24Eq:
+		return "24EQ"
+	case Venue_Cta:
+		return "CTA"
+	case Venue_Utp:
+		return "UTP"
+	case Venue_Xadf:
+		return "XADF"
+	case Venue_Msci:
+		return "MSCI"
+	case Venue_Ftse:
+		return "FTSE"
+	case Venue_Inav:
+		return "INAV"
+	case Venue_Mstar:
+		return "MSTAR"
+	case Venue_Cccy:
+		return "CCCY"
+	case Venue_Cgi:
+		return "CGI"
+	case Venue_Cdef:
+		return "CDEF"
+	case Venue_Xtks:
+		return "XTKS"
+	case Venue_Xtkt:
+		return "XTKT"
+	case Venue_Xose:
+		return "XOSE"
+	case Venue_Dbix:
+		return "DBIX"
 	default:
 		return ""
 	}
@@ -355,6 +431,44 @@ func VenueFromString(str string) (Venue, error) {
 		return Venue_Xcbf, nil
 	case "OCEA":
 		return Venue_Ocea, nil
+	case "MXTO":
+		return Venue_Mxto, nil
+	case "IEXO":
+		return Venue_Iexo, nil
+	case "MAIN":
+		return Venue_Main, nil
+	case "TXSE":
+		return Venue_Txse, nil
+	case "24EQ":
+		return Venue__24Eq, nil
+	case "CTA":
+		return Venue_Cta, nil
+	case "UTP":
+		return Venue_Utp, nil
+	case "XADF":
+		return Venue_Xadf, nil
+	case "MSCI":
+		return Venue_Msci, nil
+	case "FTSE":
+		return Venue_Ftse, nil
+	case "INAV":
+		return Venue_Inav, nil
+	case "MSTAR":
+		return Venue_Mstar, nil
+	case "CCCY":
+		return Venue_Cccy, nil
+	case "CGI":
+		return Venue_Cgi, nil
+	case "CDEF":
+		return Venue_Cdef, nil
+	case "XTKS":
+		return Venue_Xtks, nil
+	case "XTKT":
+		return Venue_Xtkt, nil
+	case "XOSE":
+		return Venue_Xose, nil
+	case "DBIX":
+		return Venue_Dbix, nil
 	default:
 		return Venue_Glbx, fmt.Errorf("unknown venue: '%s'", str)
 	}
@@ -403,7 +517,7 @@ const (
 	Dataset_GlbxMdp3 Dataset = 1
 	// Nasdaq TotalView-ITCH
 	Dataset_XnasItch Dataset = 2
-	// Nasdaq BX TotalView-ITCH
+	// Nasdaq Texas TotalView-ITCH
 	Dataset_XbosItch Dataset = 3
 	// Nasdaq PSX TotalView-ITCH
 	Dataset_XpsxItch Dataset = 4
@@ -427,7 +541,7 @@ const (
 	Dataset_XcisBbo Dataset = 13
 	// NYSE National Trades
 	Dataset_XcisTrades Dataset = 14
-	// MEMX Memoir Depth
+	// MEMX MEMOIR Depth
 	Dataset_MemxMemoir Dataset = 15
 	// MIAX Pearl Depth
 	Dataset_EprlDom Dataset = 16
@@ -477,13 +591,37 @@ const (
 	Dataset_XeurEobi Dataset = 38
 	// European Energy Exchange EOBI
 	Dataset_XeeeEobi Dataset = 39
-	// Cboe Futures Exchange PITCH
+	// CFE Depth
 	Dataset_XcbfPitch Dataset = 40
 	// Blue Ocean ATS MEMOIR Depth
 	Dataset_OceaMemoir Dataset = 41
+	// Cboe Titanium Cboe Global Indices Feed
+	Dataset_MainCgif Dataset = 42
+	// US Equities Security Information Processor
+	Dataset_EqusSip Dataset = 43
+	// CGIF - Morgan Stanley Capital International
+	Dataset_MsciCgif Dataset = 44
+	// CGIF - FTSE Russell
+	Dataset_FtseCgif Dataset = 45
+	// CGIF - Intraday Net Asset Values
+	Dataset_InavCgif Dataset = 46
+	// CGIF - Morning Star
+	Dataset_MstarCgif Dataset = 47
+	// CGIF - Crypto Currency
+	Dataset_CccyCgif Dataset = 48
+	// CGIF - CBOE Global Indices
+	Dataset_CgiCgif Dataset = 49
+	// Arrowhead FLEX
+	Dataset_XtksFlex Dataset = 50
+	// JPX JGATE3.0-ITCH
+	Dataset_XtktItch Dataset = 51
+	// JPX JGATE3.0-ITCH
+	Dataset_XoseItch Dataset = 52
+	// Databento Core Indices
+	Dataset_DbixCore Dataset = 53
 )
 
-const DATASET_COUNT = 41
+const DATASET_COUNT = 53
 
 // Returns the string representation of the Dataset, or empty string if unknown.
 func (d Dataset) String() string {
@@ -570,6 +708,30 @@ func (d Dataset) String() string {
 		return "XCBF.PITCH"
 	case Dataset_OceaMemoir:
 		return "OCEA.MEMOIR"
+	case Dataset_MainCgif:
+		return "MAIN.CGIF"
+	case Dataset_EqusSip:
+		return "EQUS.SIP"
+	case Dataset_MsciCgif:
+		return "MSCI.CGIF"
+	case Dataset_FtseCgif:
+		return "FTSE.CGIF"
+	case Dataset_InavCgif:
+		return "INAV.CGIF"
+	case Dataset_MstarCgif:
+		return "MSTAR.CGIF"
+	case Dataset_CccyCgif:
+		return "CCCY.CGIF"
+	case Dataset_CgiCgif:
+		return "CGI.CGIF"
+	case Dataset_XtksFlex:
+		return "XTKS.FLEX"
+	case Dataset_XtktItch:
+		return "XTKT.ITCH"
+	case Dataset_XoseItch:
+		return "XOSE.ITCH"
+	case Dataset_DbixCore:
+		return "DBIX.CORE"
 	default:
 		return ""
 	}
@@ -611,66 +773,36 @@ func (d Dataset) Publishers() []Publisher {
 		return []Publisher{Publisher_MemxMemoirMemx}
 	case Dataset_EprlDom:
 		return []Publisher{Publisher_EprlDomEprl}
-	case Dataset_FinnNls, Dataset_FinyTrades:
+	case Dataset_FinnNls:
+		return []Publisher{}
+	case Dataset_FinyTrades:
 		return []Publisher{}
 	case Dataset_OpraPillar:
-		return []Publisher{
-			Publisher_OpraPillarAmxo, Publisher_OpraPillarXbox, Publisher_OpraPillarXcbo,
-			Publisher_OpraPillarEmld, Publisher_OpraPillarEdgo, Publisher_OpraPillarGmni,
-			Publisher_OpraPillarXisx, Publisher_OpraPillarMcry, Publisher_OpraPillarXmio,
-			Publisher_OpraPillarArco, Publisher_OpraPillarOpra, Publisher_OpraPillarMprl,
-			Publisher_OpraPillarXndq, Publisher_OpraPillarXbxo, Publisher_OpraPillarC2Ox,
-			Publisher_OpraPillarXphl, Publisher_OpraPillarBato, Publisher_OpraPillarMxop,
-			Publisher_OpraPillarSphr,
-		}
+		return []Publisher{Publisher_OpraPillarAmxo, Publisher_OpraPillarXbox, Publisher_OpraPillarXcbo, Publisher_OpraPillarEmld, Publisher_OpraPillarEdgo, Publisher_OpraPillarGmni, Publisher_OpraPillarXisx, Publisher_OpraPillarMcry, Publisher_OpraPillarXmio, Publisher_OpraPillarArco, Publisher_OpraPillarOpra, Publisher_OpraPillarMprl, Publisher_OpraPillarXndq, Publisher_OpraPillarXbxo, Publisher_OpraPillarC2Ox, Publisher_OpraPillarXphl, Publisher_OpraPillarBato, Publisher_OpraPillarMxop, Publisher_OpraPillarSphr, Publisher_OpraPillarMxto, Publisher_OpraPillarIexo}
 	case Dataset_DbeqBasic:
-		return []Publisher{
-			Publisher_DbeqBasicXchi, Publisher_DbeqBasicXcis, Publisher_DbeqBasicIexg,
-			Publisher_DbeqBasicEprl, Publisher_DbeqBasicDbeq,
-		}
+		return []Publisher{Publisher_DbeqBasicXchi, Publisher_DbeqBasicXcis, Publisher_DbeqBasicIexg, Publisher_DbeqBasicEprl, Publisher_DbeqBasicDbeq}
 	case Dataset_ArcxPillar:
 		return []Publisher{Publisher_ArcxPillarArcx}
 	case Dataset_IexgTops:
 		return []Publisher{Publisher_IexgTopsIexg}
 	case Dataset_EqusPlus:
-		return []Publisher{
-			Publisher_EqusPlusXchi, Publisher_EqusPlusXcis, Publisher_EqusPlusIexg,
-			Publisher_EqusPlusEprl, Publisher_EqusPlusXnas, Publisher_EqusPlusXnys,
-			Publisher_EqusPlusFinn, Publisher_EqusPlusFiny, Publisher_EqusPlusFinc,
-			Publisher_EqusPlusEqus,
-		}
+		return []Publisher{Publisher_EqusPlusXchi, Publisher_EqusPlusXcis, Publisher_EqusPlusIexg, Publisher_EqusPlusEprl, Publisher_EqusPlusXnas, Publisher_EqusPlusXnys, Publisher_EqusPlusFinn, Publisher_EqusPlusFiny, Publisher_EqusPlusFinc, Publisher_EqusPlusEqus}
 	case Dataset_XnysBbo:
 		return []Publisher{Publisher_XnysBboXnys}
 	case Dataset_XnysTrades:
-		return []Publisher{
-			Publisher_XnysTradesFiny, Publisher_XnysTradesXnys, Publisher_XnysTradesEqus,
-		}
+		return []Publisher{Publisher_XnysTradesFiny, Publisher_XnysTradesXnys, Publisher_XnysTradesEqus}
 	case Dataset_XnasQbbo:
 		return []Publisher{Publisher_XnasQbboXnas}
 	case Dataset_XnasNls:
-		return []Publisher{
-			Publisher_XnasNlsFinn, Publisher_XnasNlsFinc, Publisher_XnasNlsXnas,
-			Publisher_XnasNlsXbos, Publisher_XnasNlsXpsx,
-		}
+		return []Publisher{Publisher_XnasNlsFinn, Publisher_XnasNlsFinc, Publisher_XnasNlsXnas, Publisher_XnasNlsXbos, Publisher_XnasNlsXpsx}
 	case Dataset_IfeuImpact:
 		return []Publisher{Publisher_IfeuImpactIfeu, Publisher_IfeuImpactXoff}
 	case Dataset_NdexImpact:
 		return []Publisher{Publisher_NdexImpactNdex, Publisher_NdexImpactXoff}
 	case Dataset_EqusAll:
-		return []Publisher{
-			Publisher_EqusAllXchi, Publisher_EqusAllXcis, Publisher_EqusAllIexg,
-			Publisher_EqusAllEprl, Publisher_EqusAllXnas, Publisher_EqusAllXnys,
-			Publisher_EqusAllFinn, Publisher_EqusAllFiny, Publisher_EqusAllFinc,
-			Publisher_EqusAllBats, Publisher_EqusAllBaty, Publisher_EqusAllEdga,
-			Publisher_EqusAllEdgx, Publisher_EqusAllXbos, Publisher_EqusAllXpsx,
-			Publisher_EqusAllMemx, Publisher_EqusAllXase, Publisher_EqusAllArcx,
-			Publisher_EqusAllLtse, Publisher_EqusAllEqus,
-		}
+		return []Publisher{Publisher_EqusAllXchi, Publisher_EqusAllXcis, Publisher_EqusAllIexg, Publisher_EqusAllEprl, Publisher_EqusAllXnas, Publisher_EqusAllXnys, Publisher_EqusAllFinn, Publisher_EqusAllFiny, Publisher_EqusAllFinc, Publisher_EqusAllBats, Publisher_EqusAllBaty, Publisher_EqusAllEdga, Publisher_EqusAllEdgx, Publisher_EqusAllXbos, Publisher_EqusAllXpsx, Publisher_EqusAllMemx, Publisher_EqusAllXase, Publisher_EqusAllArcx, Publisher_EqusAllLtse, Publisher_EqusAllEqus}
 	case Dataset_XnasBasic:
-		return []Publisher{
-			Publisher_XnasBasicXnas, Publisher_XnasBasicFinn, Publisher_XnasBasicFinc,
-			Publisher_XnasBasicXbos, Publisher_XnasBasicXpsx, Publisher_XnasBasicEqus,
-		}
+		return []Publisher{Publisher_XnasBasicXnas, Publisher_XnasBasicFinn, Publisher_XnasBasicFinc, Publisher_XnasBasicXbos, Publisher_XnasBasicXpsx, Publisher_XnasBasicEqus}
 	case Dataset_EqusSummary:
 		return []Publisher{Publisher_EqusSummaryEqus}
 	case Dataset_XcisTradesbbo:
@@ -691,6 +823,30 @@ func (d Dataset) Publishers() []Publisher {
 		return []Publisher{Publisher_XcbfPitchXcbf, Publisher_XcbfPitchXoff}
 	case Dataset_OceaMemoir:
 		return []Publisher{Publisher_OceaMemoirOcea}
+	case Dataset_MainCgif:
+		return []Publisher{Publisher_MainCgifMain, Publisher_MainCgifCdef}
+	case Dataset_EqusSip:
+		return []Publisher{Publisher_EqusSipXase, Publisher_EqusSipXbos, Publisher_EqusSipXcis, Publisher_EqusSipTxse, Publisher_EqusSip24Eq, Publisher_EqusSipEprl, Publisher_EqusSipXisx, Publisher_EqusSipEdga, Publisher_EqusSipEdgx, Publisher_EqusSipLtse, Publisher_EqusSipXchi, Publisher_EqusSipXnys, Publisher_EqusSipArcx, Publisher_EqusSipXnas, Publisher_EqusSipMemx, Publisher_EqusSipIexg, Publisher_EqusSipXpsx, Publisher_EqusSipBaty, Publisher_EqusSipBats, Publisher_EqusSipFinn, Publisher_EqusSipFiny, Publisher_EqusSipFinc, Publisher_EqusSipXadf, Publisher_EqusSipCta, Publisher_EqusSipUtp}
+	case Dataset_MsciCgif:
+		return []Publisher{Publisher_MsciCgifMsci}
+	case Dataset_FtseCgif:
+		return []Publisher{Publisher_FtseCgifFtse}
+	case Dataset_InavCgif:
+		return []Publisher{Publisher_InavCgifInav}
+	case Dataset_MstarCgif:
+		return []Publisher{Publisher_MstarCgifMstar}
+	case Dataset_CccyCgif:
+		return []Publisher{Publisher_CccyCgifCccy}
+	case Dataset_CgiCgif:
+		return []Publisher{Publisher_CgiCgifCgi}
+	case Dataset_XtksFlex:
+		return []Publisher{Publisher_XtksFlexXtks}
+	case Dataset_XtktItch:
+		return []Publisher{Publisher_XtktItchXtkt}
+	case Dataset_XoseItch:
+		return []Publisher{Publisher_XoseItchXose}
+	case Dataset_DbixCore:
+		return []Publisher{Publisher_DbixCoreMain, Publisher_DbixCoreMsci, Publisher_DbixCoreFtse, Publisher_DbixCoreInav, Publisher_DbixCoreMstar, Publisher_DbixCoreCccy, Publisher_DbixCoreCgi, Publisher_DbixCoreCdef}
 	default:
 		return nil
 	}
@@ -783,6 +939,30 @@ func DatasetFromString(str string) (Dataset, error) {
 		return Dataset_XcbfPitch, nil
 	case "OCEA.MEMOIR":
 		return Dataset_OceaMemoir, nil
+	case "MAIN.CGIF":
+		return Dataset_MainCgif, nil
+	case "EQUS.SIP":
+		return Dataset_EqusSip, nil
+	case "MSCI.CGIF":
+		return Dataset_MsciCgif, nil
+	case "FTSE.CGIF":
+		return Dataset_FtseCgif, nil
+	case "INAV.CGIF":
+		return Dataset_InavCgif, nil
+	case "MSTAR.CGIF":
+		return Dataset_MstarCgif, nil
+	case "CCCY.CGIF":
+		return Dataset_CccyCgif, nil
+	case "CGI.CGIF":
+		return Dataset_CgiCgif, nil
+	case "XTKS.FLEX":
+		return Dataset_XtksFlex, nil
+	case "XTKT.ITCH":
+		return Dataset_XtktItch, nil
+	case "XOSE.ITCH":
+		return Dataset_XoseItch, nil
+	case "DBIX.CORE":
+		return Dataset_DbixCore, nil
 	default:
 		return Dataset_GlbxMdp3, fmt.Errorf("unknown dataset: '%s'", str)
 	}
@@ -831,7 +1011,7 @@ const (
 	Publisher_GlbxMdp3Glbx Publisher = 1
 	// Nasdaq TotalView-ITCH
 	Publisher_XnasItchXnas Publisher = 2
-	// Nasdaq BX TotalView-ITCH
+	// Nasdaq Texas TotalView-ITCH
 	Publisher_XbosItchXbos Publisher = 3
 	// Nasdaq PSX TotalView-ITCH
 	Publisher_XpsxItchXpsx Publisher = 4
@@ -855,7 +1035,7 @@ const (
 	Publisher_XcisBboXcis Publisher = 13
 	// NYSE National Trades
 	Publisher_XcisTradesXcis Publisher = 14
-	// MEMX Memoir Depth
+	// MEMX MEMOIR Depth
 	Publisher_MemxMemoirMemx Publisher = 15
 	// MIAX Pearl Depth
 	Publisher_EprlDomEprl Publisher = 16
@@ -891,7 +1071,7 @@ const (
 	Publisher_OpraPillarMprl Publisher = 31
 	// OPRA - Nasdaq Options
 	Publisher_OpraPillarXndq Publisher = 32
-	// OPRA - Nasdaq BX Options
+	// OPRA - Nasdaq Texas Options
 	Publisher_OpraPillarXbxo Publisher = 33
 	// OPRA - Cboe C2 Options
 	Publisher_OpraPillarC2Ox Publisher = 34
@@ -975,7 +1155,7 @@ const (
 	Publisher_EqusAllEdga Publisher = 73
 	// Databento US Equities (All Feeds) - Cboe EDGX
 	Publisher_EqusAllEdgx Publisher = 74
-	// Databento US Equities (All Feeds) - Nasdaq BX
+	// Databento US Equities (All Feeds) - Nasdaq Texas
 	Publisher_EqusAllXbos Publisher = 75
 	// Databento US Equities (All Feeds) - Nasdaq PSX
 	Publisher_EqusAllXpsx Publisher = 76
@@ -997,11 +1177,11 @@ const (
 	Publisher_IfeuImpactXoff Publisher = 84
 	// ICE Endex - Off-Market Trades
 	Publisher_NdexImpactXoff Publisher = 85
-	// Nasdaq NLS - Nasdaq BX
+	// Nasdaq NLS - Nasdaq Texas
 	Publisher_XnasNlsXbos Publisher = 86
 	// Nasdaq NLS - Nasdaq PSX
 	Publisher_XnasNlsXpsx Publisher = 87
-	// Nasdaq Basic - Nasdaq BX
+	// Nasdaq Basic - Nasdaq Texas
 	Publisher_XnasBasicXbos Publisher = 88
 	// Nasdaq Basic - Nasdaq PSX
 	Publisher_XnasBasicXpsx Publisher = 89
@@ -1035,15 +1215,107 @@ const (
 	Publisher_XeurEobiXoff Publisher = 103
 	// European Energy Exchange EOBI - Off-Market Trades
 	Publisher_XeeeEobiXoff Publisher = 104
-	// Cboe Futures Exchange
+	// Cboe Futures Exchange (CFE)
 	Publisher_XcbfPitchXcbf Publisher = 105
-	// Cboe Futures Exchange - Off-Market Trades
+	// Cboe Futures Exchange (CFE) - Off-Market Trades
 	Publisher_XcbfPitchXoff Publisher = 106
 	// Blue Ocean ATS MEMOIR
 	Publisher_OceaMemoirOcea Publisher = 107
+	// OPRA - MEMX MX2 Options
+	Publisher_OpraPillarMxto Publisher = 108
+	// OPRA - IEX Options LLC
+	Publisher_OpraPillarIexo Publisher = 109
+	// Cboe Global Indices Feed
+	Publisher_MainCgifMain Publisher = 110
+	// US Equities SIP - NYSE American
+	Publisher_EqusSipXase Publisher = 111
+	// US Equities SIP - Nasdaq Texas
+	Publisher_EqusSipXbos Publisher = 112
+	// US Equities SIP - NYSE National
+	Publisher_EqusSipXcis Publisher = 113
+	// US Equities SIP - Texas Stock Exchange
+	Publisher_EqusSipTxse Publisher = 114
+	// US Equities SIP - 24X National Exchange
+	Publisher_EqusSip24Eq Publisher = 115
+	// US Equities SIP - MIAX Pearl
+	Publisher_EqusSipEprl Publisher = 116
+	// US Equities SIP - Nasdaq ISE
+	Publisher_EqusSipXisx Publisher = 117
+	// US Equities SIP - Cboe EDGA
+	Publisher_EqusSipEdga Publisher = 118
+	// US Equities SIP - Cboe EDGX
+	Publisher_EqusSipEdgx Publisher = 119
+	// US Equities SIP - Long-Term Stock Exchange
+	Publisher_EqusSipLtse Publisher = 120
+	// US Equities SIP - NYSE Texas
+	Publisher_EqusSipXchi Publisher = 121
+	// US Equities SIP - NYSE
+	Publisher_EqusSipXnys Publisher = 122
+	// US Equities SIP - NYSE Arca
+	Publisher_EqusSipArcx Publisher = 123
+	// US Equities SIP - Nasdaq
+	Publisher_EqusSipXnas Publisher = 124
+	// US Equities SIP - MEMX
+	Publisher_EqusSipMemx Publisher = 125
+	// US Equities SIP - IEX
+	Publisher_EqusSipIexg Publisher = 126
+	// US Equities SIP - Nasdaq PSX
+	Publisher_EqusSipXpsx Publisher = 127
+	// US Equities SIP - Cboe BYX
+	Publisher_EqusSipBaty Publisher = 128
+	// US Equities SIP - Cboe BZX
+	Publisher_EqusSipBats Publisher = 129
+	// US Equities SIP - FINRA/Nasdaq TRF Carteret
+	Publisher_EqusSipFinn Publisher = 130
+	// US Equities SIP - FINRA/NYSE TRF
+	Publisher_EqusSipFiny Publisher = 131
+	// US Equities SIP - FINRA/Nasdaq TRF Chicago
+	Publisher_EqusSipFinc Publisher = 132
+	// US Equities SIP - FINRA Alternative Display Facility
+	Publisher_EqusSipXadf Publisher = 133
+	// US Equities SIP - CTA
+	Publisher_EqusSipCta Publisher = 134
+	// US Equities SIP - UTP
+	Publisher_EqusSipUtp Publisher = 135
+	// CGIF - Morgan Stanley Capital International
+	Publisher_MsciCgifMsci Publisher = 136
+	// CGIF - FTSE Russell
+	Publisher_FtseCgifFtse Publisher = 137
+	// CGIF - Intraday Net Asset Values
+	Publisher_InavCgifInav Publisher = 138
+	// CGIF - Morning Star
+	Publisher_MstarCgifMstar Publisher = 139
+	// CGIF - Crypto Currency
+	Publisher_CccyCgifCccy Publisher = 140
+	// CGIF - CBOE Global Indices
+	Publisher_CgiCgifCgi Publisher = 141
+	// CGIF - Definitions
+	Publisher_MainCgifCdef Publisher = 142
+	// JPX - Tokyo Stock Exchange
+	Publisher_XtksFlexXtks Publisher = 143
+	// JPX - Tokyo Commodity Exchange
+	Publisher_XtktItchXtkt Publisher = 144
+	// JPX - Osaka Exchange
+	Publisher_XoseItchXose Publisher = 145
+	// CGIF - Main Feed
+	Publisher_DbixCoreMain Publisher = 146
+	// CGIF - Morgan Stanley Capital International
+	Publisher_DbixCoreMsci Publisher = 147
+	// CGIF - FTSE Russell
+	Publisher_DbixCoreFtse Publisher = 148
+	// CGIF - Intraday Net Asset Values
+	Publisher_DbixCoreInav Publisher = 149
+	// CGIF - Morning Star
+	Publisher_DbixCoreMstar Publisher = 150
+	// CGIF - Crypto Currency
+	Publisher_DbixCoreCccy Publisher = 151
+	// CGIF - CBOE Global Indices
+	Publisher_DbixCoreCgi Publisher = 152
+	// CGIF - Definitions
+	Publisher_DbixCoreCdef Publisher = 153
 )
 
-const PUBLISHER_COUNT = 107
+const PUBLISHER_COUNT = 153
 
 // Returns the string representation of the Publisher, or empty string if unknown.
 func (p Publisher) String() string {
@@ -1262,6 +1534,98 @@ func (p Publisher) String() string {
 		return "XCBF.PITCH.XOFF"
 	case Publisher_OceaMemoirOcea:
 		return "OCEA.MEMOIR.OCEA"
+	case Publisher_OpraPillarMxto:
+		return "OPRA.PILLAR.MXTO"
+	case Publisher_OpraPillarIexo:
+		return "OPRA.PILLAR.IEXO"
+	case Publisher_MainCgifMain:
+		return "MAIN.CGIF.MAIN"
+	case Publisher_EqusSipXase:
+		return "EQUS.SIP.XASE"
+	case Publisher_EqusSipXbos:
+		return "EQUS.SIP.XBOS"
+	case Publisher_EqusSipXcis:
+		return "EQUS.SIP.XCIS"
+	case Publisher_EqusSipTxse:
+		return "EQUS.SIP.TXSE"
+	case Publisher_EqusSip24Eq:
+		return "EQUS.SIP.24EQ"
+	case Publisher_EqusSipEprl:
+		return "EQUS.SIP.EPRL"
+	case Publisher_EqusSipXisx:
+		return "EQUS.SIP.XISX"
+	case Publisher_EqusSipEdga:
+		return "EQUS.SIP.EDGA"
+	case Publisher_EqusSipEdgx:
+		return "EQUS.SIP.EDGX"
+	case Publisher_EqusSipLtse:
+		return "EQUS.SIP.LTSE"
+	case Publisher_EqusSipXchi:
+		return "EQUS.SIP.XCHI"
+	case Publisher_EqusSipXnys:
+		return "EQUS.SIP.XNYS"
+	case Publisher_EqusSipArcx:
+		return "EQUS.SIP.ARCX"
+	case Publisher_EqusSipXnas:
+		return "EQUS.SIP.XNAS"
+	case Publisher_EqusSipMemx:
+		return "EQUS.SIP.MEMX"
+	case Publisher_EqusSipIexg:
+		return "EQUS.SIP.IEXG"
+	case Publisher_EqusSipXpsx:
+		return "EQUS.SIP.XPSX"
+	case Publisher_EqusSipBaty:
+		return "EQUS.SIP.BATY"
+	case Publisher_EqusSipBats:
+		return "EQUS.SIP.BATS"
+	case Publisher_EqusSipFinn:
+		return "EQUS.SIP.FINN"
+	case Publisher_EqusSipFiny:
+		return "EQUS.SIP.FINY"
+	case Publisher_EqusSipFinc:
+		return "EQUS.SIP.FINC"
+	case Publisher_EqusSipXadf:
+		return "EQUS.SIP.XADF"
+	case Publisher_EqusSipCta:
+		return "EQUS.SIP.CTA"
+	case Publisher_EqusSipUtp:
+		return "EQUS.SIP.UTP"
+	case Publisher_MsciCgifMsci:
+		return "MSCI.CGIF.MSCI"
+	case Publisher_FtseCgifFtse:
+		return "FTSE.CGIF.FTSE"
+	case Publisher_InavCgifInav:
+		return "INAV.CGIF.INAV"
+	case Publisher_MstarCgifMstar:
+		return "MSTAR.CGIF.MSTAR"
+	case Publisher_CccyCgifCccy:
+		return "CCCY.CGIF.CCCY"
+	case Publisher_CgiCgifCgi:
+		return "CGI.CGIF.CGI"
+	case Publisher_MainCgifCdef:
+		return "MAIN.CGIF.CDEF"
+	case Publisher_XtksFlexXtks:
+		return "XTKS.FLEX.XTKS"
+	case Publisher_XtktItchXtkt:
+		return "XTKT.ITCH.XTKT"
+	case Publisher_XoseItchXose:
+		return "XOSE.ITCH.XOSE"
+	case Publisher_DbixCoreMain:
+		return "DBIX.CORE.MAIN"
+	case Publisher_DbixCoreMsci:
+		return "DBIX.CORE.MSCI"
+	case Publisher_DbixCoreFtse:
+		return "DBIX.CORE.FTSE"
+	case Publisher_DbixCoreInav:
+		return "DBIX.CORE.INAV"
+	case Publisher_DbixCoreMstar:
+		return "DBIX.CORE.MSTAR"
+	case Publisher_DbixCoreCccy:
+		return "DBIX.CORE.CCCY"
+	case Publisher_DbixCoreCgi:
+		return "DBIX.CORE.CGI"
+	case Publisher_DbixCoreCdef:
+		return "DBIX.CORE.CDEF"
 	default:
 		return ""
 	}
@@ -1484,6 +1848,98 @@ func (p Publisher) Venue() Venue {
 		return Venue_Xoff
 	case Publisher_OceaMemoirOcea:
 		return Venue_Ocea
+	case Publisher_OpraPillarMxto:
+		return Venue_Mxto
+	case Publisher_OpraPillarIexo:
+		return Venue_Iexo
+	case Publisher_MainCgifMain:
+		return Venue_Main
+	case Publisher_EqusSipXase:
+		return Venue_Xase
+	case Publisher_EqusSipXbos:
+		return Venue_Xbos
+	case Publisher_EqusSipXcis:
+		return Venue_Xcis
+	case Publisher_EqusSipTxse:
+		return Venue_Txse
+	case Publisher_EqusSip24Eq:
+		return Venue__24Eq
+	case Publisher_EqusSipEprl:
+		return Venue_Eprl
+	case Publisher_EqusSipXisx:
+		return Venue_Xisx
+	case Publisher_EqusSipEdga:
+		return Venue_Edga
+	case Publisher_EqusSipEdgx:
+		return Venue_Edgx
+	case Publisher_EqusSipLtse:
+		return Venue_Ltse
+	case Publisher_EqusSipXchi:
+		return Venue_Xchi
+	case Publisher_EqusSipXnys:
+		return Venue_Xnys
+	case Publisher_EqusSipArcx:
+		return Venue_Arcx
+	case Publisher_EqusSipXnas:
+		return Venue_Xnas
+	case Publisher_EqusSipMemx:
+		return Venue_Memx
+	case Publisher_EqusSipIexg:
+		return Venue_Iexg
+	case Publisher_EqusSipXpsx:
+		return Venue_Xpsx
+	case Publisher_EqusSipBaty:
+		return Venue_Baty
+	case Publisher_EqusSipBats:
+		return Venue_Bats
+	case Publisher_EqusSipFinn:
+		return Venue_Finn
+	case Publisher_EqusSipFiny:
+		return Venue_Finy
+	case Publisher_EqusSipFinc:
+		return Venue_Finc
+	case Publisher_EqusSipXadf:
+		return Venue_Xadf
+	case Publisher_EqusSipCta:
+		return Venue_Cta
+	case Publisher_EqusSipUtp:
+		return Venue_Utp
+	case Publisher_MsciCgifMsci:
+		return Venue_Msci
+	case Publisher_FtseCgifFtse:
+		return Venue_Ftse
+	case Publisher_InavCgifInav:
+		return Venue_Inav
+	case Publisher_MstarCgifMstar:
+		return Venue_Mstar
+	case Publisher_CccyCgifCccy:
+		return Venue_Cccy
+	case Publisher_CgiCgifCgi:
+		return Venue_Cgi
+	case Publisher_MainCgifCdef:
+		return Venue_Cdef
+	case Publisher_XtksFlexXtks:
+		return Venue_Xtks
+	case Publisher_XtktItchXtkt:
+		return Venue_Xtkt
+	case Publisher_XoseItchXose:
+		return Venue_Xose
+	case Publisher_DbixCoreMain:
+		return Venue_Main
+	case Publisher_DbixCoreMsci:
+		return Venue_Msci
+	case Publisher_DbixCoreFtse:
+		return Venue_Ftse
+	case Publisher_DbixCoreInav:
+		return Venue_Inav
+	case Publisher_DbixCoreMstar:
+		return Venue_Mstar
+	case Publisher_DbixCoreCccy:
+		return Venue_Cccy
+	case Publisher_DbixCoreCgi:
+		return Venue_Cgi
+	case Publisher_DbixCoreCdef:
+		return Venue_Cdef
 	default:
 		return 0
 	}
@@ -1524,55 +1980,31 @@ func (p Publisher) Dataset() Dataset {
 		return Dataset_MemxMemoir
 	case Publisher_EprlDomEprl:
 		return Dataset_EprlDom
-	case Publisher_XnasNlsFinn, Publisher_XnasNlsFinc:
-		return Dataset_XnasNls
-	case Publisher_XnysTradesFiny:
-		return Dataset_XnysTrades
-	case Publisher_OpraPillarAmxo, Publisher_OpraPillarXbox, Publisher_OpraPillarXcbo,
-		Publisher_OpraPillarEmld, Publisher_OpraPillarEdgo, Publisher_OpraPillarGmni,
-		Publisher_OpraPillarXisx, Publisher_OpraPillarMcry, Publisher_OpraPillarXmio,
-		Publisher_OpraPillarArco, Publisher_OpraPillarOpra, Publisher_OpraPillarMprl,
-		Publisher_OpraPillarXndq, Publisher_OpraPillarXbxo, Publisher_OpraPillarC2Ox,
-		Publisher_OpraPillarXphl, Publisher_OpraPillarBato, Publisher_OpraPillarMxop,
-		Publisher_OpraPillarSphr:
+	case Publisher_OpraPillarAmxo, Publisher_OpraPillarXbox, Publisher_OpraPillarXcbo, Publisher_OpraPillarEmld, Publisher_OpraPillarEdgo, Publisher_OpraPillarGmni, Publisher_OpraPillarXisx, Publisher_OpraPillarMcry, Publisher_OpraPillarXmio, Publisher_OpraPillarArco, Publisher_OpraPillarOpra, Publisher_OpraPillarMprl, Publisher_OpraPillarXndq, Publisher_OpraPillarXbxo, Publisher_OpraPillarC2Ox, Publisher_OpraPillarXphl, Publisher_OpraPillarBato, Publisher_OpraPillarMxop, Publisher_OpraPillarSphr, Publisher_OpraPillarMxto, Publisher_OpraPillarIexo:
 		return Dataset_OpraPillar
-	case Publisher_IexgTopsIexg:
-		return Dataset_IexgTops
-	case Publisher_DbeqBasicXchi, Publisher_DbeqBasicXcis, Publisher_DbeqBasicIexg,
-		Publisher_DbeqBasicEprl:
+	case Publisher_DbeqBasicXchi, Publisher_DbeqBasicXcis, Publisher_DbeqBasicIexg, Publisher_DbeqBasicEprl, Publisher_DbeqBasicDbeq:
 		return Dataset_DbeqBasic
 	case Publisher_ArcxPillarArcx:
 		return Dataset_ArcxPillar
+	case Publisher_IexgTopsIexg:
+		return Dataset_IexgTops
+	case Publisher_EqusPlusXchi, Publisher_EqusPlusXcis, Publisher_EqusPlusIexg, Publisher_EqusPlusEprl, Publisher_EqusPlusXnas, Publisher_EqusPlusXnys, Publisher_EqusPlusFinn, Publisher_EqusPlusFiny, Publisher_EqusPlusFinc, Publisher_EqusPlusEqus:
+		return Dataset_EqusPlus
 	case Publisher_XnysBboXnys:
 		return Dataset_XnysBbo
-	case Publisher_XnysTradesXnys:
+	case Publisher_XnysTradesFiny, Publisher_XnysTradesXnys, Publisher_XnysTradesEqus:
 		return Dataset_XnysTrades
 	case Publisher_XnasQbboXnas:
 		return Dataset_XnasQbbo
-	case Publisher_XnasNlsXnas, Publisher_XnasNlsXbos, Publisher_XnasNlsXpsx:
+	case Publisher_XnasNlsFinn, Publisher_XnasNlsFinc, Publisher_XnasNlsXnas, Publisher_XnasNlsXbos, Publisher_XnasNlsXpsx:
 		return Dataset_XnasNls
-	case Publisher_EqusPlusXchi, Publisher_EqusPlusXcis, Publisher_EqusPlusIexg,
-		Publisher_EqusPlusEprl, Publisher_EqusPlusXnas, Publisher_EqusPlusXnys,
-		Publisher_EqusPlusFinn, Publisher_EqusPlusFiny, Publisher_EqusPlusFinc:
-		return Dataset_EqusPlus
 	case Publisher_IfeuImpactIfeu, Publisher_IfeuImpactXoff:
 		return Dataset_IfeuImpact
 	case Publisher_NdexImpactNdex, Publisher_NdexImpactXoff:
 		return Dataset_NdexImpact
-	case Publisher_DbeqBasicDbeq:
-		return Dataset_DbeqBasic
-	case Publisher_EqusPlusEqus:
-		return Dataset_EqusPlus
-	case Publisher_EqusAllXchi, Publisher_EqusAllXcis, Publisher_EqusAllIexg,
-		Publisher_EqusAllEprl, Publisher_EqusAllXnas, Publisher_EqusAllXnys,
-		Publisher_EqusAllFinn, Publisher_EqusAllFiny, Publisher_EqusAllFinc,
-		Publisher_EqusAllBats, Publisher_EqusAllBaty, Publisher_EqusAllEdga,
-		Publisher_EqusAllEdgx, Publisher_EqusAllXbos, Publisher_EqusAllXpsx,
-		Publisher_EqusAllMemx, Publisher_EqusAllXase, Publisher_EqusAllArcx,
-		Publisher_EqusAllLtse:
+	case Publisher_EqusAllXchi, Publisher_EqusAllXcis, Publisher_EqusAllIexg, Publisher_EqusAllEprl, Publisher_EqusAllXnas, Publisher_EqusAllXnys, Publisher_EqusAllFinn, Publisher_EqusAllFiny, Publisher_EqusAllFinc, Publisher_EqusAllBats, Publisher_EqusAllBaty, Publisher_EqusAllEdga, Publisher_EqusAllEdgx, Publisher_EqusAllXbos, Publisher_EqusAllXpsx, Publisher_EqusAllMemx, Publisher_EqusAllXase, Publisher_EqusAllArcx, Publisher_EqusAllLtse, Publisher_EqusAllEqus:
 		return Dataset_EqusAll
-	case Publisher_XnasBasicXnas, Publisher_XnasBasicFinn, Publisher_XnasBasicFinc,
-		Publisher_XnasBasicXbos, Publisher_XnasBasicXpsx:
+	case Publisher_XnasBasicXnas, Publisher_XnasBasicFinn, Publisher_XnasBasicFinc, Publisher_XnasBasicXbos, Publisher_XnasBasicXpsx, Publisher_XnasBasicEqus:
 		return Dataset_XnasBasic
 	case Publisher_EqusSummaryEqus:
 		return Dataset_EqusSummary
@@ -1580,14 +2012,8 @@ func (p Publisher) Dataset() Dataset {
 		return Dataset_XcisTradesbbo
 	case Publisher_XnysTradesbboXnys:
 		return Dataset_XnysTradesbbo
-	case Publisher_XnasBasicEqus:
-		return Dataset_XnasBasic
-	case Publisher_EqusAllEqus:
-		return Dataset_EqusAll
 	case Publisher_EqusMiniEqus:
 		return Dataset_EqusMini
-	case Publisher_XnysTradesEqus:
-		return Dataset_XnysTrades
 	case Publisher_IfusImpactIfus, Publisher_IfusImpactXoff:
 		return Dataset_IfusImpact
 	case Publisher_IfllImpactIfll, Publisher_IfllImpactXoff:
@@ -1600,6 +2026,30 @@ func (p Publisher) Dataset() Dataset {
 		return Dataset_XcbfPitch
 	case Publisher_OceaMemoirOcea:
 		return Dataset_OceaMemoir
+	case Publisher_MainCgifMain, Publisher_MainCgifCdef:
+		return Dataset_MainCgif
+	case Publisher_EqusSipXase, Publisher_EqusSipXbos, Publisher_EqusSipXcis, Publisher_EqusSipTxse, Publisher_EqusSip24Eq, Publisher_EqusSipEprl, Publisher_EqusSipXisx, Publisher_EqusSipEdga, Publisher_EqusSipEdgx, Publisher_EqusSipLtse, Publisher_EqusSipXchi, Publisher_EqusSipXnys, Publisher_EqusSipArcx, Publisher_EqusSipXnas, Publisher_EqusSipMemx, Publisher_EqusSipIexg, Publisher_EqusSipXpsx, Publisher_EqusSipBaty, Publisher_EqusSipBats, Publisher_EqusSipFinn, Publisher_EqusSipFiny, Publisher_EqusSipFinc, Publisher_EqusSipXadf, Publisher_EqusSipCta, Publisher_EqusSipUtp:
+		return Dataset_EqusSip
+	case Publisher_MsciCgifMsci:
+		return Dataset_MsciCgif
+	case Publisher_FtseCgifFtse:
+		return Dataset_FtseCgif
+	case Publisher_InavCgifInav:
+		return Dataset_InavCgif
+	case Publisher_MstarCgifMstar:
+		return Dataset_MstarCgif
+	case Publisher_CccyCgifCccy:
+		return Dataset_CccyCgif
+	case Publisher_CgiCgifCgi:
+		return Dataset_CgiCgif
+	case Publisher_XtksFlexXtks:
+		return Dataset_XtksFlex
+	case Publisher_XtktItchXtkt:
+		return Dataset_XtktItch
+	case Publisher_XoseItchXose:
+		return Dataset_XoseItch
+	case Publisher_DbixCoreMain, Publisher_DbixCoreMsci, Publisher_DbixCoreFtse, Publisher_DbixCoreInav, Publisher_DbixCoreMstar, Publisher_DbixCoreCccy, Publisher_DbixCoreCgi, Publisher_DbixCoreCdef:
+		return Dataset_DbixCore
 	default:
 		return 0
 	}
@@ -1673,28 +2123,6 @@ func PublisherFromDatasetVenue(dataset Dataset, venue Venue) (Publisher, error) 
 		if venue == Venue_Eprl {
 			return Publisher_EprlDomEprl, nil
 		}
-	case Dataset_XnasNls:
-		switch venue {
-		case Venue_Finn:
-			return Publisher_XnasNlsFinn, nil
-		case Venue_Finc:
-			return Publisher_XnasNlsFinc, nil
-		case Venue_Xnas:
-			return Publisher_XnasNlsXnas, nil
-		case Venue_Xbos:
-			return Publisher_XnasNlsXbos, nil
-		case Venue_Xpsx:
-			return Publisher_XnasNlsXpsx, nil
-		}
-	case Dataset_XnysTrades:
-		switch venue {
-		case Venue_Finy:
-			return Publisher_XnysTradesFiny, nil
-		case Venue_Xnys:
-			return Publisher_XnysTradesXnys, nil
-		case Venue_Equs:
-			return Publisher_XnysTradesEqus, nil
-		}
 	case Dataset_OpraPillar:
 		switch venue {
 		case Venue_Amxo:
@@ -1735,6 +2163,10 @@ func PublisherFromDatasetVenue(dataset Dataset, venue Venue) (Publisher, error) 
 			return Publisher_OpraPillarMxop, nil
 		case Venue_Sphr:
 			return Publisher_OpraPillarSphr, nil
+		case Venue_Mxto:
+			return Publisher_OpraPillarMxto, nil
+		case Venue_Iexo:
+			return Publisher_OpraPillarIexo, nil
 		}
 	case Dataset_DbeqBasic:
 		switch venue {
@@ -1784,9 +2216,31 @@ func PublisherFromDatasetVenue(dataset Dataset, venue Venue) (Publisher, error) 
 		if venue == Venue_Xnys {
 			return Publisher_XnysBboXnys, nil
 		}
+	case Dataset_XnysTrades:
+		switch venue {
+		case Venue_Finy:
+			return Publisher_XnysTradesFiny, nil
+		case Venue_Xnys:
+			return Publisher_XnysTradesXnys, nil
+		case Venue_Equs:
+			return Publisher_XnysTradesEqus, nil
+		}
 	case Dataset_XnasQbbo:
 		if venue == Venue_Xnas {
 			return Publisher_XnasQbboXnas, nil
+		}
+	case Dataset_XnasNls:
+		switch venue {
+		case Venue_Finn:
+			return Publisher_XnasNlsFinn, nil
+		case Venue_Finc:
+			return Publisher_XnasNlsFinc, nil
+		case Venue_Xnas:
+			return Publisher_XnasNlsXnas, nil
+		case Venue_Xbos:
+			return Publisher_XnasNlsXbos, nil
+		case Venue_Xpsx:
+			return Publisher_XnasNlsXpsx, nil
 		}
 	case Dataset_IfeuImpact:
 		switch venue {
@@ -1914,6 +2368,121 @@ func PublisherFromDatasetVenue(dataset Dataset, venue Venue) (Publisher, error) 
 	case Dataset_OceaMemoir:
 		if venue == Venue_Ocea {
 			return Publisher_OceaMemoirOcea, nil
+		}
+	case Dataset_MainCgif:
+		switch venue {
+		case Venue_Main:
+			return Publisher_MainCgifMain, nil
+		case Venue_Cdef:
+			return Publisher_MainCgifCdef, nil
+		}
+	case Dataset_EqusSip:
+		switch venue {
+		case Venue_Xase:
+			return Publisher_EqusSipXase, nil
+		case Venue_Xbos:
+			return Publisher_EqusSipXbos, nil
+		case Venue_Xcis:
+			return Publisher_EqusSipXcis, nil
+		case Venue_Txse:
+			return Publisher_EqusSipTxse, nil
+		case Venue__24Eq:
+			return Publisher_EqusSip24Eq, nil
+		case Venue_Eprl:
+			return Publisher_EqusSipEprl, nil
+		case Venue_Xisx:
+			return Publisher_EqusSipXisx, nil
+		case Venue_Edga:
+			return Publisher_EqusSipEdga, nil
+		case Venue_Edgx:
+			return Publisher_EqusSipEdgx, nil
+		case Venue_Ltse:
+			return Publisher_EqusSipLtse, nil
+		case Venue_Xchi:
+			return Publisher_EqusSipXchi, nil
+		case Venue_Xnys:
+			return Publisher_EqusSipXnys, nil
+		case Venue_Arcx:
+			return Publisher_EqusSipArcx, nil
+		case Venue_Xnas:
+			return Publisher_EqusSipXnas, nil
+		case Venue_Memx:
+			return Publisher_EqusSipMemx, nil
+		case Venue_Iexg:
+			return Publisher_EqusSipIexg, nil
+		case Venue_Xpsx:
+			return Publisher_EqusSipXpsx, nil
+		case Venue_Baty:
+			return Publisher_EqusSipBaty, nil
+		case Venue_Bats:
+			return Publisher_EqusSipBats, nil
+		case Venue_Finn:
+			return Publisher_EqusSipFinn, nil
+		case Venue_Finy:
+			return Publisher_EqusSipFiny, nil
+		case Venue_Finc:
+			return Publisher_EqusSipFinc, nil
+		case Venue_Xadf:
+			return Publisher_EqusSipXadf, nil
+		case Venue_Cta:
+			return Publisher_EqusSipCta, nil
+		case Venue_Utp:
+			return Publisher_EqusSipUtp, nil
+		}
+	case Dataset_MsciCgif:
+		if venue == Venue_Msci {
+			return Publisher_MsciCgifMsci, nil
+		}
+	case Dataset_FtseCgif:
+		if venue == Venue_Ftse {
+			return Publisher_FtseCgifFtse, nil
+		}
+	case Dataset_InavCgif:
+		if venue == Venue_Inav {
+			return Publisher_InavCgifInav, nil
+		}
+	case Dataset_MstarCgif:
+		if venue == Venue_Mstar {
+			return Publisher_MstarCgifMstar, nil
+		}
+	case Dataset_CccyCgif:
+		if venue == Venue_Cccy {
+			return Publisher_CccyCgifCccy, nil
+		}
+	case Dataset_CgiCgif:
+		if venue == Venue_Cgi {
+			return Publisher_CgiCgifCgi, nil
+		}
+	case Dataset_XtksFlex:
+		if venue == Venue_Xtks {
+			return Publisher_XtksFlexXtks, nil
+		}
+	case Dataset_XtktItch:
+		if venue == Venue_Xtkt {
+			return Publisher_XtktItchXtkt, nil
+		}
+	case Dataset_XoseItch:
+		if venue == Venue_Xose {
+			return Publisher_XoseItchXose, nil
+		}
+	case Dataset_DbixCore:
+		switch venue {
+		case Venue_Main:
+			return Publisher_DbixCoreMain, nil
+		case Venue_Msci:
+			return Publisher_DbixCoreMsci, nil
+		case Venue_Ftse:
+			return Publisher_DbixCoreFtse, nil
+		case Venue_Inav:
+			return Publisher_DbixCoreInav, nil
+		case Venue_Mstar:
+			return Publisher_DbixCoreMstar, nil
+		case Venue_Cccy:
+			return Publisher_DbixCoreCccy, nil
+		case Venue_Cgi:
+			return Publisher_DbixCoreCgi, nil
+		case Venue_Cdef:
+			return Publisher_DbixCoreCdef, nil
 		}
 	}
 	return 0, fmt.Errorf("no publisher for dataset %s and venue %s", dataset.String(), venue.String())
@@ -2138,6 +2707,98 @@ func PublisherFromString(str string) (Publisher, error) {
 		return Publisher_XcbfPitchXoff, nil
 	case "OCEA.MEMOIR.OCEA":
 		return Publisher_OceaMemoirOcea, nil
+	case "OPRA.PILLAR.MXTO":
+		return Publisher_OpraPillarMxto, nil
+	case "OPRA.PILLAR.IEXO":
+		return Publisher_OpraPillarIexo, nil
+	case "MAIN.CGIF.MAIN":
+		return Publisher_MainCgifMain, nil
+	case "EQUS.SIP.XASE":
+		return Publisher_EqusSipXase, nil
+	case "EQUS.SIP.XBOS":
+		return Publisher_EqusSipXbos, nil
+	case "EQUS.SIP.XCIS":
+		return Publisher_EqusSipXcis, nil
+	case "EQUS.SIP.TXSE":
+		return Publisher_EqusSipTxse, nil
+	case "EQUS.SIP.24EQ":
+		return Publisher_EqusSip24Eq, nil
+	case "EQUS.SIP.EPRL":
+		return Publisher_EqusSipEprl, nil
+	case "EQUS.SIP.XISX":
+		return Publisher_EqusSipXisx, nil
+	case "EQUS.SIP.EDGA":
+		return Publisher_EqusSipEdga, nil
+	case "EQUS.SIP.EDGX":
+		return Publisher_EqusSipEdgx, nil
+	case "EQUS.SIP.LTSE":
+		return Publisher_EqusSipLtse, nil
+	case "EQUS.SIP.XCHI":
+		return Publisher_EqusSipXchi, nil
+	case "EQUS.SIP.XNYS":
+		return Publisher_EqusSipXnys, nil
+	case "EQUS.SIP.ARCX":
+		return Publisher_EqusSipArcx, nil
+	case "EQUS.SIP.XNAS":
+		return Publisher_EqusSipXnas, nil
+	case "EQUS.SIP.MEMX":
+		return Publisher_EqusSipMemx, nil
+	case "EQUS.SIP.IEXG":
+		return Publisher_EqusSipIexg, nil
+	case "EQUS.SIP.XPSX":
+		return Publisher_EqusSipXpsx, nil
+	case "EQUS.SIP.BATY":
+		return Publisher_EqusSipBaty, nil
+	case "EQUS.SIP.BATS":
+		return Publisher_EqusSipBats, nil
+	case "EQUS.SIP.FINN":
+		return Publisher_EqusSipFinn, nil
+	case "EQUS.SIP.FINY":
+		return Publisher_EqusSipFiny, nil
+	case "EQUS.SIP.FINC":
+		return Publisher_EqusSipFinc, nil
+	case "EQUS.SIP.XADF":
+		return Publisher_EqusSipXadf, nil
+	case "EQUS.SIP.CTA":
+		return Publisher_EqusSipCta, nil
+	case "EQUS.SIP.UTP":
+		return Publisher_EqusSipUtp, nil
+	case "MSCI.CGIF.MSCI":
+		return Publisher_MsciCgifMsci, nil
+	case "FTSE.CGIF.FTSE":
+		return Publisher_FtseCgifFtse, nil
+	case "INAV.CGIF.INAV":
+		return Publisher_InavCgifInav, nil
+	case "MSTAR.CGIF.MSTAR":
+		return Publisher_MstarCgifMstar, nil
+	case "CCCY.CGIF.CCCY":
+		return Publisher_CccyCgifCccy, nil
+	case "CGI.CGIF.CGI":
+		return Publisher_CgiCgifCgi, nil
+	case "MAIN.CGIF.CDEF":
+		return Publisher_MainCgifCdef, nil
+	case "XTKS.FLEX.XTKS":
+		return Publisher_XtksFlexXtks, nil
+	case "XTKT.ITCH.XTKT":
+		return Publisher_XtktItchXtkt, nil
+	case "XOSE.ITCH.XOSE":
+		return Publisher_XoseItchXose, nil
+	case "DBIX.CORE.MAIN":
+		return Publisher_DbixCoreMain, nil
+	case "DBIX.CORE.MSCI":
+		return Publisher_DbixCoreMsci, nil
+	case "DBIX.CORE.FTSE":
+		return Publisher_DbixCoreFtse, nil
+	case "DBIX.CORE.INAV":
+		return Publisher_DbixCoreInav, nil
+	case "DBIX.CORE.MSTAR":
+		return Publisher_DbixCoreMstar, nil
+	case "DBIX.CORE.CCCY":
+		return Publisher_DbixCoreCccy, nil
+	case "DBIX.CORE.CGI":
+		return Publisher_DbixCoreCgi, nil
+	case "DBIX.CORE.CDEF":
+		return Publisher_DbixCoreCdef, nil
 	default:
 		return 0, fmt.Errorf("unknown publisher: '%s'", str)
 	}
