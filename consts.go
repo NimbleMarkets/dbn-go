@@ -18,6 +18,9 @@ import (
 // The sentinel value for an unset or null timestamp.
 const UNDEF_TIMESTAMP uint64 = math.MaxUint64
 
+// UNDEF_PRICE is the sentinel for an undefined or unset fixed-point price.
+const UNDEF_PRICE int64 = math.MaxInt64
+
 ///////////////////////////////////////////////////////////////////////////////
 
 // Side is a side of the market. The side of the market for resting orders, or the side of the aggressor for trades.
