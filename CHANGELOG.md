@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## Unreleased
+
+Synchronized constants with upstream DBN `0.71.0` (previously `0.34.0`).
+
+ * Added new constants and enums:
+   * `InstrumentClass_Index`
+   * `MatchAlgorithm_Allocation`
+   * `SType_ListingId`, `SType_IssuerId`, `SType_SecurityId` (reference data API only)
+   * `StatType_IndicativeClosePrice`, `StatType_MwcbLevel1/2/3`, `StatType_AuctionCollar{Reference,Upper,Lower}Price`, `StatType_VenueSpecificPrice1`
+   * `SystemCode_UnsubscribeAck`
+   * `ErrorCode_ReplayDataAgedOut`
+ * Venues, datasets and publishers regenerated from upstream `publishers.rs`
+   * Venues 53 -> 72, datasets 41 -> 53, publishers 107 -> 153
+   * Includes JPX, MEMX MX2, IEX Options, Cboe Global Indices (`MAIN`), US Equities SIPs, and Databento Core Indices (`DBIX`)
+   * `Dataset_OpraPillar.Publishers()` now returns all 21 publishers (was missing 2)
+
 ## v0.9.1 (2026-04-02)
 
   * `ErrorMsg` improvements:
