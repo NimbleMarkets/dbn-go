@@ -127,6 +127,11 @@ Many of the `dbn-go` structs are annotated with `json` tags to facilitate JSON s
 
 To write a DBN file, you need to write metadata first, then write records. All writes use the binary format with little-endian byte order.
 
+`Metadata.Write` preserves the requested version (1, 2, or 3) and rejects
+unsupported versions. Version 3 metadata is padded to an eight-byte boundary.
+Choose record layouts that match the metadata version; for example, v3
+statistics require `StatMsgV3`, while v2 statistics require `StatMsgV2`.
+
 ```go
 // Create and open a file
 file, _ := os.Create("output.dbn")
