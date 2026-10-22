@@ -4,9 +4,41 @@ package dbn_test
 
 import (
 	"testing"
+	"time"
 
 	dbn "github.com/NimbleMarkets/dbn-go"
 )
+
+func TestSubsamplingIntervals(t *testing.T) {
+	for _, tt := range []struct {
+		schema dbn.Schema
+		rtype  dbn.RType
+		want   time.Duration
+	}{
+		{dbn.Schema_Ohlcv1S, dbn.RType_Ohlcv1S, time.Second},
+		{dbn.Schema_Cbbo1S, dbn.RType_Cbbo1S, time.Second},
+		{dbn.Schema_Bbo1S, dbn.RType_Bbo1S, time.Second},
+		{dbn.Schema_Ohlcv1M, dbn.RType_Ohlcv1M, time.Minute},
+		{dbn.Schema_Cbbo1M, dbn.RType_Cbbo1M, time.Minute},
+		{dbn.Schema_Bbo1M, dbn.RType_Bbo1M, time.Minute},
+		{dbn.Schema_Ohlcv1H, dbn.RType_Ohlcv1H, time.Hour},
+		{dbn.Schema_Ohlcv1D, dbn.RType_Ohlcv1D, 24 * time.Hour},
+		{dbn.Schema_OhlcvEod, dbn.RType_OhlcvEod, 24 * time.Hour},
+		{dbn.Schema_Mbo, dbn.RType_Mbo, 0},
+		{dbn.Schema_Tbbo, dbn.RType_Mbp1, 0},
+		{dbn.Schema_Tcbbo, dbn.RType_Tcbbo, 0},
+		{dbn.Schema_Cmbp1, dbn.RType_Cmbp1, 0},
+		{dbn.Schema_Mixed, dbn.RType_OhlcvDeprecated, 0},
+		{dbn.Schema(1234), dbn.RType_Unknown, 0},
+	} {
+		if got, ok := tt.schema.Interval(); got != tt.want || ok != (tt.want != 0) {
+			t.Errorf("schema %v: got (%v, %v), want %v", tt.schema, got, ok, tt.want)
+		}
+		if got, ok := tt.rtype.Interval(); got != tt.want || ok != (tt.want != 0) {
+			t.Errorf("rtype %v: got (%v, %v), want %v", tt.rtype, got, ok, tt.want)
+		}
+	}
+}
 
 func TestSTypeRoundTrip(t *testing.T) {
 	tests := []struct {

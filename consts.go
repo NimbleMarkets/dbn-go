@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Neomantra Corp
+// Copyright (c) 2024-2025 Neomantra Corp
 //
 // Adapted from Databento's DBN:
 //   https://github.com/databento/dbn/blob/main/rust/dbn/src/enums.rs
@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 )
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -305,6 +306,23 @@ func (s *SType) Set(value string) error {
 
 type RType uint8
 
+// Interval returns the subsampling interval, or (0, false) for event-driven,
+// unspecified, or unknown record types. OHLCV EOD has a nominal one-day interval.
+func (r RType) Interval() (time.Duration, bool) {
+	switch r {
+	case RType_Ohlcv1S, RType_Cbbo1S, RType_Bbo1S:
+		return time.Second, true
+	case RType_Ohlcv1M, RType_Cbbo1M, RType_Bbo1M:
+		return time.Minute, true
+	case RType_Ohlcv1H:
+		return time.Hour, true
+	case RType_Ohlcv1D, RType_OhlcvEod:
+		return 24 * time.Hour, true
+	default:
+		return 0, false
+	}
+}
+
 const (
 	// Sentinel values for different DBN record types.
 	// comments from: https://github.com/databento/dbn/blob/main/rust/dbn/src/enums.rs
@@ -392,6 +410,23 @@ func (s RType) String() string {
 ///////////////////////////////////////////////////////////////////////////////
 
 type Schema uint16
+
+// Interval returns the subsampling interval, or (0, false) for event-driven,
+// mixed, or unknown schemas. OHLCV EOD has a nominal one-day interval.
+func (s Schema) Interval() (time.Duration, bool) {
+	switch s {
+	case Schema_Ohlcv1S, Schema_Cbbo1S, Schema_Bbo1S:
+		return time.Second, true
+	case Schema_Ohlcv1M, Schema_Cbbo1M, Schema_Bbo1M:
+		return time.Minute, true
+	case Schema_Ohlcv1H:
+		return time.Hour, true
+	case Schema_Ohlcv1D, Schema_OhlcvEod:
+		return 24 * time.Hour, true
+	default:
+		return 0, false
+	}
+}
 
 const (
 	/// The data record schema. u16::MAX indicates a potential mix of schemas and record types, which will always be the case for live data.

@@ -3,6 +3,7 @@
 ## Unreleased
 
  * Fix `TsSymbolMap.Insert` to exclude the end date and leave empty ranges unchanged.
+ * Add `Schema.Interval()` and `RType.Interval()` returning `(time.Duration, bool)` for subsampled data.
 
 Synchronized constants with upstream DBN `0.71.0` (previously `0.34.0`).
 
