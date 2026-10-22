@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+ * Fix `TsSymbolMap.Insert` to exclude the end date and leave empty ranges unchanged.
+
 Synchronized constants with upstream DBN `0.71.0` (previously `0.34.0`).
 
  * Added new constants and enums:

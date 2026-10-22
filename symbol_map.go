@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Neomantra Corp
+// Copyright (c) 2024-2025 Neomantra Corp
 
 //
 
@@ -94,8 +94,8 @@ func (tsm *TsSymbolMap) FillFromMetadata(metadata *Metadata) error {
 	return nil
 }
 
-// Insert adds mappings for a date range.
-// dates are YYYYMMDD ints
+// Insert adds mappings for [startDate, endDate), with an exclusive end date.
+// Dates are YYYYMMDD ints. An empty range leaves the map unchanged.
 func (tsm *TsSymbolMap) Insert(instrID uint32, startDate uint32, endDate uint32, ticker string) error {
 	// convert dates to time.Time
 	startTime := YMDToTime(int(startDate), time.UTC)
@@ -105,7 +105,7 @@ func (tsm *TsSymbolMap) Insert(instrID uint32, startDate uint32, endDate uint32,
 	}
 
 	// Iterate calendar days from startDate to endDate
-	for d := startTime; d.Before(endTime) || d.Equal(endTime); d = d.AddDate(0, 0, 1) {
+	for d := startTime; d.Before(endTime); d = d.AddDate(0, 0, 1) {
 		ymd := TimeToYMD(d)
 		key := tsSymbolKey{Date: ymd, ID: instrID}
 		tsm.symbolMap[key] = ticker
