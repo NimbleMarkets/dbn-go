@@ -6,111 +6,195 @@ package dbn
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"time"
 )
 
-type tsSymbolKey struct {
-	Date uint32 // YMD date
-	ID   uint32
+// symbolInterval is a half-open timestamp range. Intervals for an instrument are
+// sorted, non-overlapping, and coalesced when adjacent symbols are equal.
+type symbolInterval struct {
+	start, end uint64
+	symbol     string
 }
 
-// TsSymbolMap is a timeseries symbol map. Generally useful for working with historical data
-// and is commonly built from a Metadata object.
+// TsSymbolMap maps instrument IDs to symbols over time. It can be built from
+// metadata or updated from live records with scanner.Visit(tsm).
+// The zero value is ready to use. Concurrent mutation requires synchronization.
 type TsSymbolMap struct {
-	symbolMap map[tsSymbolKey]string
+	NullVisitor
+	symbolMap map[uint32][]symbolInterval
 }
 
-func NewTsSymbolMap() *TsSymbolMap {
-	return &TsSymbolMap{
-		symbolMap: make(map[tsSymbolKey]string),
-	}
-}
+var _ Visitor = (*TsSymbolMap)(nil)
+
+func NewTsSymbolMap() *TsSymbolMap { return &TsSymbolMap{} }
 
 // IsEmpty returns true if there are no mappings.
-func (tsm *TsSymbolMap) IsEmpty() bool {
-	return len(tsm.symbolMap) == 0
-}
+func (tsm *TsSymbolMap) IsEmpty() bool { return len(tsm.symbolMap) == 0 }
 
-// Len returns the number of symbol mappings in the map.
+// Len returns the number of stored intervals across all instruments, not the
+// number of days covered. Adjacent intervals with the same symbol are coalesced.
 func (tsm *TsSymbolMap) Len() int {
-	return len(tsm.symbolMap)
+	n := 0
+	for _, intervals := range tsm.symbolMap {
+		n += len(intervals)
+	}
+	return n
 }
 
-// Get returns the symbol mapping for the given date and instrument ID.
-// Returns empty string if no mapping exists.
+// Get returns the mapping at UTC midnight of dt's calendar date in its location,
+// preserving the date-based API. Use GetForTs for intraday lookups.
+// Returns an empty string if no mapping exists or the date is not representable.
 func (tsm *TsSymbolMap) Get(dt time.Time, instrID uint32) string {
-	ymd := TimeToYMD(dt)
-	key := tsSymbolKey{Date: ymd, ID: instrID}
-	symbol, ok := tsm.symbolMap[key]
-	if !ok {
+	ts, err := symbolDateTimestamp(TimeToYMD(dt))
+	if err != nil {
 		return ""
 	}
-	return symbol
+	return tsm.GetForTs(ts, instrID)
 }
 
-// FillFromMetadata fills the TsSymbolMap with mappings from `metadata`.
-func (tsm *TsSymbolMap) FillFromMetadata(metadata *Metadata) error {
-	// clear existing mappings
-	tsm.symbolMap = make(map[tsSymbolKey]string)
+// GetForTs returns the symbol at a UNIX timestamp in nanoseconds, or an empty
+// string if no mapping exists. UNDEF_TIMESTAMP never matches an interval.
+func (tsm *TsSymbolMap) GetForTs(ts uint64, instrID uint32) string {
+	intervals := tsm.symbolMap[instrID]
+	i := sort.Search(len(intervals), func(i int) bool { return intervals[i].end > ts })
+	if i < len(intervals) && intervals[i].start <= ts {
+		return intervals[i].symbol
+	}
+	return ""
+}
 
-	// handle inverse mappings distinctly
+// FillFromMetadata replaces the map with metadata's mappings. If validation
+// fails, the original map is left unchanged.
+func (tsm *TsSymbolMap) FillFromMetadata(metadata *Metadata) error {
 	invMapping, err := metadata.IsInverseMapping()
 	if err != nil {
 		return err
 	}
-	if invMapping {
-		for _, mapping := range metadata.Mappings {
-			// instrID comes from mapping, NOT interval
-			instrID, err := strconv.Atoi(mapping.RawSymbol)
+	next := NewTsSymbolMap()
+	for _, mapping := range metadata.Mappings {
+		for _, interval := range mapping.Intervals {
+			if interval.Symbol == "" {
+				continue
+			}
+			id, symbol := interval.Symbol, mapping.RawSymbol
+			if invMapping {
+				id, symbol = mapping.RawSymbol, interval.Symbol
+			}
+			instrID, err := strconv.ParseUint(id, 10, 32)
 			if err != nil {
-				return err // really?
+				return fmt.Errorf("symbol mapping instrument ID %q: %w", id, err)
 			}
-			for _, interval := range mapping.Intervals {
-				// handle old symbology format
-				if interval.Symbol == "" {
-					continue
-				}
-				tsm.Insert(uint32(instrID), interval.StartDate, interval.EndDate, interval.Symbol)
-			}
-		}
-	} else {
-		for _, mapping := range metadata.Mappings {
-			for _, interval := range mapping.Intervals {
-				// handle old symbology format
-				if interval.Symbol == "" {
-					continue
-				}
-				// instrID comes from interval, NOT mapping
-				instrID, err := strconv.Atoi(interval.Symbol)
-				if err != nil {
-					return err // really?
-				}
-				tsm.Insert(uint32(instrID), interval.StartDate, interval.EndDate, mapping.RawSymbol)
+			if err := next.Insert(uint32(instrID), interval.StartDate, interval.EndDate, symbol); err != nil {
+				return fmt.Errorf("symbol mapping for instrument %d: %w", instrID, err)
 			}
 		}
 	}
-
+	tsm.symbolMap = next.symbolMap
 	return nil
 }
 
 // Insert adds mappings for [startDate, endDate), with an exclusive end date.
-// Dates are YYYYMMDD ints. An empty range leaves the map unchanged.
+// Dates are YYYYMMDD UTC dates within the DBN timestamp range. An empty range
+// leaves the map unchanged. Use InsertTs for intraday mappings.
 func (tsm *TsSymbolMap) Insert(instrID uint32, startDate uint32, endDate uint32, ticker string) error {
-	// convert dates to time.Time
-	startTime := YMDToTime(int(startDate), time.UTC)
-	endTime := YMDToTime(int(endDate), time.UTC)
-	if startTime.After(endTime) {
-		return fmt.Errorf("startDate is after endDate")
+	start, err := symbolDateTimestamp(startDate)
+	if err != nil {
+		return err
 	}
+	end, err := symbolDateTimestamp(endDate)
+	if err != nil {
+		return err
+	}
+	return tsm.InsertTs(instrID, start, end, ticker)
+}
 
-	// Iterate calendar days from startDate to endDate
-	for d := startTime; d.Before(endTime); d = d.AddDate(0, 0, 1) {
-		ymd := TimeToYMD(d)
-		key := tsSymbolKey{Date: ymd, ID: instrID}
-		tsm.symbolMap[key] = ticker
+// InsertTs adds a mapping for [startTs, endTs), expressed as UNIX nanoseconds.
+// The new mapping replaces overlapping portions of existing mappings, preserving
+// their non-overlapping portions. Equal bounds are a no-op; reversed bounds
+// return an error. UNDEF_TIMESTAMP may be used as an open-ended end bound.
+func (tsm *TsSymbolMap) InsertTs(instrID uint32, startTs, endTs uint64, ticker string) error {
+	if startTs > endTs {
+		return fmt.Errorf("mapping start timestamp is after end timestamp")
 	}
+	if startTs == endTs {
+		return nil
+	}
+	if tsm.symbolMap == nil {
+		tsm.symbolMap = make(map[uint32][]symbolInterval)
+	}
+	intervals := tsm.symbolMap[instrID]
+	added := symbolInterval{startTs, endTs, ticker}
+	// Chronological updates are common. Append without copying older intervals.
+	if len(intervals) == 0 || intervals[len(intervals)-1].end <= startTs {
+		tsm.symbolMap[instrID] = appendSymbolInterval(intervals, added)
+		return nil
+	}
+	// Split overwritten intervals at the new bounds and coalesce equal neighbors.
+	result := make([]symbolInterval, 0, len(intervals)+2)
+	inserted := false
+	for _, old := range intervals {
+		if old.end <= startTs {
+			result = appendSymbolInterval(result, old)
+			continue
+		}
+		if old.start >= endTs {
+			if !inserted {
+				result = appendSymbolInterval(result, added)
+				inserted = true
+			}
+			result = appendSymbolInterval(result, old)
+			continue
+		}
+		if old.start < startTs {
+			result = appendSymbolInterval(result, symbolInterval{old.start, startTs, old.symbol})
+		}
+		if !inserted {
+			result = appendSymbolInterval(result, added)
+			inserted = true
+		}
+		if old.end > endTs {
+			result = appendSymbolInterval(result, symbolInterval{endTs, old.end, old.symbol})
+		}
+	}
+	if !inserted {
+		result = appendSymbolInterval(result, added)
+	}
+	tsm.symbolMap[instrID] = result
 	return nil
+}
+
+func appendSymbolInterval(intervals []symbolInterval, next symbolInterval) []symbolInterval {
+	if len(intervals) > 0 {
+		last := &intervals[len(intervals)-1]
+		if last.end == next.start && last.symbol == next.symbol {
+			last.end = next.end
+			return intervals
+		}
+	}
+	return append(intervals, next)
+}
+
+func symbolDateTimestamp(date uint32) (uint64, error) {
+	dt := YMDToTime(int(date), time.UTC)
+	seconds := dt.Unix()
+	if date == 0 || TimeToYMD(dt) != date || seconds < 0 || uint64(seconds) > (UNDEF_TIMESTAMP-1)/uint64(time.Second) {
+		return 0, fmt.Errorf("invalid symbol mapping date %d", date)
+	}
+	return uint64(seconds) * uint64(time.Second), nil
+}
+
+// OnSymbolMappingMsg updates the map from a live mapping record. An undefined
+// start applies from the UNIX epoch; an undefined end applies indefinitely.
+// The record header's instrument ID maps to StypeOutSymbol, matching PitSymbolMap.
+// Other record types are ignored through the embedded NullVisitor.
+func (tsm *TsSymbolMap) OnSymbolMappingMsg(record *SymbolMappingMsg) error {
+	start := record.StartTs
+	if start == UNDEF_TIMESTAMP {
+		start = 0
+	}
+	return tsm.InsertTs(record.Header.InstrumentID, start, record.EndTs, record.StypeOutSymbol)
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -133,7 +217,7 @@ func NewPitSymbolMap() *PitSymbolMap {
 
 // IsEmpty returns `true` if there are no mappings.
 func (p *PitSymbolMap) IsEmpty() bool {
-	return len(p.mapping) != 0
+	return len(p.mapping) == 0
 }
 
 // Returns the number of symbol mappings in the map.
@@ -169,7 +253,7 @@ func (p *PitSymbolMap) FillFromMetadata(metadata *Metadata, timestamp uint64) er
 	if timestamp < metadata.Start || timestamp >= metadata.End {
 		return ErrDateOutsideQueryRange
 	}
-	ymd := TimeToYMD(time.Unix(0, int64(timestamp)))
+	ymd := TimeToYMD(time.Unix(0, int64(timestamp)).UTC())
 
 	isInverse, err := metadata.IsInverseMapping()
 	if err != nil {
@@ -189,19 +273,15 @@ func (p *PitSymbolMap) FillFromMetadata(metadata *Metadata, timestamp uint64) er
 				continue
 			}
 
+			id, symbol := interval.Symbol, mapping.RawSymbol
 			if isInverse {
-				instrID, err := strconv.Atoi(mapping.RawSymbol)
-				if err != nil {
-					return err
-				}
-				p.mapping[uint32(instrID)] = interval.Symbol
-			} else {
-				instrID, err := strconv.Atoi(interval.Symbol)
-				if err != nil {
-					return err
-				}
-				p.mapping[uint32(instrID)] = mapping.RawSymbol
+				id, symbol = mapping.RawSymbol, interval.Symbol
 			}
+			instrID, err := strconv.ParseUint(id, 10, 32)
+			if err != nil {
+				return fmt.Errorf("symbol mapping instrument ID %q: %w", id, err)
+			}
+			p.mapping[uint32(instrID)] = symbol
 		}
 	}
 	return nil

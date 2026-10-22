@@ -4,6 +4,11 @@
 
  * Fix `TsSymbolMap.Insert` to exclude the end date and leave empty ranges unchanged.
  * Add `Schema.Interval()` and `RType.Interval()` returning `(time.Duration, bool)` for subsampled data.
+ * Store `TsSymbolMap` mappings as coalesced timestamp intervals instead of daily entries, following DBN `0.72.0`.
+   * Add `InsertTs` and `GetForTs` for UNIX nanosecond timestamps and intraday mappings; keep `Insert` and `Get` as date-based wrappers.
+   * Support live updates via `OnSymbolMappingMsg` or `scanner.Visit(symbolMap)`; undefined starts mean the UNIX epoch and undefined ends are open-ended.
+   * **Behavior change:** `Len()` now counts stored intervals rather than daily entries.
+   * Reject invalid dates and out-of-range instrument IDs when loading metadata, propagate invalid ranges, and leave the previous map unchanged on error.
 
 Synchronized constants with upstream DBN `0.71.0` (previously `0.34.0`).
 
