@@ -30,6 +30,9 @@ var (
 	disallowedQueryPattern = regexp.MustCompile(
 		`(?i)\b(read_[a-z0-9_]*|[a-z0-9_]*_scan|attach|detach|copy|install|load|pragma|call|create|alter|drop|insert|update|delete|merge|truncate|vacuum|checkpoint|set|reset|use|export|import)\b`,
 	)
+	// Block table functions that run SQL from a string literal (which hides it from
+	// the keyword check above) or that touch the filesystem.
+	disallowedFunctionPattern = regexp.MustCompile(`(?i)\b(query|query_table|glob|sniff_csv)\s*\(`)
 	// DuckDB allows FROM 'path/to/file.csv'; block quoted table sources.
 	disallowedQuotedFromPattern = regexp.MustCompile(`(?is)\b(from|join)\s*'`)
 )
@@ -172,7 +175,7 @@ func validateQueryCacheSQL(userSQL string) error {
 	if !queryPrefixPattern.MatchString(normalized) {
 		return fmt.Errorf("only SELECT/CTE queries are allowed")
 	}
-	if disallowedQueryPattern.MatchString(normalized) {
+	if disallowedQueryPattern.MatchString(normalized) || disallowedFunctionPattern.MatchString(normalized) {
 		return fmt.Errorf("query contains disallowed SQL keywords/functions")
 	}
 	return nil
@@ -277,19 +280,32 @@ func (s *Server) InitCache() error {
 	if err := os.MkdirAll(s.cacheDir, 0755); err != nil {
 		return fmt.Errorf("failed to create cache dir: %w", err)
 	}
+	// DuckDB's allowed_directories is a path-prefix match, so use an absolute
+	// path for both the allowlist and the views built from s.cacheDir.
+	absCacheDir, err := filepath.Abs(s.cacheDir)
+	if err != nil {
+		return fmt.Errorf("failed to resolve cache dir: %w", err)
+	}
+	s.cacheDir = absCacheDir
 
 	db, err := sql.Open("duckdb", "")
 	if err != nil {
 		return fmt.Errorf("failed to open DuckDB: %w", err)
 	}
-	// Security hardening: disable extensions and remote filesystem access.
-	// We keep local file access enabled because read_parquet() needs it for views.
-	// lock_configuration prevents user SQL from re-enabling these.
+	// Security hardening: disable extensions and all filesystem access outside
+	// the cache directory. User SQL can reach file-reading table functions in
+	// ways a keyword filter cannot see (e.g. query('...read_text(...)...')),
+	// so DuckDB itself must refuse those reads. allowed_directories must be set
+	// before enable_external_access is disabled, or the cache views break.
+	// lock_configuration prevents user SQL from re-enabling any of these.
+	allowedDir := absCacheDir + string(filepath.Separator) // trailing separator: don't match sibling dirs
 	for _, stmt := range []string{
 		"SET autoinstall_known_extensions = false",
 		"SET autoload_known_extensions = false",
 		"SET allow_community_extensions = false",
 		"SET disabled_filesystems = 'HTTPFileSystem'",
+		fmt.Sprintf("SET allowed_directories = [%s]", sqlLiteral(allowedDir)),
+		"SET enable_external_access = false",
 		"SET lock_configuration = true",
 	} {
 		if _, err := db.Exec(stmt); err != nil {
