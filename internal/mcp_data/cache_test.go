@@ -4,6 +4,7 @@ package mcp_data
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -12,6 +13,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/NimbleMarkets/dbn-go/internal/file"
 )
 
 func testServer(t *testing.T) *Server {
@@ -608,11 +611,78 @@ func TestValidateQueryCacheSQL_BlocksExternalReadsAndDDL(t *testing.T) {
 		`PRAGMA show_tables`,
 		`SELECT 1; SELECT 2`,
 		`CREATE TABLE t AS SELECT 1`,
+		// SQL hidden in a string literal is invisible to the keyword check
+		`SELECT * FROM query('select content from read_text(''/etc/hosts'')')`,
+		`SELECT * FROM query_table('t')`,
+		`SELECT * FROM glob('/etc/*')`,
+		`SELECT * FROM sniff_csv('/etc/hosts')`,
 	}
 	for _, q := range blocked {
 		if err := validateQueryCacheSQL(q); err == nil {
 			t.Fatalf("validateQueryCacheSQL should reject %q", q)
 		}
+	}
+}
+
+// writeSecretFile writes a file outside the cache directory for file-access tests.
+func writeSecretFile(t *testing.T, name string) string {
+	t.Helper()
+	secretPath := filepath.Join(t.TempDir(), name)
+	if err := os.WriteFile(secretPath, []byte("secret-canary\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	return secretPath
+}
+
+func TestInitCache_DuckDBBlocksFilesOutsideCacheDir(t *testing.T) {
+	s := testServerWithDB(t)
+	secretPath := writeSecretFile(t, "secret.csv")
+
+	// Run directly against DuckDB, skipping validateQueryCacheSQL, so this
+	// checks the engine-level lockdown on its own.
+	queries := []string{
+		fmt.Sprintf(`SELECT * FROM read_text(%s)`, sqlLiteral(secretPath)),
+		fmt.Sprintf(`SELECT * FROM query('SELECT content FROM read_text(%s)')`, strings.ReplaceAll(sqlLiteral(secretPath), "'", "''")),
+		fmt.Sprintf(`SELECT * FROM read_csv(%s)`, sqlLiteral(secretPath)),
+		fmt.Sprintf(`SELECT * FROM sniff_csv(%s)`, sqlLiteral(secretPath)),
+		fmt.Sprintf(`SELECT * FROM %s`, sqlLiteral(secretPath)),
+		fmt.Sprintf(`SELECT * FROM "%s"`, secretPath),
+		fmt.Sprintf(`SELECT * FROM glob(%s)`, sqlLiteral(filepath.Join(filepath.Dir(secretPath), "*"))),
+		`SET enable_external_access = true`,
+	}
+	for _, q := range queries {
+		rows, err := s.db.Query(q)
+		if err == nil {
+			rows.Close()
+			t.Errorf("DuckDB should refuse %q", q)
+		}
+	}
+}
+
+func TestInitCache_ViewsReadParquetInsideCacheDir(t *testing.T) {
+	s := testServer(t)
+	parquetDir := filepath.Join(s.cacheDir, "XNAS.ITCH", "ohlcv-1s")
+	if err := os.MkdirAll(parquetDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	parquetPath := filepath.Join(parquetDir, "test.parquet")
+	if err := file.WriteDbnFileAsParquet("../../tests/data/test_data.ohlcv-1s.dbn", false, parquetPath); err != nil {
+		t.Fatalf("failed to write parquet: %v", err)
+	}
+	if err := s.InitCache(); err != nil {
+		t.Fatalf("InitCache failed: %v", err)
+	}
+	t.Cleanup(func() { s.Close() })
+
+	result, err := s.queryDuckDB(`SELECT count(*) AS n FROM "XNAS.ITCH/ohlcv-1s"`, queryDuckDBOptions{})
+	if err != nil {
+		t.Fatalf("query over cached view failed: %v", err)
+	}
+	if strings.Contains(result, "\n0\n") {
+		t.Errorf("expected records in cached view, got: %s", result)
+	}
+	if n := s.countParquetRecords(parquetPath); n <= 0 {
+		t.Errorf("countParquetRecords = %d, want > 0", n)
 	}
 }
 

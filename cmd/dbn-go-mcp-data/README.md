@@ -74,6 +74,8 @@ Metadata tools (`list_datasets`, `get_cost`, etc.) still require an API key and 
 
 Data fetched via `fetch_range` is stored as Parquet files under `~/.dbn-go/cache/{dataset}/{schema}/`. An in-memory DuckDB instance creates views backed by these files via `read_parquet()`. The LLM discovers available views using `list_cache` and queries them with standard SQL through `query_cache`.
 
+DuckDB is locked down so `query_cache` can only read files inside the cache directory: extensions and remote filesystems are disabled, file access is restricted via `allowed_directories`, and the configuration is locked against changes from user SQL.
+
 ## MCP Host Configuration
 
 ### Claude Desktop
