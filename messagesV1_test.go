@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Neomantra Corp
+// Copyright (c) 2024-2025 Neomantra Corp
 //
 // Tests for DBN Version 1 message types
 
@@ -48,7 +48,7 @@ var _ = Describe("Messages V1", func() {
 
 	Context("SymbolMapping v1 messages", func() {
 		It("should have correct size for SymbolMappingMsgV1", func() {
-			// V1: RHeader (16) + 16 + 2*22 = 16 + 16 + 44 = 76
+			// V1: header (16) + symbols (2*22) + padding (4) + timestamps (2*8) = 80 bytes
 			Expect(dbn.SymbolMappingMsgV1_Size).To(BeEquivalentTo(80))
 		})
 
