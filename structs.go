@@ -415,12 +415,13 @@ func (r *Mbp1Msg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 ///////////////////////////////////////////////////////////////////////////////
 
 // Consolidated market by price implementation with a known book depth of 1. The record of the
-// [`Cmbp1`](crate::Schema::Cmbp1) schema.
+// CMBP1 and TCBBO schemas. This struct also represents CBBO-1S and CBBO-1M,
+// where Action, TsInDelta, and Sequence occupy reserved bytes and must be zero.
 type Cmbp1Msg struct {
 	Header    RHeader                `json:"hd" csv:"hd"`                         // The record header.
 	Price     int64                  `json:"price" csv:"price"`                   // The order price expressed as a signed integer where every 1 unit corresponds to 1e-9, i.e. 1/1,000,000,000 or 0.000000001.
 	Size      uint32                 `json:"size" csv:"size"`                     // The order quantity.
-	Action    byte                   `json:"action" csv:"action"`                 // The event action. Can be **A**dd, **C**ancel, **M**odify, clea**R**, or **T**rade.
+	Action    byte                   `json:"action" csv:"action"`                 // The event action for CMBP1/TCBBO; reserved (zero) for CBBO-1S/CBBO-1M.
 	Side      byte                   `json:"side" csv:"side"`                     // The side that initiates the event. Can be **A**sk for a sell order (or sell  aggressor in a trade), **B**id for a buy order (or buy aggressor in a trade), or  **N**one where no side is specified by the original source.
 	Flags     uint8                  `json:"flags" csv:"flags"`                   // A bit field indicating event end, message characteristics, and data quality. See [`enums::flags`](crate::enums::flags) for possible values.
 	Reserved  byte                   `json:"_reserved,omitempty" csv:"_reserved"` // Reserved for future usage.

@@ -10,16 +10,14 @@ package dbn
 
 import "math"
 
+func defaultRecordHeader(rtype RType, size uint16) RHeader {
+	return RHeader{Length: uint8(size / 4), RType: rtype, TsEvent: UNDEF_TIMESTAMP}
+}
+
 // NewMboMsg returns a MboMsg with the same defaults as the upstream DBN `Default` implementation.
 func NewMboMsg() MboMsg {
 	return MboMsg{
-		Header: RHeader{
-			Length:       MboMsg_Size / 4,
-			RType:        RType_Mbo,
-			PublisherID:  0,
-			InstrumentID: 0,
-			TsEvent:      UNDEF_TIMESTAMP,
-		},
+		Header:    defaultRecordHeader(RType_Mbo, MboMsg_Size),
 		Price:     UNDEF_PRICE,
 		ChannelID: math.MaxUint8,
 		Action:    byte(Action_None),
@@ -31,13 +29,7 @@ func NewMboMsg() MboMsg {
 // NewStatMsgV3 returns a StatMsgV3 with the same defaults as the upstream DBN `Default` implementation.
 func NewStatMsgV3() StatMsgV3 {
 	return StatMsgV3{
-		Header: RHeader{
-			Length:       StatMsgV3_Size / 4,
-			RType:        RType_Statistics,
-			PublisherID:  0,
-			InstrumentID: 0,
-			TsEvent:      UNDEF_TIMESTAMP,
-		},
+		Header:       defaultRecordHeader(RType_Statistics, StatMsgV3_Size),
 		TsRecv:       UNDEF_TIMESTAMP,
 		TsRef:        UNDEF_TIMESTAMP,
 		Price:        UNDEF_PRICE,
@@ -50,13 +42,7 @@ func NewStatMsgV3() StatMsgV3 {
 // NewStatMsgV2 returns a StatMsgV2 with the same defaults as the upstream DBN `Default` implementation.
 func NewStatMsgV2() StatMsgV2 {
 	return StatMsgV2{
-		Header: RHeader{
-			Length:       StatMsgV2_Size / 4,
-			RType:        RType_Statistics,
-			PublisherID:  0,
-			InstrumentID: 0,
-			TsEvent:      UNDEF_TIMESTAMP,
-		},
+		Header:       defaultRecordHeader(RType_Statistics, StatMsgV2_Size),
 		TsRecv:       UNDEF_TIMESTAMP,
 		TsRef:        UNDEF_TIMESTAMP,
 		Price:        UNDEF_PRICE,
@@ -69,13 +55,7 @@ func NewStatMsgV2() StatMsgV2 {
 // NewInstrumentDefMsgV3 returns a InstrumentDefMsgV3 with the same defaults as the upstream DBN `Default` implementation.
 func NewInstrumentDefMsgV3() InstrumentDefMsgV3 {
 	return InstrumentDefMsgV3{
-		Header: RHeader{
-			Length:       InstrumentDefMsgV3_Size / 4,
-			RType:        RType_InstrumentDef,
-			PublisherID:  0,
-			InstrumentID: 0,
-			TsEvent:      UNDEF_TIMESTAMP,
-		},
+		Header:                  defaultRecordHeader(RType_InstrumentDef, InstrumentDefMsgV3_Size),
 		TsRecv:                  UNDEF_TIMESTAMP,
 		MinPriceIncrement:       UNDEF_PRICE,
 		DisplayFactor:           UNDEF_PRICE,
@@ -126,13 +106,7 @@ func NewInstrumentDefMsgV3() InstrumentDefMsgV3 {
 // NewInstrumentDefMsgV2 returns a InstrumentDefMsgV2 with the same defaults as the upstream DBN `Default` implementation.
 func NewInstrumentDefMsgV2() InstrumentDefMsgV2 {
 	return InstrumentDefMsgV2{
-		Header: RHeader{
-			Length:       InstrumentDefMsgV2_Size / 4,
-			RType:        RType_InstrumentDef,
-			PublisherID:  0,
-			InstrumentID: 0,
-			TsEvent:      UNDEF_TIMESTAMP,
-		},
+		Header:                  defaultRecordHeader(RType_InstrumentDef, InstrumentDefMsgV2_Size),
 		TsRecv:                  UNDEF_TIMESTAMP,
 		MinPriceIncrement:       UNDEF_PRICE,
 		DisplayFactor:           UNDEF_PRICE,
@@ -200,13 +174,7 @@ func NewConsolidatedBidAskPair() ConsolidatedBidAskPair {
 // NewMbp0Msg returns an Mbp0Msg (upstream `TradeMsg`) with the same defaults as the upstream DBN `Default` implementation.
 func NewMbp0Msg() Mbp0Msg {
 	return Mbp0Msg{
-		Header: RHeader{
-			Length:       Mbp0Msg_Size / 4,
-			RType:        RType_Mbp0,
-			PublisherID:  0,
-			InstrumentID: 0,
-			TsEvent:      UNDEF_TIMESTAMP,
-		},
+		Header: defaultRecordHeader(RType_Mbp0, Mbp0Msg_Size),
 		Price:  UNDEF_PRICE,
 		Action: uint8(Action_None),
 		Side:   uint8(Side_None),
@@ -217,13 +185,7 @@ func NewMbp0Msg() Mbp0Msg {
 // NewMbp1Msg returns an Mbp1Msg with the same defaults as the upstream DBN `Default` implementation.
 func NewMbp1Msg() Mbp1Msg {
 	return Mbp1Msg{
-		Header: RHeader{
-			Length:       Mbp1Msg_Size / 4,
-			RType:        RType_Mbp1,
-			PublisherID:  0,
-			InstrumentID: 0,
-			TsEvent:      UNDEF_TIMESTAMP,
-		},
+		Header: defaultRecordHeader(RType_Mbp1, Mbp1Msg_Size),
 		Price:  UNDEF_PRICE,
 		Action: byte(Action_None),
 		Side:   byte(Side_None),
@@ -235,13 +197,7 @@ func NewMbp1Msg() Mbp1Msg {
 // NewMbp10Msg returns an Mbp10Msg with the same defaults as the upstream DBN `Default` implementation.
 func NewMbp10Msg() Mbp10Msg {
 	msg := Mbp10Msg{
-		Header: RHeader{
-			Length:       Mbp10Msg_Size / 4,
-			RType:        RType_Mbp10,
-			PublisherID:  0,
-			InstrumentID: 0,
-			TsEvent:      UNDEF_TIMESTAMP,
-		},
+		Header: defaultRecordHeader(RType_Mbp10, Mbp10Msg_Size),
 		Price:  UNDEF_PRICE,
 		Action: byte(Action_None),
 		Side:   byte(Side_None),
@@ -263,13 +219,7 @@ func NewCmbp1Msg(rtype RType) Cmbp1Msg {
 		action = 0
 	}
 	return Cmbp1Msg{
-		Header: RHeader{
-			Length:       Cmbp1Msg_Size / 4,
-			RType:        rtype,
-			PublisherID:  0,
-			InstrumentID: 0,
-			TsEvent:      UNDEF_TIMESTAMP,
-		},
+		Header: defaultRecordHeader(rtype, Cmbp1Msg_Size),
 		Price:  UNDEF_PRICE,
 		Action: action,
 		Side:   byte(Side_None),
@@ -283,13 +233,7 @@ func NewCmbp1Msg(rtype RType) Cmbp1Msg {
 // (`RType_Bbo1S` or `RType_Bbo1M`).
 func NewBboMsg(rtype RType) BboMsg {
 	return BboMsg{
-		Header: RHeader{
-			Length:       BboMsg_Size / 4,
-			RType:        rtype,
-			PublisherID:  0,
-			InstrumentID: 0,
-			TsEvent:      UNDEF_TIMESTAMP,
-		},
+		Header: defaultRecordHeader(rtype, BboMsg_Size),
 		Price:  UNDEF_PRICE,
 		Side:   byte(Side_None),
 		TsRecv: UNDEF_TIMESTAMP,
@@ -302,30 +246,18 @@ func NewBboMsg(rtype RType) BboMsg {
 // (e.g. `RType_Ohlcv1S`, `RType_Ohlcv1M`, `RType_Ohlcv1H`, `RType_Ohlcv1D`, or `RType_OhlcvEod`).
 func NewOhlcvMsg(rtype RType) OhlcvMsg {
 	return OhlcvMsg{
-		Header: RHeader{
-			Length:       OhlcvMsg_Size / 4,
-			RType:        rtype,
-			PublisherID:  0,
-			InstrumentID: 0,
-			TsEvent:      UNDEF_TIMESTAMP,
-		},
-		Open:  UNDEF_PRICE,
-		High:  UNDEF_PRICE,
-		Low:   UNDEF_PRICE,
-		Close: UNDEF_PRICE,
+		Header: defaultRecordHeader(rtype, OhlcvMsg_Size),
+		Open:   UNDEF_PRICE,
+		High:   UNDEF_PRICE,
+		Low:    UNDEF_PRICE,
+		Close:  UNDEF_PRICE,
 	}
 }
 
 // NewStatusMsg returns a StatusMsg with the same defaults as the upstream DBN `Default` implementation.
 func NewStatusMsg() StatusMsg {
 	return StatusMsg{
-		Header: RHeader{
-			Length:       StatusMsg_Size / 4,
-			RType:        RType_Status,
-			PublisherID:  0,
-			InstrumentID: 0,
-			TsEvent:      UNDEF_TIMESTAMP,
-		},
+		Header:                defaultRecordHeader(RType_Status, StatusMsg_Size),
 		TsRecv:                UNDEF_TIMESTAMP,
 		IsTrading:             uint8(TriState_NotAvailable),
 		IsQuoting:             uint8(TriState_NotAvailable),
@@ -336,13 +268,7 @@ func NewStatusMsg() StatusMsg {
 // NewImbalanceMsg returns an ImbalanceMsg with the same defaults as the upstream DBN `Default` implementation.
 func NewImbalanceMsg() ImbalanceMsg {
 	return ImbalanceMsg{
-		Header: RHeader{
-			Length:       ImbalanceMsg_Size / 4,
-			RType:        RType_Imbalance,
-			PublisherID:  0,
-			InstrumentID: 0,
-			TsEvent:      UNDEF_TIMESTAMP,
-		},
+		Header:               defaultRecordHeader(RType_Imbalance, ImbalanceMsg_Size),
 		TsRecv:               UNDEF_TIMESTAMP,
 		RefPrice:             UNDEF_PRICE,
 		AuctionTime:          UNDEF_TIMESTAMP,
@@ -367,26 +293,14 @@ func NewImbalanceMsg() ImbalanceMsg {
 // NewErrorMsgV1 returns an ErrorMsgV1 with the same defaults as the upstream DBN `Default` implementation.
 func NewErrorMsgV1() ErrorMsgV1 {
 	return ErrorMsgV1{
-		Header: RHeader{
-			Length:       ErrorMsgV1_Size / 4,
-			RType:        RType_Error,
-			PublisherID:  0,
-			InstrumentID: 0,
-			TsEvent:      UNDEF_TIMESTAMP,
-		},
+		Header: defaultRecordHeader(RType_Error, ErrorMsgV1_Size),
 	}
 }
 
 // NewErrorMsgV2 returns an ErrorMsgV2 with the same defaults as the upstream DBN `Default` implementation.
 func NewErrorMsgV2() ErrorMsgV2 {
 	return ErrorMsgV2{
-		Header: RHeader{
-			Length:       ErrorMsgV2_Size / 4,
-			RType:        RType_Error,
-			PublisherID:  0,
-			InstrumentID: 0,
-			TsEvent:      UNDEF_TIMESTAMP,
-		},
+		Header: defaultRecordHeader(RType_Error, ErrorMsgV2_Size),
 		Code:   ErrorCode_Unset,
 		IsLast: math.MaxUint8,
 	}
@@ -395,13 +309,7 @@ func NewErrorMsgV2() ErrorMsgV2 {
 // NewSymbolMappingMsgV2 returns a SymbolMappingMsgV2 with the same defaults as the upstream DBN `Default` implementation.
 func NewSymbolMappingMsgV2() SymbolMappingMsgV2 {
 	return SymbolMappingMsgV2{
-		Header: RHeader{
-			Length:       SymbolMappingMsgV2_Size / 4,
-			RType:        RType_SymbolMapping,
-			PublisherID:  0,
-			InstrumentID: 0,
-			TsEvent:      UNDEF_TIMESTAMP,
-		},
+		Header:   defaultRecordHeader(RType_SymbolMapping, SymbolMappingMsgV2_Size),
 		StypeIn:  SType(math.MaxUint8),
 		StypeOut: SType(math.MaxUint8),
 		StartTs:  UNDEF_TIMESTAMP,
@@ -412,13 +320,7 @@ func NewSymbolMappingMsgV2() SymbolMappingMsgV2 {
 // NewSystemMsg returns a SystemMsg with the same defaults as the upstream DBN `Default` implementation.
 func NewSystemMsg() SystemMsg {
 	return SystemMsg{
-		Header: RHeader{
-			Length:       SystemMsg_Size / 4,
-			RType:        RType_System,
-			PublisherID:  0,
-			InstrumentID: 0,
-			TsEvent:      UNDEF_TIMESTAMP,
-		},
-		Code: SystemCode_Unset,
+		Header: defaultRecordHeader(RType_System, SystemMsg_Size),
+		Code:   SystemCode_Unset,
 	}
 }
