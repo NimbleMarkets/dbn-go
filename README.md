@@ -223,6 +223,30 @@ We include [some tools](./cmd/README.md) to make our lives easier. [Installation
  * [`dbn-go-slurp-docs`](./cmd/README.md#dbn-go-slurp-docs): a tool to scrape Databento docs for offline use
  * [`dbn-go-tui`](./cmd/README.md#dbn-go-tui): a TUI for your Databento account
 
+## Fuzzing
+
+The root package includes fuzz targets for binary record decoding, metadata parsing,
+and symbol-map interval updates. Their seed cases run with `go test .` and require
+no API credentials. Run one target at a time for mutation-based fuzzing:
+
+```bash
+task fuzz                                      # Record decoding, 30 seconds, 2 workers
+task fuzz TARGET=FuzzReadMetadata TIME=5m PARALLEL=4
+task fuzz TARGET=FuzzSymbolMapIntervals TIME=1m
+```
+
+Or invoke Go directly:
+
+```bash
+go test . -run '^$' -fuzz '^FuzzRecordDecode$' -fuzztime=30s -parallel=2
+go test . -run '^$' -fuzz '^FuzzReadMetadata$' -fuzztime=30s -parallel=2
+go test . -run '^$' -fuzz '^FuzzSymbolMapIntervals$' -fuzztime=30s -parallel=2
+```
+
+Increase `-fuzztime` for longer runs. Go saves failing inputs under
+`testdata/fuzz/<target>/`; keep these as regression cases. The targets limit input
+sizes to keep runs bounded while still testing malformed lengths and counts.
+
 ## Open Collaboration
 
 We welcome contributions and feedback.  Please adhere to our [Code of Conduct](./CODE_OF_CONDUCT.md) when engaging our community.

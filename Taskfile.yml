@@ -271,6 +271,15 @@ tasks:
     cmds:
       - go test ./...
 
+  fuzz:
+    desc: 'Run a fuzz session (TARGET=FuzzRecordDecode TIME=30s PARALLEL=2)'
+    vars:
+      TARGET: '{{.TARGET | default "FuzzRecordDecode"}}'
+      TIME: '{{.TIME | default "30s"}}'
+      PARALLEL: '{{.PARALLEL | default "2"}}'
+    cmds:
+      - go test . -run '^$' -fuzz '^{{.TARGET}}$' -fuzztime='{{.TIME}}' -parallel='{{.PARALLEL}}'
+
   go-test-integration:
     desc: 'Test Go integration paths requiring Databento credentials'
     deps: [go-tidy]
