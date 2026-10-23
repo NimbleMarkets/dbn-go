@@ -6,7 +6,7 @@
  * Add `Schema.Interval()` and `RType.Interval()` helpers.
  * Reduce symbol map memory usage with interval storage; add timestamp lookups and live updates, following DBN `0.72.0`. Existing date-based methods remain; `Len()` now counts intervals instead of daily entries.
  * Validate symbol mapping metadata and preserve existing mappings if loading fails.
- * Make `PitSymbolMap` safe to update from its zero value and preserve existing mappings when metadata loading fails.
+ * Fix inverted `PitSymbolMap.IsEmpty()` results, support updates from its zero value, and preserve existing mappings when metadata loading fails.
 
 Synchronized constants with upstream DBN `0.71.0` (previously `0.34.0`).
 
