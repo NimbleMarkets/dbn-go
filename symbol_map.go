@@ -116,7 +116,7 @@ func (tsm *TsSymbolMap) Insert(instrID uint32, startDate uint32, endDate uint32,
 // return an error. UNDEF_TIMESTAMP may be used as an open-ended end bound.
 func (tsm *TsSymbolMap) InsertTs(instrID uint32, startTs, endTs uint64, ticker string) error {
 	if startTs > endTs {
-		return fmt.Errorf("mapping start timestamp is after end timestamp")
+		return fmt.Errorf("%w: start timestamp %d is after end timestamp %d", ErrInvalidSymbolMappingRange, startTs, endTs)
 	}
 	if startTs == endTs {
 		return nil
@@ -180,7 +180,7 @@ func symbolDateTimestamp(date uint32) (uint64, error) {
 	dt := YMDToTime(int(date), time.UTC)
 	seconds := dt.Unix()
 	if date == 0 || TimeToYMD(dt) != date || seconds < 0 || uint64(seconds) > (UNDEF_TIMESTAMP-1)/uint64(time.Second) {
-		return 0, fmt.Errorf("invalid symbol mapping date %d", date)
+		return 0, fmt.Errorf("%w: %d", ErrInvalidSymbolMappingDate, date)
 	}
 	return uint64(seconds) * uint64(time.Second), nil
 }

@@ -109,8 +109,8 @@ func TestTsSymbolMapExclusiveEnd(t *testing.T) {
 	if m.Len() != before || m.Get(dbn.YMDToTime(20240301, time.UTC), 1) != "NEW" {
 		t.Fatal("empty range changed map")
 	}
-	if err := m.Insert(1, 20240302, 20240301, "INVALID"); err == nil {
-		t.Fatal("expected reversed range error")
+	if err := m.Insert(1, 20240302, 20240301, "INVALID"); !errors.Is(err, dbn.ErrInvalidSymbolMappingRange) {
+		t.Fatalf("expected reversed range error, got %v", err)
 	}
 }
 
@@ -152,8 +152,8 @@ func TestTsSymbolMapIntervalsAgainstReference(t *testing.T) {
 		}
 	}
 	before := m.Len()
-	if err := m.InsertTs(0, 50, 40, "INVALID"); err == nil {
-		t.Fatal("expected invalid range error")
+	if err := m.InsertTs(0, 50, 40, "INVALID"); !errors.Is(err, dbn.ErrInvalidSymbolMappingRange) {
+		t.Fatalf("expected invalid range error, got %v", err)
 	}
 	if m.Len() != before {
 		t.Fatal("invalid range changed map")
@@ -183,8 +183,8 @@ func TestTsSymbolMapDateCompatibilityAndLongRange(t *testing.T) {
 		t.Fatalf("timestamp lookup outside range: %q", got)
 	}
 	for _, date := range []uint32{0, 19691231, 20240230, 30000101} {
-		if err := m.Insert(1, date, date, "INVALID"); err == nil {
-			t.Errorf("accepted invalid date %d", date)
+		if err := m.Insert(1, date, date, "INVALID"); !errors.Is(err, dbn.ErrInvalidSymbolMappingDate) {
+			t.Errorf("date %d: expected invalid date error, got %v", date, err)
 		}
 	}
 	// Dates past the signed int64 nanosecond range must not wrap.
@@ -226,8 +226,8 @@ func TestTsSymbolMapMetadata(t *testing.T) {
 			t.Fatal("end date included")
 		}
 		md.Mappings[0].Intervals[0].EndDate = 20251231
-		if err := m.FillFromMetadata(md); err == nil {
-			t.Fatal("ignored invalid metadata range")
+		if err := m.FillFromMetadata(md); !errors.Is(err, dbn.ErrInvalidSymbolMappingRange) {
+			t.Fatalf("expected wrapped invalid range error, got %v", err)
 		}
 		if m.Get(dbn.YMDToTime(20260104, time.UTC), 123) != "TEST" {
 			t.Fatal("failed load changed original map")
@@ -277,8 +277,8 @@ func TestTsSymbolMapLiveUpdates(t *testing.T) {
 		t.Fatalf("expected two intervals, got %d", m.Len())
 	}
 	record.StartTs, record.EndTs = remap, remap-1
-	if err := m.OnSymbolMappingMsg(&record); err == nil {
-		t.Fatal("accepted reversed live interval")
+	if err := m.OnSymbolMappingMsg(&record); !errors.Is(err, dbn.ErrInvalidSymbolMappingRange) {
+		t.Fatalf("expected invalid live range error, got %v", err)
 	}
 	// Use the scanner's ordinary dispatch, including an unrelated record.
 	scanner := dbn.NewJsonScanner(strings.NewReader(`{"hd":{"rtype":22,"instrument_id":7},"stype_out_symbol":"LIVE","start_ts":10,"end_ts":20}
