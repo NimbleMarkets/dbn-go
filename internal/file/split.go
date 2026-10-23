@@ -32,7 +32,9 @@ func SplitFile(sourceFilename string, destDir string, forceZstdInput bool, verbo
 		return fmt.Errorf("failed to read metadata for '%s': %w", sourceFilename, err)
 	}
 	dbnSymbolMap := dbn.NewTsSymbolMap()
-	dbnSymbolMap.FillFromMetadata(sourceMetadata)
+	if err := dbnSymbolMap.FillFromMetadata(sourceMetadata); err != nil {
+		return fmt.Errorf("failed to build symbol map for '%s': %w", sourceFilename, err)
+	}
 
 	singleMetadata := dbn.Metadata{
 		VersionNum:       dbn.HeaderVersion2,
