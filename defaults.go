@@ -257,6 +257,11 @@ func NewMbp10Msg() Mbp10Msg {
 // Upstream takes a Schema; here `rtype` is the corresponding record type
 // (`RType_Cmbp1`, `RType_Cbbo1S`, `RType_Cbbo1M`, or `RType_Tcbbo`).
 func NewCmbp1Msg(rtype RType) Cmbp1Msg {
+	action := byte(Action_None)
+	if rtype == RType_Cbbo1S || rtype == RType_Cbbo1M {
+		// Subsampled CBBO uses this byte as reserved padding, not an action.
+		action = 0
+	}
 	return Cmbp1Msg{
 		Header: RHeader{
 			Length:       Cmbp1Msg_Size / 4,
@@ -266,7 +271,7 @@ func NewCmbp1Msg(rtype RType) Cmbp1Msg {
 			TsEvent:      UNDEF_TIMESTAMP,
 		},
 		Price:  UNDEF_PRICE,
-		Action: byte(Action_None),
+		Action: action,
 		Side:   byte(Side_None),
 		TsRecv: UNDEF_TIMESTAMP,
 		Level:  NewConsolidatedBidAskPair(),

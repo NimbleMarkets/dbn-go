@@ -3,6 +3,8 @@
 package dbn_test
 
 import (
+	"bytes"
+	"encoding/binary"
 	"math"
 	"testing"
 
@@ -108,6 +110,30 @@ func TestDefaultBookLevels(t *testing.T) {
 	cpair := dbn.NewConsolidatedBidAskPair()
 	if cpair.BidPx != dbn.UNDEF_PRICE || cpair.AskPx != dbn.UNDEF_PRICE || dbn.NewCmbp1Msg(dbn.RType_Cmbp1).Level != cpair {
 		t.Errorf("ConsolidatedBidAskPair defaults wrong: %+v", cpair)
+	}
+}
+
+func TestDefaultConsolidatedActionByte(t *testing.T) {
+	for _, tt := range []struct {
+		rtype dbn.RType
+		want  byte
+	}{
+		{dbn.RType_Cbbo1S, 0},
+		{dbn.RType_Cbbo1M, 0},
+		{dbn.RType_Cmbp1, 'N'},
+		{dbn.RType_Tcbbo, 'N'},
+	} {
+		t.Run(tt.rtype.String(), func(t *testing.T) {
+			record := dbn.NewCmbp1Msg(tt.rtype)
+			var buf bytes.Buffer
+			if err := binary.Write(&buf, binary.LittleEndian, record); err != nil {
+				t.Fatal(err)
+			}
+			// Wire offset 28 is reserved in CBBO, but an action in CMBP1/TCBBO.
+			if got := buf.Bytes()[28]; got != tt.want {
+				t.Fatalf("byte at offset 28: got %#x, want %#x", got, tt.want)
+			}
+		})
 	}
 }
 
