@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"time"
 
 	"github.com/NimbleMarkets/dbn-go"
 	dbn_hist "github.com/NimbleMarkets/dbn-go/hist"
@@ -264,8 +263,7 @@ func ParquetWriteRow_OhlcvMsg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Ohl
 	if err := writeInt64Column(rgw, 7, int64(record.Volume)); err != nil {
 		return err
 	}
-	recordTime := time.Unix(0, int64(record.Header.TsEvent)).UTC()
-	dbnSymbol := dbnSymbolMap.Get(recordTime, record.Header.InstrumentID)
+	dbnSymbol := dbnSymbolMap.GetForTs(record.Header.TsEvent, record.Header.InstrumentID)
 	if err := writeByteArrayColumn(rgw, 8, parquet.ByteArray(dbnSymbol)); err != nil {
 		return err
 	}
@@ -349,8 +347,7 @@ func ParquetWriteRow_Mbp0Msg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Mbp0
 	if err := writeInt32Column(rgw, 11, int32(record.Sequence)); err != nil {
 		return err
 	}
-	recordTime := time.Unix(0, int64(record.Header.TsEvent)).UTC()
-	dbnSymbol := dbnSymbolMap.Get(recordTime, record.Header.InstrumentID)
+	dbnSymbol := dbnSymbolMap.GetForTs(record.Header.TsEvent, record.Header.InstrumentID)
 	if err := writeByteArrayColumn(rgw, 12, parquet.ByteArray(dbnSymbol)); err != nil {
 		return err
 	}
@@ -464,8 +461,7 @@ func ParquetWriteRow_Mbp1Msg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Mbp1
 	if err := writeInt32Column(rgw, 17, int32(record.Level.AskCt)); err != nil {
 		return err
 	}
-	recordTime := time.Unix(0, int64(record.Header.TsEvent)).UTC()
-	dbnSymbol := dbnSymbolMap.Get(recordTime, record.Header.InstrumentID)
+	dbnSymbol := dbnSymbolMap.GetForTs(record.Header.TsEvent, record.Header.InstrumentID)
 	if err := writeByteArrayColumn(rgw, 18, parquet.ByteArray(dbnSymbol)); err != nil {
 		return err
 	}
@@ -604,8 +600,7 @@ func ParquetWriteRow_ImbalanceMsg(rgw pqfile.BufferedRowGroupWriter, record *dbn
 	if err := writeByteArrayColumn(rgw, 22, parquet.ByteArray{record.SignificantImbalance}); err != nil {
 		return err
 	}
-	recordTime := time.Unix(0, int64(record.Header.TsEvent)).UTC()
-	dbnSymbol := dbnSymbolMap.Get(recordTime, record.Header.InstrumentID)
+	dbnSymbol := dbnSymbolMap.GetForTs(record.Header.TsEvent, record.Header.InstrumentID)
 	if err := writeByteArrayColumn(rgw, 23, parquet.ByteArray(dbnSymbol)); err != nil {
 		return err
 	}
@@ -688,8 +683,7 @@ func ParquetWriteRow_StatMsg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Stat
 	if err := writeInt32Column(rgw, 10, int32(record.StatFlags)); err != nil {
 		return err
 	}
-	recordTime := time.Unix(0, int64(record.Header.TsEvent)).UTC()
-	dbnSymbol := dbnSymbolMap.Get(recordTime, record.Header.InstrumentID)
+	dbnSymbol := dbnSymbolMap.GetForTs(record.Header.TsEvent, record.Header.InstrumentID)
 	if err := writeByteArrayColumn(rgw, 11, parquet.ByteArray(dbnSymbol)); err != nil {
 		return err
 	}

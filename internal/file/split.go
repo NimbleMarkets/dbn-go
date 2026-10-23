@@ -81,7 +81,7 @@ func SplitFile(sourceFilename string, destDir string, forceZstdInput bool, verbo
 			// TODO: check denylist
 			// Create the dest file
 			// <dest>/<dataset>/<symbol>/YYYY/MM/DD/<symbol>-YYYYYMMDD.<schema>.dbn.zst
-			dbnSymbol := dbnSymbolMap.Get(recordTime, rheader.InstrumentID)
+			dbnSymbol := dbnSymbolMap.GetForTs(rheader.TsEvent, rheader.InstrumentID)
 			datePath := recordTime.Format(ymdPathFormat)
 			destPath := filepath.Join(destDir, sourceMetadata.Dataset, dbnSymbol, datePath)
 			err := os.MkdirAll(destPath, os.ModePerm)
