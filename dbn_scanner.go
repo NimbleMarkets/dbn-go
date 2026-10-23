@@ -109,6 +109,12 @@ func (s *DbnScanner) Next() bool {
 	}
 	s.lastRecord[0] = recordLen
 	mustRead := 4 * int(recordLen)
+	if mustRead < RHeader_Size {
+		// a record must at least contain its header
+		s.lastError = ErrMalformedRecord
+		s.lastSize = 1 // the size byte
+		return false
+	}
 
 	// Read the header and record
 	// 1: because we already got the first size byte
