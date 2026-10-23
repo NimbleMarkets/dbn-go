@@ -50,6 +50,21 @@ func TestDefaultRecordHeaders(t *testing.T) {
 	}
 }
 
+func TestCanonicalRecordDefaults(t *testing.T) {
+	if dbn.NewStatMsg() != dbn.NewStatMsgV3() {
+		t.Error("StatMsg defaults differ from V3")
+	}
+	if dbn.NewInstrumentDefMsg() != dbn.NewInstrumentDefMsgV3() {
+		t.Error("InstrumentDefMsg defaults differ from V3")
+	}
+	if dbn.NewErrorMsg() != dbn.NewErrorMsgV2() {
+		t.Error("ErrorMsg defaults differ from V2")
+	}
+	if dbn.NewSymbolMappingMsg() != dbn.NewSymbolMappingMsgV2() {
+		t.Error("SymbolMappingMsg defaults differ from V2")
+	}
+}
+
 func TestDefaultChannelID(t *testing.T) {
 	if got := dbn.NewMboMsg().ChannelID; got != math.MaxUint8 {
 		t.Errorf("MboMsg.ChannelID: got %d, want %d", got, math.MaxUint8)

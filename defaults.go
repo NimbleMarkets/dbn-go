@@ -14,6 +14,18 @@ func defaultRecordHeader(rtype RType, size uint16) RHeader {
 	return RHeader{Length: uint8(size / 4), RType: rtype, TsEvent: UNDEF_TIMESTAMP}
 }
 
+// NewStatMsg returns the defaults for the current StatMsg layout (V3).
+func NewStatMsg() StatMsg { return NewStatMsgV3() }
+
+// NewInstrumentDefMsg returns the defaults for the current InstrumentDefMsg layout (V3).
+func NewInstrumentDefMsg() InstrumentDefMsg { return NewInstrumentDefMsgV3() }
+
+// NewErrorMsg returns the defaults for the current ErrorMsg layout (V2).
+func NewErrorMsg() ErrorMsg { return NewErrorMsgV2() }
+
+// NewSymbolMappingMsg returns the defaults for the current SymbolMappingMsg layout (V2).
+func NewSymbolMappingMsg() SymbolMappingMsg { return NewSymbolMappingMsgV2() }
+
 // NewMboMsg returns a MboMsg with the same defaults as the upstream DBN `Default` implementation.
 func NewMboMsg() MboMsg {
 	return MboMsg{
