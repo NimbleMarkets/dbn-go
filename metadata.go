@@ -278,8 +278,8 @@ func (m1 *MetadataHeaderV1) FillFixed_Raw(b []byte) error {
 	copy(m1.ReservedX[:], b[42:50])
 	m1.StypeIn = SType(b[50])
 	m1.StypeOut = SType(b[51])
-	m1.TsOut = b[53]
-	copy(m1.Reserved[:], b[54:54+MetadataV1_ReservedLen])
+	m1.TsOut = b[52]
+	copy(m1.Reserved[:], b[53:53+MetadataV1_ReservedLen])
 	return nil
 }
 
