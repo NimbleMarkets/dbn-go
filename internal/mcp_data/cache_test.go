@@ -4,6 +4,7 @@ package mcp_data
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/NimbleMarkets/dbn-go/internal/file"
+	"github.com/duckdb/duckdb-go/v2"
 )
 
 func testServer(t *testing.T) *Server {
@@ -648,14 +650,74 @@ func TestInitCache_DuckDBBlocksFilesOutsideCacheDir(t *testing.T) {
 		fmt.Sprintf(`SELECT * FROM %s`, sqlLiteral(secretPath)),
 		fmt.Sprintf(`SELECT * FROM "%s"`, secretPath),
 		fmt.Sprintf(`SELECT * FROM glob(%s)`, sqlLiteral(filepath.Join(filepath.Dir(secretPath), "*"))),
-		`SET enable_external_access = true`,
 	}
 	for _, q := range queries {
-		rows, err := s.db.Query(q)
-		if err == nil {
-			rows.Close()
-			t.Errorf("DuckDB should refuse %q", q)
-		}
+		t.Run(q, func(t *testing.T) {
+			rows, err := s.db.Query(q)
+			if rows != nil {
+				rows.Close()
+			}
+			assertDuckDBPermissionError(t, err)
+		})
+	}
+}
+
+func assertDuckDBPermissionError(t *testing.T, err error) {
+	t.Helper()
+	var dbErr *duckdb.Error
+	if !errors.As(err, &dbErr) || dbErr.Type != duckdb.ErrorTypePermission {
+		t.Fatalf("expected DuckDB permission error, got %v", err)
+	}
+}
+
+func TestInitCache_ExternalAccessCannotBeReenabled(t *testing.T) {
+	s := testServerWithDB(t)
+	_, err := s.db.Exec("SET enable_external_access = true")
+	var dbErr *duckdb.Error
+	if !errors.As(err, &dbErr) || dbErr.Type != duckdb.ErrorTypeInvalidInput || !strings.Contains(dbErr.Msg, "configuration has been locked") {
+		t.Fatalf("expected locked configuration error, got %v", err)
+	}
+}
+
+func TestInitCache_DuckDBBlocksPathEscapes(t *testing.T) {
+	s := testServer(t)
+	root := t.TempDir()
+	s.cacheDir = filepath.Join(root, "cache")
+	sibling := filepath.Join(root, "cache-other")
+	if err := os.MkdirAll(sibling, 0755); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(sibling, "canary.csv")
+	if err := os.WriteFile(outside, []byte("review-only\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.InitCache(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { s.Close() })
+
+	cases := []struct{ name, path string }{
+		{"sibling", outside},
+		// Keep '..' in the SQL path: filepath.Join would clean it away.
+		{"parent_traversal", s.cacheDir + string(filepath.Separator) + ".." + string(filepath.Separator) + "cache-other" + string(filepath.Separator) + "canary.csv"},
+		{"symlink", filepath.Join(s.cacheDir, "link.csv")},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.name == "symlink" {
+				if err := os.Symlink(outside, tc.path); err != nil {
+					t.Skipf("symlink creation unavailable: %v", err)
+				}
+			}
+			// Quoting the function name bypasses the keyword filter. Assert
+			// that DuckDB still enforces the boundary through query_cache.
+			query := fmt.Sprintf(`SELECT content FROM "read_text"(%s)`, sqlLiteral(tc.path))
+			if err := validateQueryCacheSQL(query); err != nil {
+				t.Fatalf("expected query to reach DuckDB: %v", err)
+			}
+			_, err := s.queryDuckDB(query, queryDuckDBOptions{})
+			assertDuckDBPermissionError(t, err)
+		})
 	}
 }
 
@@ -678,11 +740,12 @@ func TestInitCache_ViewsReadParquetInsideCacheDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("query over cached view failed: %v", err)
 	}
-	if strings.Contains(result, "\n0\n") {
-		t.Errorf("expected records in cached view, got: %s", result)
+	// The OHLCV fixture contains exactly two records.
+	if result != "n\n2\n" {
+		t.Errorf("cached view count: got %q, want %q", result, "n\n2\n")
 	}
-	if n := s.countParquetRecords(parquetPath); n <= 0 {
-		t.Errorf("countParquetRecords = %d, want > 0", n)
+	if n := s.countParquetRecords(parquetPath); n != 2 {
+		t.Errorf("countParquetRecords = %d, want 2", n)
 	}
 }
 
