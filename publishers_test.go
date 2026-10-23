@@ -361,12 +361,7 @@ func TestCounts(t *testing.T) {
 
 func TestVenue_RoundTrip(t *testing.T) {
 	// Test that all valid venues can be converted to string and back
-	venues := []dbn.Venue{
-		dbn.Venue_Glbx, dbn.Venue_Xnas, dbn.Venue_Xnys,
-		dbn.Venue_Equs, dbn.Venue_Ifus, dbn.Venue_Xcbf, dbn.Venue_Ocea,
-	}
-
-	for _, v := range venues {
+	for v := dbn.Venue(1); v <= dbn.VENUE_COUNT; v++ {
 		str := v.String()
 		got, err := dbn.VenueFromString(str)
 		if err != nil {
@@ -380,12 +375,7 @@ func TestVenue_RoundTrip(t *testing.T) {
 }
 
 func TestDataset_RoundTrip(t *testing.T) {
-	datasets := []dbn.Dataset{
-		dbn.Dataset_GlbxMdp3, dbn.Dataset_XnasItch, dbn.Dataset_EqusMini,
-		dbn.Dataset_IfusImpact, dbn.Dataset_XcbfPitch, dbn.Dataset_OceaMemoir,
-	}
-
-	for _, d := range datasets {
+	for d := dbn.Dataset(1); d <= dbn.DATASET_COUNT; d++ {
 		str := d.String()
 		got, err := dbn.DatasetFromString(str)
 		if err != nil {
@@ -399,13 +389,7 @@ func TestDataset_RoundTrip(t *testing.T) {
 }
 
 func TestPublisher_RoundTrip(t *testing.T) {
-	publishers := []dbn.Publisher{
-		dbn.Publisher_GlbxMdp3Glbx, dbn.Publisher_XnasItchXnas,
-		dbn.Publisher_EqusMiniEqus, dbn.Publisher_IfusImpactIfus,
-		dbn.Publisher_XcbfPitchXcbf, dbn.Publisher_OceaMemoirOcea,
-	}
-
-	for _, p := range publishers {
+	for p := dbn.Publisher(1); p <= dbn.PUBLISHER_COUNT; p++ {
 		str := p.String()
 		got, err := dbn.PublisherFromString(str)
 		if err != nil {
@@ -424,16 +408,7 @@ func TestPublisher_RoundTrip(t *testing.T) {
 func TestPublisher_Consistency(t *testing.T) {
 	// Test that Publisher.Venue() and Publisher.Dataset() are consistent
 	// with PublisherFromDatasetVenue
-	publishers := []dbn.Publisher{
-		dbn.Publisher_GlbxMdp3Glbx,
-		dbn.Publisher_XnasItchXnas,
-		dbn.Publisher_EqusMiniEqus,
-		dbn.Publisher_IfusImpactIfus,
-		dbn.Publisher_IfusImpactXoff,
-		dbn.Publisher_OceaMemoirOcea,
-	}
-
-	for _, p := range publishers {
+	for p := dbn.Publisher(1); p <= dbn.PUBLISHER_COUNT; p++ {
 		dataset := p.Dataset()
 		venue := p.Venue()
 
@@ -450,15 +425,7 @@ func TestPublisher_Consistency(t *testing.T) {
 
 func TestDataset_Publishers_Consistency(t *testing.T) {
 	// Test that all publishers returned by Dataset.Publishers() have the correct Dataset
-	datasets := []dbn.Dataset{
-		dbn.Dataset_GlbxMdp3,
-		dbn.Dataset_XnasItch,
-		dbn.Dataset_EqusMini,
-		dbn.Dataset_IfusImpact,
-		dbn.Dataset_OceaMemoir,
-	}
-
-	for _, d := range datasets {
+	for d := dbn.Dataset(1); d <= dbn.DATASET_COUNT; d++ {
 		for _, p := range d.Publishers() {
 			if p.Dataset() != d {
 				t.Errorf("Dataset %s: Publisher %s has wrong Dataset %s",
