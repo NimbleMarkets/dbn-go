@@ -1044,7 +1044,7 @@ const (
 	SystemCode_SlowReaderWarning = 2
 	/// Indicates a replay subscription has caught up with real-time data.
 	SystemCode_ReplayCompleted = 3
-	/// Signals that all records for interval-based schemas have been published for the given timestamp.
+	/// Signals that all records for an interval-based schema have been published for the interval ending at ts_event.
 	SystemCode_EndOfInterval = 4
 	/// An acknowledgement of an unsubscribe request.
 	SystemCode_UnsubscribeAck = 5

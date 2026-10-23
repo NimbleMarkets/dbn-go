@@ -2,13 +2,11 @@
 
 ## Unreleased
 
- * Fix `TsSymbolMap.Insert` to exclude the end date and leave empty ranges unchanged.
- * Add `Schema.Interval()` and `RType.Interval()` returning `(time.Duration, bool)` for subsampled data.
- * Store `TsSymbolMap` mappings as coalesced timestamp intervals instead of daily entries, following DBN `0.72.0`.
-   * Add `InsertTs` and `GetForTs` for UNIX nanosecond timestamps and intraday mappings; keep `Insert` and `Get` as date-based wrappers.
-   * Support live updates via `OnSymbolMappingMsg` or `scanner.Visit(symbolMap)`; undefined starts mean the UNIX epoch and undefined ends are open-ended.
-   * **Behavior change:** `Len()` now counts stored intervals rather than daily entries.
-   * Reject invalid dates and out-of-range instrument IDs when loading metadata, propagate invalid ranges, and leave the previous map unchanged on error.
+ * Fix symbol mapping ranges to exclude the end date.
+ * Add `Schema.Interval()` and `RType.Interval()` helpers.
+ * Reduce symbol map memory usage with interval storage; add timestamp lookups and live updates, following DBN `0.72.0`. Existing date-based methods remain; `Len()` now counts intervals instead of daily entries.
+ * Validate symbol mapping metadata and preserve existing mappings if loading fails.
+ * Make `PitSymbolMap` safe to update from its zero value and preserve existing mappings when metadata loading fails.
 
 Synchronized constants with upstream DBN `0.71.0` (previously `0.34.0`).
 
@@ -23,13 +21,15 @@ Synchronized constants with upstream DBN `0.71.0` (previously `0.34.0`).
    * `NewMboMsg`, `NewMbp0Msg`, `NewMbp1Msg`, `NewMbp10Msg`, `NewCmbp1Msg`, `NewBboMsg`, `NewOhlcvMsg`
    * `NewStatusMsg`, `NewImbalanceMsg`, `NewStatMsgV2`, `NewStatMsgV3`, `NewInstrumentDefMsgV2`, `NewInstrumentDefMsgV3`
    * `NewErrorMsgV1`, `NewErrorMsgV2`, `NewSymbolMappingMsgV2`, `NewSystemMsg`, `NewBidAskPair`, `NewConsolidatedBidAskPair`
+   * Add canonical constructors `NewStatMsg`, `NewInstrumentDefMsg`, `NewErrorMsg`, and `NewSymbolMappingMsg`
    * `NewCmbp1Msg`, `NewBboMsg`, and `NewOhlcvMsg` take an `RType` where upstream takes a `Schema`
    * Add `UNDEF_PRICE` and `UNDEF_ORDER_SIZE` constants
  * Fix `SymbolMappingMsgV1` layout: it is 80 bytes with 4 bytes of padding before `start_ts`; `start_ts` and `end_ts` were previously read 4 bytes early
  * Harden metadata decoding (follows upstream DBN `0.69.0`)
    * Counts (schema definition length, symbols, partial, not found, mappings, intervals) are validated against the remaining metadata bytes, returning `ErrInvalidMetadataCount`
-   * `ReadMetadata` no longer allocates a header-declared length up front
+   * `ReadMetadata` caps initial allocation at 1 MiB, growing only as additional metadata bytes arrive
    * V1 schema definition length is treated as a byte length, as upstream does
+   * Fix V1 `ts_out` and reserved-padding offsets, preserving the flag and preventing an out-of-bounds panic on 100-byte fixed headers
  * Venues, datasets and publishers regenerated from upstream `publishers.rs`
    * Venues 53 -> 72, datasets 41 -> 53, publishers 107 -> 153
    * Includes JPX, MEMX MX2, IEX Options, Cboe Global Indices (`MAIN`), US Equities SIPs, and Databento Core Indices (`DBIX`)
