@@ -336,14 +336,28 @@ func ReadMetadata(r io.Reader) (*Metadata, error) {
 		return nil, ErrInvalidDBNFile
 	}
 
-	// Extract the remaining bytes of the metadata header
-	// Read through a LimitReader so an overstated length can't force a huge allocation up front
-	b, err := io.ReadAll(io.LimitReader(r, int64(mp.Length)))
+	// Preallocate ordinary headers in one allocation, but cap the initial
+	// allocation so an overstated length cannot reserve gigabytes up front.
+	// Larger valid headers can still grow as their bytes arrive.
+	const maxInitialMetadataBytes = 1 << 20
+	initialSize := min(mp.Length, uint32(maxInitialMetadataBytes))
+	b := make([]byte, initialSize)
+	_, err := io.ReadFull(r, b)
+	if err == io.EOF {
+		err = io.ErrUnexpectedEOF
+	}
 	if err != nil {
 		return nil, err
 	}
-	if len(b) != int(mp.Length) {
-		return nil, io.ErrUnexpectedEOF
+	if initialSize < mp.Length {
+		buffer := bytes.NewBuffer(b)
+		if _, err := io.CopyN(buffer, r, int64(mp.Length-initialSize)); err != nil {
+			if err == io.EOF {
+				err = io.ErrUnexpectedEOF
+			}
+			return nil, err
+		}
+		b = buffer.Bytes()
 	}
 
 	// Dispatch to the version's decoder

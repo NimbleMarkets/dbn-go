@@ -6,9 +6,11 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"math"
 	"testing"
+	"testing/iotest"
 
 	dbn "github.com/NimbleMarkets/dbn-go"
 )
@@ -96,5 +98,36 @@ func TestReadMetadataTruncatedOverstatedLength(t *testing.T) {
 	_, err := dbn.ReadMetadata(bytes.NewReader(b))
 	if !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Errorf("got err %v, want io.ErrUnexpectedEOF", err)
+	}
+}
+
+func TestReadMetadataBufferSizes(t *testing.T) {
+	// Cover headers below and above the 1 MiB initial allocation cap.
+	for _, size := range []int{0, 64 << 10, (1 << 20) + 1} {
+		t.Run(fmt.Sprint(size), func(t *testing.T) {
+			md := dbn.Metadata{VersionNum: dbn.HeaderVersion3,
+				SchemaDefinition: bytes.Repeat([]byte{0x5a}, size)}
+			var encoded bytes.Buffer
+			if err := md.Write(&encoded); err != nil {
+				t.Fatal(err)
+			}
+			raw := bytes.Clone(encoded.Bytes())
+			tail := []byte("record bytes must remain unread")
+			encoded.Write(tail)
+			// Short reads must work both during the initial fill and growth.
+			got, err := dbn.ReadMetadata(iotest.HalfReader(&encoded))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(got.SchemaDefinition, md.SchemaDefinition) {
+				t.Fatal("schema definition changed")
+			}
+			if !bytes.Equal(encoded.Bytes(), tail) {
+				t.Fatal("metadata read consumed record bytes")
+			}
+			if _, err := dbn.ReadMetadata(bytes.NewReader(raw[:len(raw)-1])); !errors.Is(err, io.ErrUnexpectedEOF) {
+				t.Fatalf("truncated header: got %v, want unexpected EOF", err)
+			}
+		})
 	}
 }
