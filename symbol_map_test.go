@@ -25,11 +25,61 @@ func TestPitSymbolMapIsEmpty(t *testing.T) {
 	}
 	record := dbn.NewSymbolMappingMsgV2()
 	record.Header.InstrumentID, record.StypeOutSymbol = 42, "TEST"
-	if err := m.OnSymbolMappingMsg(&record); err != nil {
-		t.Fatal(err)
+	for _, target := range []*dbn.PitSymbolMap{&zero, m} {
+		if err := target.OnSymbolMappingMsg(&record); err != nil {
+			t.Fatal(err)
+		}
+		if target.IsEmpty() || target.Len() != 1 || target.Get(42) != "TEST" {
+			t.Fatal("live update did not populate map")
+		}
 	}
-	if m.IsEmpty() || m.Len() != 1 {
-		t.Fatal("populated map should not be empty")
+}
+
+func TestPitSymbolMapMetadataReplacementIsAtomic(t *testing.T) {
+	start := uint64(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC).UnixNano())
+	for _, inverse := range []bool{false, true} {
+		t.Run(fmt.Sprintf("inverse_%v", inverse), func(t *testing.T) {
+			var m dbn.PitSymbolMap
+			record := dbn.NewSymbolMappingMsg()
+			record.Header.InstrumentID, record.StypeOutSymbol = 99, "ORIGINAL"
+			if err := m.OnSymbolMappingMsg(&record); err != nil {
+				t.Fatal(err)
+			}
+			md := &dbn.Metadata{Start: start, End: start + uint64(24*time.Hour),
+				StypeIn: dbn.SType_RawSymbol, StypeOut: dbn.SType_InstrumentId,
+				Mappings: []dbn.SymbolMapping{
+					{RawSymbol: "FIRST", Intervals: []dbn.MappingInterval{{StartDate: 20260101, EndDate: 20260102, Symbol: "1"}}},
+					{RawSymbol: "SECOND", Intervals: []dbn.MappingInterval{{StartDate: 20260101, EndDate: 20260102, Symbol: "-1"}}},
+				},
+			}
+			if inverse {
+				md.StypeIn, md.StypeOut = md.StypeOut, md.StypeIn
+				for i := range md.Mappings {
+					entry := &md.Mappings[i]
+					entry.RawSymbol, entry.Intervals[0].Symbol = entry.Intervals[0].Symbol, entry.RawSymbol
+				}
+			}
+			if err := m.FillFromMetadata(md, start); err == nil {
+				t.Fatal("expected invalid second instrument ID")
+			}
+			if m.Len() != 1 || m.Get(99) != "ORIGINAL" || m.Get(1) != "" {
+				t.Fatal("failed load changed existing mappings")
+			}
+			md.Mappings = md.Mappings[:1]
+			if err := m.FillFromMetadata(md, start); err != nil {
+				t.Fatal(err)
+			}
+			if m.Len() != 1 || m.Get(1) != "FIRST" || m.Get(99) != "" {
+				t.Fatal("successful load did not replace existing mappings")
+			}
+			md.Mappings = nil
+			if err := m.FillFromMetadata(md, start); err != nil {
+				t.Fatal(err)
+			}
+			if !m.IsEmpty() {
+				t.Fatal("empty metadata did not clear mappings")
+			}
+		})
 	}
 }
 

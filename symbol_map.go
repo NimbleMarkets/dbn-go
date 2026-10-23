@@ -202,17 +202,14 @@ func (tsm *TsSymbolMap) OnSymbolMappingMsg(record *SymbolMappingMsg) error {
 // PitSymbolMap is a point-in-time symbol map. Useful for working with live symbology or a
 // historical request over a single day or other situations where the symbol
 // mappings are known not to change.
+// The zero value is ready to use. Concurrent mutation requires synchronization.
 // TOOD: handle nuance of int<>string and string<>string mappings based on SType
 type PitSymbolMap struct {
-	mapping    map[uint32]string
-	mappingInv map[string]uint32
+	mapping map[uint32]string
 }
 
 func NewPitSymbolMap() *PitSymbolMap {
-	return &PitSymbolMap{
-		mapping:    make(map[uint32]string),
-		mappingInv: make(map[string]uint32),
-	}
+	return &PitSymbolMap{}
 }
 
 // IsEmpty returns `true` if there are no mappings.
@@ -236,14 +233,16 @@ func (p *PitSymbolMap) Get(instrumentID uint32) string {
 
 // OnSymbolMappingMsg handles updating the mappings (if required) for a SymbolMappingMsg record.
 func (p *PitSymbolMap) OnSymbolMappingMsg(symbolMapping *SymbolMappingMsg) error {
+	if p.mapping == nil {
+		p.mapping = make(map[uint32]string)
+	}
 	// Apply from the header's instrumentID to its stype_out
 	p.mapping[symbolMapping.Header.InstrumentID] = symbolMapping.StypeOutSymbol
-	p.mappingInv[symbolMapping.StypeOutSymbol] = symbolMapping.Header.InstrumentID
 	return nil
 }
 
-// Fills the PitSymbolMap with mappings from `metadata` for `date`, clearing any original contents
-// Returns an error if any.
+// FillFromMetadata replaces the map with metadata's mappings for the timestamp's
+// UTC date. If validation fails, the original map is left unchanged.
 func (p *PitSymbolMap) FillFromMetadata(metadata *Metadata, timestamp uint64) error {
 	// Validate symbol mapping in/out types
 	if metadata.StypeIn != SType_InstrumentId && metadata.StypeOut != SType_InstrumentId {
@@ -260,8 +259,7 @@ func (p *PitSymbolMap) FillFromMetadata(metadata *Metadata, timestamp uint64) er
 		return err
 	}
 
-	p.mapping = make(map[uint32]string, len(metadata.Mappings))
-	p.mappingInv = make(map[string]uint32, len(metadata.Mappings))
+	next := make(map[uint32]string, len(metadata.Mappings))
 
 	for _, mapping := range metadata.Mappings {
 		for _, interval := range mapping.Intervals {
@@ -281,8 +279,9 @@ func (p *PitSymbolMap) FillFromMetadata(metadata *Metadata, timestamp uint64) er
 			if err != nil {
 				return fmt.Errorf("symbol mapping instrument ID %q: %w", id, err)
 			}
-			p.mapping[uint32(instrID)] = symbol
+			next[uint32(instrID)] = symbol
 		}
 	}
+	p.mapping = next
 	return nil
 }
