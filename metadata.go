@@ -89,10 +89,13 @@ func (m *Metadata) IsInverseMapping() (bool, error) {
 // Write writes out a Metadata to a DBN stream over an io.Writer.
 // Returns any error.
 func (m *Metadata) Write(writer io.Writer) error {
-	if m.VersionNum == HeaderVersion1 {
+	switch m.VersionNum {
+	case HeaderVersion1:
 		return m.writeV1(writer)
-	} else {
+	case HeaderVersion2, HeaderVersion3:
 		return m.writeV2(writer)
+	default:
+		return ErrInvalidDBNVersion
 	}
 }
 
@@ -176,9 +179,17 @@ func (m *Metadata) writeV2(writer io.Writer) error {
 	}
 	metaLength += (numIntervals * (4 + 4 + cstrLen)) // start + end + symbol
 
+	// V3 shares V2's metadata fields, but aligns the record boundary to
+	// eight bytes. The prefix is eight bytes, so align the body length.
+	padding := 0
+	if m.VersionNum == HeaderVersion3 {
+		padding = (8 - metaLength%8) % 8
+		metaLength += padding
+	}
+
 	// Write the MetadataPrefix
 	if err := binary.Write(writer, binary.LittleEndian, MetadataPrefix{
-		VersionRaw: [4]byte{'D', 'B', 'N', 2},
+		VersionRaw: [4]byte{'D', 'B', 'N', m.VersionNum},
 		Length:     uint32(metaLength),
 	}); err != nil {
 		return err
@@ -221,6 +232,10 @@ func (m *Metadata) writeV2(writer io.Writer) error {
 
 	// Write mappings
 	if err := writeSymbolMapping(writer, uint16(cstrLen), m.Mappings); err != nil {
+		return err
+	}
+	if padding != 0 {
+		_, err := writer.Write(make([]byte, padding))
 		return err
 	}
 
