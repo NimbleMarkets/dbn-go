@@ -707,13 +707,13 @@ func (r *ImbalanceMsg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 	r.TotalImbalanceQty = uint32(val.GetUint("total_imbalance_qty"))
 	r.MarketImbalanceQty = uint32(val.GetUint("market_imbalance_qty"))
 	r.UnpairedQty = int32(val.GetUint("unpaired_qty"))
-	r.AuctionType = uint8(val.GetUint("auction_type"))
+	r.AuctionType = fastjson_GetCharTolerant(val, "auction_type")
 	r.Side = fastjson_GetCharTolerant(val, "side")
 	r.AuctionStatus = uint8(val.GetUint("auction_status"))
 	r.FreezeStatus = uint8(val.GetUint("freeze_status"))
 	r.NumExtensions = uint8(val.GetUint("num_extensions"))
-	r.UnpairedSide = uint8(val.GetUint("unpaired_side"))
-	r.SignificantImbalance = uint8(val.GetUint("significant_imbalance"))
+	r.UnpairedSide = fastjson_GetCharTolerant(val, "unpaired_side")
+	r.SignificantImbalance = fastjson_GetCharTolerant(val, "significant_imbalance")
 	r.Reserved = uint8(val.GetUint("reserved"))
 	return nil
 }

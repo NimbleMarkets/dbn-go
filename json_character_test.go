@@ -31,7 +31,7 @@ func TestJSONCharacterEncodings(t *testing.T) {
 				{"multi-character", `"AB"`, 0},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
-					v, err := fastjson.Parse(`{"levels":[{},{},{},{},{},{},{},{},{},{}],"action":` + tc.input + `,"side":` + tc.input + `,"is_trading":` + tc.input + `,"is_quoting":` + tc.input + `,"is_short_sell_restricted":` + tc.input + `}`)
+					v, err := fastjson.Parse(`{"levels":[{},{},{},{},{},{},{},{},{},{}],"action":` + tc.input + `,"side":` + tc.input + `,"auction_type":` + tc.input + `,"unpaired_side":` + tc.input + `,"significant_imbalance":` + tc.input + `,"is_trading":` + tc.input + `,"is_quoting":` + tc.input + `,"is_short_sell_restricted":` + tc.input + `}`)
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -39,6 +39,9 @@ func TestJSONCharacterEncodings(t *testing.T) {
 						t.Fatal(err)
 					}
 					fields := []string{"Action", "Side"}
+					if _, ok := record.(*dbn.ImbalanceMsg); ok {
+						fields = []string{"Side", "AuctionType", "UnpairedSide", "SignificantImbalance"}
+					}
 					if _, ok := record.(*dbn.StatusMsg); ok {
 						fields = []string{"IsTrading", "IsQuoting", "IsShortSellRestricted"}
 					}
@@ -51,5 +54,25 @@ func TestJSONCharacterEncodings(t *testing.T) {
 				})
 			}
 		})
+	}
+}
+
+func TestImbalanceJSONCodes(t *testing.T) {
+	for _, input := range []string{
+		`{"side":"A","auction_type":"O","unpaired_side":"N","significant_imbalance":"~"}`,
+		`{"side":65,"auction_type":79,"unpaired_side":78,"significant_imbalance":126}`,
+	} {
+		v, err := fastjson.Parse(input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var record dbn.ImbalanceMsg
+		if err := record.Fill_Json(v, &dbn.RHeader{}); err != nil {
+			t.Fatal(err)
+		}
+		got := [4]byte{record.Side, record.AuctionType, record.UnpairedSide, record.SignificantImbalance}
+		if want := [4]byte{'A', 'O', 'N', '~'}; got != want {
+			t.Errorf("decoded codes = %q, want %q", got, want)
+		}
 	}
 }

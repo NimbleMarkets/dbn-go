@@ -225,7 +225,6 @@ var _ = Describe("JsonScanner upstream JSON", func() {
 			Expect(sm.Header).To(Equal(dbn.RHeader{RType: dbn.RType_SymbolMapping, PublisherID: 1, InstrumentID: 5482, TsEvent: 1609160400000000007}))
 			Expect(sm.StypeInSymbol).To(Equal("ESH1"))
 			Expect(sm.StypeOutSymbol).To(Equal("5482"))
-			// start_ts/end_ts: see the pending spec above.
 
 			Expect(scanner.Next()).To(BeTrue())
 			s0, err := dbn.JsonScannerDecode[dbn.SystemMsg](scanner)
