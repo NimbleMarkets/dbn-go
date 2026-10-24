@@ -73,7 +73,7 @@ func (s *Server) RegisterDataTools(mcpServer *mcp_server.MCPServer) {
 func (s *Server) registerFetchRange(mcpServer *mcp_server.MCPServer) {
 	mcpServer.AddTool(
 		mcp.NewTool("fetch_range",
-			mcp.WithDescription("Fetches market data from Databento and caches it locally as Parquet. Returns metadata about the cached file (path, record count, size, view name). Use query_cache to query the data with SQL. CAUTION: This incurs Databento billing. Call get_cost first to check the cost. Supported schemas: ohlcv-1s/1m/1h/1d, trades, mbp-1, tbbo, imbalance, statistics."),
+			mcp.WithDescription("Fetches market data from Databento and caches it locally as Parquet. Returns metadata about the cached file (path, record count, size, view name). Use query_cache to query the data with SQL. CAUTION: This incurs Databento billing. Call get_cost first to check the cost. Supported schemas: ohlcv-1s/1m/1h/1d, trades, mbp-1, mbp-10, tbbo, cmbp-1, bbo-1s/1m, imbalance, statistics, status."),
 			mcp.WithDestructiveHintAnnotation(false),
 			mcp.WithIdempotentHintAnnotation(true),
 			mcp.WithString("dataset",
