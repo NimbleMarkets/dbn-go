@@ -361,16 +361,23 @@ func ReadMetadata(r io.Reader) (*Metadata, error) {
 	}
 
 	// Dispatch to the version's decoder
+	var m *Metadata
 	switch versionNum := mp.VersionRaw[3]; versionNum {
 	case HeaderVersion1:
-		return readMetadataV1(b, mp)
+		m, err = readMetadataV1(b, mp)
 	case HeaderVersion2:
-		return readMetadataV2(b, mp)
+		m, err = readMetadataV2(b, mp)
 	case HeaderVersion3:
-		return readMetadataV3(b, mp)
+		m, err = readMetadataV3(b, mp)
 	default:
 		return nil, ErrInvalidDBNVersion
 	}
+	if err == io.EOF {
+		// The body is fully buffered, so running out of it while decoding means
+		// the metadata is truncated, not that the stream ended cleanly
+		err = io.ErrUnexpectedEOF
+	}
+	return m, err
 }
 
 ///////////////////////////////////////////////////////////////////////////////
