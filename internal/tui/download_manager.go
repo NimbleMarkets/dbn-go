@@ -322,6 +322,7 @@ func (dm *DownloadManager) performDownload(item DownloadItem) error {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	// Store the cancel function in the item so it can be cancelled later
 	dm.queueMtx.Lock()
@@ -356,6 +357,7 @@ func (dm *DownloadManager) performDownload(item DownloadItem) error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusUnauthorized {
 		return fmt.Errorf("key not authorized")
@@ -364,7 +366,6 @@ func (dm *DownloadManager) performDownload(item DownloadItem) error {
 	} else if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("%s", resp.Status)
 	}
-	defer resp.Body.Close()
 
 	// Create our progress reporter and pass it to be used alongside our writer
 	progressWriter := &DownloadProgressWriter{
