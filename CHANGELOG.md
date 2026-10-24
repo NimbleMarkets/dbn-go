@@ -1,12 +1,21 @@
 # CHANGELOG
 
-## Unreleased
+## v0.10.0 (2026-10-23)
 
+**Compatibility notes:** `TsSymbolMap.Len()` now counts coalesced intervals rather than daily entries. Symbol mapping end dates are exclusive, and invalid mapping dates or instrument IDs return errors. When `--cache-dir` is relative, MCP `fetch_range` now returns absolute `ParquetPath` values.
+
+ * Security: restrict MCP `query_cache` filesystem access to the cache directory in DuckDB itself, preventing SQL-filter bypasses from reading unrelated local files (#21, thanks @mfelker).
+ * Fix `Metadata.Write` to preserve the requested DBN version (1, 2, or 3), reject unsupported versions, and include the required eight-byte alignment padding for v3. Previously, requesting v3 silently wrote a v2 metadata header (#20, thanks @vbmithr).
+ * Document DBN file writing and the requirement that record layouts match the metadata version (#19).
  * Fix symbol mapping ranges to exclude the end date.
  * Add `Schema.Interval()` and `RType.Interval()` helpers.
  * Reduce symbol map memory usage with interval storage; add timestamp lookups and live updates, following DBN `0.72.0`. Existing date-based methods remain; `Len()` now counts intervals instead of daily entries.
  * Validate symbol mapping metadata and preserve existing mappings if loading fails.
  * Fix inverted `PitSymbolMap.IsEmpty()` results, support updates from its zero value, and preserve existing mappings when metadata loading fails.
+ * Reject negative or overflowing instrument IDs in `PitSymbolMap` metadata and use UTC dates for lookups.
+ * Add `ErrInvalidSymbolMappingRange` and `ErrInvalidSymbolMappingDate` for `errors.Is` checks.
+ * Use direct timestamp symbol lookups in Parquet output and file splitting; stop splitting before creating output when symbol-map construction fails.
+ * Add binary wire-layout regression tests, exhaustive venue/dataset/publisher checks, and fuzz targets for record decoding, metadata parsing, and symbol-map interval updates. Add `task fuzz` and usage documentation.
 
 Synchronized constants with upstream DBN `0.71.0` (previously `0.34.0`).
 
@@ -24,6 +33,7 @@ Synchronized constants with upstream DBN `0.71.0` (previously `0.34.0`).
    * Add canonical constructors `NewStatMsg`, `NewInstrumentDefMsg`, `NewErrorMsg`, and `NewSymbolMappingMsg`
    * `NewCmbp1Msg`, `NewBboMsg`, and `NewOhlcvMsg` take an `RType` where upstream takes a `Schema`
    * Add `UNDEF_PRICE` and `UNDEF_ORDER_SIZE` constants
+   * Keep the reserved action byte zero for CBBO-1S and CBBO-1M defaults
  * Fix `SymbolMappingMsgV1` layout: it is 80 bytes with 4 bytes of padding before `start_ts`; `start_ts` and `end_ts` were previously read 4 bytes early
  * Harden metadata decoding (follows upstream DBN `0.69.0`)
    * Counts (schema definition length, symbols, partial, not found, mappings, intervals) are validated against the remaining metadata bytes, returning `ErrInvalidMetadataCount`
