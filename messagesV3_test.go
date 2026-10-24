@@ -5,6 +5,7 @@
 package dbn_test
 
 import (
+	"os"
 	"strings"
 
 	dbn "github.com/NimbleMarkets/dbn-go"
@@ -235,3 +236,113 @@ var _ = Describe("Messages V3", func() {
 		})
 	})
 })
+
+///////////////////////////////////////////////////////////////////////////////
+// V3 fixtures for MBO, MBP-1, MBP-10, CMBP-1 and Status
+//
+// Expected records below are what the upstream decoder produces for the
+// matching ./tests/data/test_data.<schema>.v3.dbn.zst fixture:
+// databento_dbn 0.70.0 (Python bindings over the upstream Rust `dbn` crate),
+// DBNDecoder(upgrade_policy=AS_IS), one record per line, Length = record_size()/4.
+// They agree with the `dbn -J` output quoted in the V1/V2 tests for the same data.
+// They are NOT derived from dbn-go's decoder. They are reused by the JSON tests
+// in json_scanner_test.go, which decode the upstream JSON encoding of the same files.
+
+// readV3Fixture opens a V3 fixture and decodes every record as R, asserting the
+// metadata is DBN version 3.
+func readV3Fixture[R dbn.Record, RP dbn.RecordPtr[R]](path string) []R {
+	file, closer, err := dbn.MakeCompressedReader(path, false)
+	Expect(err).To(BeNil())
+	defer closer.Close()
+
+	records, metadata, err := dbn.ReadDBNToSlice[R, RP](file)
+	Expect(err).To(BeNil())
+	Expect(metadata).ToNot(BeNil())
+	Expect(metadata.VersionNum).To(Equal(uint8(3)))
+	return records
+}
+
+var _ = Describe("Messages V3 market data", func() {
+	It("should read v3 mbo correctly", func() {
+		Expect(readV3Fixture[dbn.MboMsg]("./tests/data/test_data.mbo.v3.dbn.zst")).To(Equal(upstreamMboV3))
+	})
+
+	It("should read uncompressed v3 mbo correctly", func() {
+		file, err := os.Open("./tests/data/test_data.mbo.v3.dbn")
+		Expect(err).To(BeNil())
+		defer file.Close()
+		records, metadata, err := dbn.ReadDBNToSlice[dbn.MboMsg](file)
+		Expect(err).To(BeNil())
+		Expect(metadata.VersionNum).To(Equal(uint8(3)))
+		Expect(records).To(Equal(upstreamMboV3))
+	})
+
+	It("should read v3 mbp1 correctly", func() {
+		Expect(readV3Fixture[dbn.Mbp1Msg]("./tests/data/test_data.mbp-1.v3.dbn.zst")).To(Equal(upstreamMbp1V3))
+	})
+
+	It("should read v3 mbp10 correctly", func() {
+		records := readV3Fixture[dbn.Mbp10Msg]("./tests/data/test_data.mbp-10.v3.dbn.zst")
+		Expect(records).To(Equal(upstreamMbp10V3))
+		// spot-check the discriminating values called out by upstream
+		Expect(records[0].Depth).To(Equal(uint8(9)))
+		Expect(records[1].Depth).To(Equal(uint8(1)))
+		Expect(records[1].Side).To(Equal(byte('B')))
+		Expect(records[0].Levels[9].BidPx).To(Equal(int64(3718000000000)))
+	})
+
+	It("should read v3 cmbp1 correctly", func() {
+		Expect(readV3Fixture[dbn.Cmbp1Msg]("./tests/data/test_data.cmbp-1.v3.dbn.zst")).To(Equal(upstreamCmbp1V3))
+	})
+
+	It("should read v3 status correctly", func() {
+		Expect(readV3Fixture[dbn.StatusMsg]("./tests/data/test_data.status.v3.dbn.zst")).To(Equal(upstreamStatusV3))
+	})
+})
+
+var upstreamMboV3 = []dbn.MboMsg{
+	{Header: dbn.RHeader{Length: 14, RType: 160, PublisherID: 1, InstrumentID: 5482, TsEvent: 1609160400000429831}, OrderID: 647784973705, Price: 3722750000000, Size: 1, Action: 'C', Side: 'A', Flags: 128, TsRecv: 1609160400000704060, TsInDelta: 22993, ChannelID: 0, Sequence: 1170352},
+	{Header: dbn.RHeader{Length: 14, RType: 160, PublisherID: 1, InstrumentID: 5482, TsEvent: 1609160400000431665}, OrderID: 647784973631, Price: 3723000000000, Size: 1, Action: 'C', Side: 'A', Flags: 128, TsRecv: 1609160400000711344, TsInDelta: 19621, ChannelID: 0, Sequence: 1170353},
+}
+
+var upstreamMbp1V3 = []dbn.Mbp1Msg{
+	{Header: dbn.RHeader{Length: 20, RType: 1, PublisherID: 1, InstrumentID: 5482, TsEvent: 1609160400006001487}, Price: 3720500000000, Size: 1, Action: 'A', Side: 'A', Flags: 128, TsRecv: 1609160400006136329, TsInDelta: 17214, Depth: 0, Sequence: 1170362, Level: dbn.BidAskPair{BidPx: 3720250000000, AskPx: 3720500000000, BidSz: 24, AskSz: 11, BidCt: 15, AskCt: 9}},
+	{Header: dbn.RHeader{Length: 20, RType: 1, PublisherID: 1, InstrumentID: 5482, TsEvent: 1609160400006146661}, Price: 3720500000000, Size: 1, Action: 'A', Side: 'A', Flags: 128, TsRecv: 1609160400006246513, TsInDelta: 18858, Depth: 0, Sequence: 1170364, Level: dbn.BidAskPair{BidPx: 3720250000000, AskPx: 3720500000000, BidSz: 24, AskSz: 12, BidCt: 15, AskCt: 10}},
+}
+
+var upstreamMbp10V3 = []dbn.Mbp10Msg{
+	{Header: dbn.RHeader{Length: 92, RType: 10, PublisherID: 1, InstrumentID: 5482, TsEvent: 1609160400000429831}, Price: 3722750000000, Size: 1, Action: 'C', Side: 'A', Flags: 128, TsRecv: 1609160400000704060, TsInDelta: 22993, Depth: 9, Sequence: 1170352, Levels: [10]dbn.BidAskPair{
+		{BidPx: 3720250000000, AskPx: 3720500000000, BidSz: 24, AskSz: 10, BidCt: 15, AskCt: 8},
+		{BidPx: 3720000000000, AskPx: 3720750000000, BidSz: 31, AskSz: 34, BidCt: 18, AskCt: 24},
+		{BidPx: 3719750000000, AskPx: 3721000000000, BidSz: 32, AskSz: 39, BidCt: 23, AskCt: 25},
+		{BidPx: 3719500000000, AskPx: 3721250000000, BidSz: 39, AskSz: 28, BidCt: 26, AskCt: 17},
+		{BidPx: 3719250000000, AskPx: 3721500000000, BidSz: 50, AskSz: 33, BidCt: 35, AskCt: 19},
+		{BidPx: 3719000000000, AskPx: 3721750000000, BidSz: 42, AskSz: 45, BidCt: 28, AskCt: 33},
+		{BidPx: 3718750000000, AskPx: 3722000000000, BidSz: 44, AskSz: 55, BidCt: 35, AskCt: 40},
+		{BidPx: 3718500000000, AskPx: 3722250000000, BidSz: 64, AskSz: 59, BidCt: 39, AskCt: 38},
+		{BidPx: 3718250000000, AskPx: 3722500000000, BidSz: 53, AskSz: 49, BidCt: 32, AskCt: 35},
+		{BidPx: 3718000000000, AskPx: 3722750000000, BidSz: 67, AskSz: 44, BidCt: 39, AskCt: 26}}},
+	{Header: dbn.RHeader{Length: 92, RType: 10, PublisherID: 1, InstrumentID: 5482, TsEvent: 1609160400000435673}, Price: 3720000000000, Size: 1, Action: 'C', Side: 'B', Flags: 128, TsRecv: 1609160400000750544, TsInDelta: 20625, Depth: 1, Sequence: 1170356, Levels: [10]dbn.BidAskPair{
+		{BidPx: 3720250000000, AskPx: 3720500000000, BidSz: 24, AskSz: 10, BidCt: 15, AskCt: 8},
+		{BidPx: 3720000000000, AskPx: 3720750000000, BidSz: 30, AskSz: 34, BidCt: 17, AskCt: 24},
+		{BidPx: 3719750000000, AskPx: 3721000000000, BidSz: 32, AskSz: 39, BidCt: 23, AskCt: 25},
+		{BidPx: 3719500000000, AskPx: 3721250000000, BidSz: 39, AskSz: 28, BidCt: 26, AskCt: 17},
+		{BidPx: 3719250000000, AskPx: 3721500000000, BidSz: 50, AskSz: 33, BidCt: 35, AskCt: 19},
+		{BidPx: 3719000000000, AskPx: 3721750000000, BidSz: 42, AskSz: 45, BidCt: 28, AskCt: 33},
+		{BidPx: 3718750000000, AskPx: 3722000000000, BidSz: 44, AskSz: 55, BidCt: 35, AskCt: 40},
+		{BidPx: 3718500000000, AskPx: 3722250000000, BidSz: 64, AskSz: 59, BidCt: 39, AskCt: 38},
+		{BidPx: 3718250000000, AskPx: 3722500000000, BidSz: 53, AskSz: 49, BidCt: 32, AskCt: 35},
+		{BidPx: 3718000000000, AskPx: 3722750000000, BidSz: 67, AskSz: 44, BidCt: 39, AskCt: 26}}},
+}
+
+var upstreamCmbp1V3 = []dbn.Cmbp1Msg{
+	{Header: dbn.RHeader{Length: 20, RType: 177, PublisherID: 1, InstrumentID: 5482, TsEvent: 1609160400006001487}, Price: 3720500000000, Size: 1, Action: 'A', Side: 'A', Flags: 128, TsRecv: 1609160400006136329, TsInDelta: 17214, Level: dbn.ConsolidatedBidAskPair{BidPx: 3720250000000, AskPx: 3720500000000, BidSz: 24, AskSz: 11, BidPb: 1, AskPb: 1}},
+	{Header: dbn.RHeader{Length: 20, RType: 177, PublisherID: 1, InstrumentID: 5482, TsEvent: 1609160400006146661}, Price: 3720500000000, Size: 1, Action: 'A', Side: 'A', Flags: 128, TsRecv: 1609160400006246513, TsInDelta: 18858, Level: dbn.ConsolidatedBidAskPair{BidPx: 3720250000000, AskPx: 3720500000000, BidSz: 24, AskSz: 12, BidPb: 1, AskPb: 1}},
+}
+
+var upstreamStatusV3 = []dbn.StatusMsg{
+	{Header: dbn.RHeader{Length: 10, RType: 18, PublisherID: 1, InstrumentID: 5482, TsEvent: 1609110000000000000}, TsRecv: 1609113600000000000, Action: 7, Reason: 1, TradingEvent: 0, IsTrading: 'Y', IsQuoting: 'Y', IsShortSellRestricted: '~'},
+	{Header: dbn.RHeader{Length: 10, RType: 18, PublisherID: 1, InstrumentID: 5482, TsEvent: 1609190100000000000}, TsRecv: 1609190100007055917, Action: 1, Reason: 1, TradingEvent: 0, IsTrading: 'N', IsQuoting: 'Y', IsShortSellRestricted: '~'},
+	{Header: dbn.RHeader{Length: 10, RType: 18, PublisherID: 1, InstrumentID: 5482, TsEvent: 1609190970000000000}, TsRecv: 1609190970068184258, Action: 1, Reason: 1, TradingEvent: 1, IsTrading: 'N', IsQuoting: 'Y', IsShortSellRestricted: '~'},
+	{Header: dbn.RHeader{Length: 10, RType: 18, PublisherID: 1, InstrumentID: 5482, TsEvent: 1609191000000000000}, TsRecv: 1609191000007282029, Action: 6, Reason: 1, TradingEvent: 0, IsTrading: 'Y', IsQuoting: 'Y', IsShortSellRestricted: '~'},
+}
