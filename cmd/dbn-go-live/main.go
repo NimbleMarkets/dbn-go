@@ -25,6 +25,8 @@ type Config struct {
 	OutFilename string
 	ApiKey      string
 	Dataset     string
+	Gateway     string
+	Port        uint16
 	STypeIn     dbn.SType
 	Encoding    dbn.Encoding
 	Schemas     []string
@@ -46,6 +48,8 @@ func main() {
 	config.STypeIn = dbn.SType_RawSymbol
 
 	pflag.StringVarP(&config.Dataset, "dataset", "d", "", "Dataset to subscribe to ")
+	pflag.StringVarP(&config.Gateway, "gateway", "g", "", "Live gateway host (default: derived from dataset, e.g. xnas-itch.lsg.databento.com)")
+	pflag.Uint16VarP(&config.Port, "port", "p", 0, "Live gateway port (default: 13000)")
 	pflag.StringArrayVarP(&config.Schemas, "schema", "s", []string{}, "Schema to subscribe to (multiple allowed)")
 	pflag.StringVarP(&config.ApiKey, "key", "k", "", "Databento API key (or set 'DATABENTO_API_KEY' envvar)")
 	pflag.StringVarP(&config.OutFilename, "out", "o", "", "Output filename for DBN stream ('-' for stdout)")
@@ -125,6 +129,8 @@ func run(config Config) error {
 	client, err := dbn_live.NewLiveClient(dbn_live.LiveConfig{
 		ApiKey:               config.ApiKey,
 		Dataset:              config.Dataset,
+		Gateway:              config.Gateway,
+		Port:                 config.Port,
 		Encoding:             config.Encoding,
 		SendTsOut:            false,
 		VersionUpgradePolicy: dbn.VersionUpgradePolicy_AsIs,
