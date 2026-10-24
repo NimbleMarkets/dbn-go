@@ -19,7 +19,6 @@
 package dbn
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 
@@ -766,7 +765,8 @@ func (r *SystemMsg) IsHeartbeat() bool {
 		return true
 	}
 	// Fallback to string check for backwards compatibility
-	if bytes.Equal(r.Message[:], []byte(SystemCodeString_Heartbeat)) {
+	message := TrimNullBytes(r.Message[:])
+	if message == "Heartbeat" || message == SystemCodeString_Heartbeat {
 		return true
 	}
 	return false
