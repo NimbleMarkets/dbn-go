@@ -189,11 +189,14 @@ usage: dbn-go-live -d <dataset> -s <schema> [opts] symbol1 symbol2 ...
 
   -d, --dataset string          Dataset to subscribe to
   -e, --encoding dbn.Encoding   Encoding of the output ('dbn', 'csv', 'json') (default dbn)
+  -g, --gateway string          Live gateway host (default: derived from dataset, e.g. xnas-itch.lsg.databento.com)
   -h, --help                    Show help
   -k, --key string              Databento API key (or set 'DATABENTO_API_KEY' envvar)
   -o, --out string              Output filename for DBN stream ('-' for stdout)
+  -p, --port uint16             Live gateway port (default: 13000)
   -s, --schema stringArray      Schema to subscribe to (multiple allowed)
   -i, --sin dbn.SType           Input SType of the symbols. One of instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms (default raw_symbol)
+  -n, --snapshot                Enable snapshot on subscription request
   -t, --start string            Start time to request as ISO 8601 format (default: now)
   -v, --verbose                 Verbose logging
       --version                 Show version
@@ -202,6 +205,11 @@ usage: dbn-go-live -d <dataset> -s <schema> [opts] symbol1 symbol2 ...
 Simple invocation:
 ```
 $ dbn-go-live -d EQUS.MINI -s ohlcv-1h -o foo.dbn -v -t QQQ SPY 
+```
+
+Connecting to a non-default gateway, such as a local test or replay server:
+```
+$ dbn-go-live -d EQUS.MINI -s ohlcv-1h -o foo.dbn --gateway 127.0.0.1 --port 13000 QQQ SPY
 ```
 
 Simple Docker invocation:

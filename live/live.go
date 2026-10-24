@@ -69,6 +69,8 @@ type LiveConfig struct {
 	ApiKey               string
 	Dataset              string
 	Client               string
+	Gateway              string       // Live gateway host; empty means derive from Dataset as "<dataset-host>.lsg.databento.com"
+	Port                 uint16       // Live gateway port; 0 means LIVE_API_PORT
 	Encoding             dbn.Encoding // nil mean Encoding_Dbn
 	SendTsOut            bool
 	HeartbeatInterval    time.Duration // Heartbeat interval; 0 means use server default
@@ -106,6 +108,19 @@ func (c *LiveConfig) validate() error {
 	return nil
 }
 
+// resolveGateway returns the effective gateway host and port for config,
+// applying the defaults for any unset fields.
+func resolveGateway(config LiveConfig) (string, uint16) {
+	gateway, port := config.Gateway, config.Port
+	if gateway == "" {
+		gateway = dbn.DatasetToHostname(config.Dataset) + LIVE_HOST_SUFFIX
+	}
+	if port == 0 {
+		port = LIVE_API_PORT
+	}
+	return gateway, port
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 // LiveClient interfaces with Databento's real-time and intraday replay
@@ -136,10 +151,11 @@ func NewLiveClient(config LiveConfig) (*LiveClient, error) {
 		return nil, fmt.Errorf("invalid config: %v", config.validate())
 	}
 
+	gateway, port := resolveGateway(config)
 	c := &LiveClient{
 		config:  config,
-		gateway: dbn.DatasetToHostname(config.Dataset) + LIVE_HOST_SUFFIX,
-		port:    LIVE_API_PORT,
+		gateway: gateway,
+		port:    port,
 		logger:  config.Logger,
 	}
 
