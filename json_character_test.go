@@ -16,6 +16,7 @@ func TestJSONCharacterEncodings(t *testing.T) {
 	}{
 		&dbn.MboMsg{}, &dbn.Mbp0Msg{}, &dbn.Mbp1Msg{}, &dbn.Mbp10Msg{},
 		&dbn.Cmbp1Msg{}, &dbn.BboMsg{}, &dbn.ImbalanceMsg{}, &dbn.StatusMsg{},
+		&dbn.InstrumentDefMsgV2{}, &dbn.InstrumentDefMsgV3{},
 	} {
 		t.Run(reflect.TypeOf(record).Elem().Name(), func(t *testing.T) {
 			for _, tc := range []struct {
@@ -31,7 +32,7 @@ func TestJSONCharacterEncodings(t *testing.T) {
 				{"multi-character", `"AB"`, 0},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
-					v, err := fastjson.Parse(`{"levels":[{},{},{},{},{},{},{},{},{},{}],"action":` + tc.input + `,"side":` + tc.input + `,"auction_type":` + tc.input + `,"unpaired_side":` + tc.input + `,"significant_imbalance":` + tc.input + `,"is_trading":` + tc.input + `,"is_quoting":` + tc.input + `,"is_short_sell_restricted":` + tc.input + `}`)
+					v, err := fastjson.Parse(`{"levels":[{},{},{},{},{},{},{},{},{},{}],"action":` + tc.input + `,"side":` + tc.input + `,"auction_type":` + tc.input + `,"unpaired_side":` + tc.input + `,"significant_imbalance":` + tc.input + `,"is_trading":` + tc.input + `,"is_quoting":` + tc.input + `,"is_short_sell_restricted":` + tc.input + `,"instrument_class":` + tc.input + `,"match_algorithm":` + tc.input + `,"security_update_action":` + tc.input + `,"user_defined_instrument":` + tc.input + `,"leg_instrument_class":` + tc.input + `,"leg_side":` + tc.input + `}`)
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -44,6 +45,12 @@ func TestJSONCharacterEncodings(t *testing.T) {
 					}
 					if _, ok := record.(*dbn.StatusMsg); ok {
 						fields = []string{"IsTrading", "IsQuoting", "IsShortSellRestricted"}
+					}
+					if _, ok := record.(*dbn.InstrumentDefMsgV2); ok {
+						fields = []string{"InstrumentClass", "MatchAlgorithm", "SecurityUpdateAction", "UserDefinedInstrument"}
+					}
+					if _, ok := record.(*dbn.InstrumentDefMsgV3); ok {
+						fields = []string{"InstrumentClass", "MatchAlgorithm", "SecurityUpdateAction", "UserDefinedInstrument", "LegInstrumentClass", "LegSide"}
 					}
 					for _, name := range fields {
 						field := reflect.ValueOf(record).Elem().FieldByName(name)

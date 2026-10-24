@@ -888,16 +888,11 @@ func (r *BboMsg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 	r.Flags = uint8(val.GetUint("flags"))
 	r.TsRecv = fastjson_GetUint64FromString(val, "ts_recv")
 	r.Sequence = uint32(val.GetUint("sequence"))
-
-	levels := val.Get("levels")
-	if levels != nil {
-		r.Level.BidPx = fastjson_GetInt64FromString(levels, "bid_px")
-		r.Level.AskPx = fastjson_GetInt64FromString(levels, "ask_px")
-		r.Level.BidSz = uint32(levels.GetUint("bid_sz"))
-		r.Level.AskSz = uint32(levels.GetUint("ask_sz"))
-		r.Level.BidCt = uint32(levels.GetUint("bid_ct"))
-		r.Level.AskCt = uint32(levels.GetUint("ask_ct"))
+	levelsArr := val.GetArray("levels")
+	if len(levelsArr) == 0 {
+		return errors.New("levels array is empty")
 	}
+	r.Level.Fill_Json(levelsArr[0])
 	return nil
 }
 
