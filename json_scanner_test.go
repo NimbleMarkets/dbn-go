@@ -56,7 +56,7 @@ var _ = Describe("JsonScanner", func() {
 	})
 })
 
-///////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////////
 // Upstream JSON encodings
 //
 // The JSON constants below are the upstream JSON encoder's output for the V3
@@ -66,13 +66,6 @@ var _ = Describe("JsonScanner", func() {
 //
 // JSON records carry no `len`, so Header.Length is cleared before comparing.
 //
-// BUG (decoder, not fixed in this branch): upstream encodes single-character
-// fields as JSON strings ("action":"C", "side":"A", "is_trading":"Y", ...), but the
-// Fill_Json methods of MboMsg, Mbp1Msg, Mbp10Msg, Cmbp1Msg and StatusMsg read them
-// with fastjson GetUint, which returns 0 for strings. The passing specs below compare
-// every other field (char fields cleared on both sides); the PIt specs pin the
-// char fields and should be un-pended once Fill_Json is fixed.
-
 // mapRecords returns a modified copy of records.
 func mapRecords[R any](records []R, f func(*R)) []R {
 	out := make([]R, len(records))
@@ -104,7 +97,7 @@ var _ = Describe("JsonScanner upstream JSON", func() {
 			Expect(err).To(BeNil())
 			Expect(mapRecords(records, mboNoChars)).To(Equal(mapRecords(upstreamMboV3, mboNoChars)))
 		})
-		PIt("should decode upstream mbo JSON action/side", func() {
+		It("should decode upstream mbo JSON action/side", func() {
 			records, err := dbn.ReadJsonToSlice[dbn.MboMsg](strings.NewReader(upstreamMboV3Json))
 			Expect(err).To(BeNil())
 			Expect(records).To(Equal(mapRecords(upstreamMboV3, mboNoLen)))
@@ -115,7 +108,7 @@ var _ = Describe("JsonScanner upstream JSON", func() {
 			Expect(err).To(BeNil())
 			Expect(mapRecords(records, mbp1NoChars)).To(Equal(mapRecords(upstreamMbp1V3, mbp1NoChars)))
 		})
-		PIt("should decode upstream mbp1 JSON action/side", func() {
+		It("should decode upstream mbp1 JSON action/side", func() {
 			records, err := dbn.ReadJsonToSlice[dbn.Mbp1Msg](strings.NewReader(upstreamMbp1V3Json))
 			Expect(err).To(BeNil())
 			Expect(records).To(Equal(mapRecords(upstreamMbp1V3, mbp1NoLen)))
@@ -126,7 +119,7 @@ var _ = Describe("JsonScanner upstream JSON", func() {
 			Expect(err).To(BeNil())
 			Expect(mapRecords(records, mbp10NoChars)).To(Equal(mapRecords(upstreamMbp10V3, mbp10NoChars)))
 		})
-		PIt("should decode upstream mbp10 JSON action/side", func() {
+		It("should decode upstream mbp10 JSON action/side", func() {
 			records, err := dbn.ReadJsonToSlice[dbn.Mbp10Msg](strings.NewReader(upstreamMbp10V3Json))
 			Expect(err).To(BeNil())
 			Expect(records).To(Equal(mapRecords(upstreamMbp10V3, mbp10NoLen)))
@@ -137,7 +130,7 @@ var _ = Describe("JsonScanner upstream JSON", func() {
 			Expect(err).To(BeNil())
 			Expect(mapRecords(records, cmbp1NoChars)).To(Equal(mapRecords(upstreamCmbp1V3, cmbp1NoChars)))
 		})
-		PIt("should decode upstream cmbp1 JSON action/side", func() {
+		It("should decode upstream cmbp1 JSON action/side", func() {
 			records, err := dbn.ReadJsonToSlice[dbn.Cmbp1Msg](strings.NewReader(upstreamCmbp1V3Json))
 			Expect(err).To(BeNil())
 			Expect(records).To(Equal(mapRecords(upstreamCmbp1V3, cmbp1NoLen)))
@@ -148,7 +141,7 @@ var _ = Describe("JsonScanner upstream JSON", func() {
 			Expect(err).To(BeNil())
 			Expect(mapRecords(records, statusNoChars)).To(Equal(mapRecords(upstreamStatusV3, statusNoChars)))
 		})
-		PIt("should decode upstream status JSON is_trading/is_quoting/is_short_sell_restricted", func() {
+		It("should decode upstream status JSON is_trading/is_quoting/is_short_sell_restricted", func() {
 			records, err := dbn.ReadJsonToSlice[dbn.StatusMsg](strings.NewReader(upstreamStatusV3Json))
 			Expect(err).To(BeNil())
 			Expect(records).To(Equal(mapRecords(upstreamStatusV3, statusNoLen)))
