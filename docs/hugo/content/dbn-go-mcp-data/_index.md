@@ -167,7 +167,7 @@ Returns the estimated cost in USD, billable data size in bytes, and record count
 
 Fetches market data from Databento and caches it locally as Parquet. Returns metadata about the cached file (view name, record count, size). Use `query_cache` to query the data with SQL. **This incurs Databento billing.** The server enforces a per-query budget limit (default $1.00, configurable via `--max-cost`). For large queries, prefer compact schemas like `ohlcv-1d` or `ohlcv-1h`.
 
-Supported schemas: `ohlcv-1s`, `ohlcv-1m`, `ohlcv-1h`, `ohlcv-1d`, `trades`, `mbp-1`, `tbbo`, `imbalance`, `statistics`.
+Supported schemas: `ohlcv-1s`, `ohlcv-1m`, `ohlcv-1h`, `ohlcv-1d`, `trades`, `mbp-1`, `mbp-10`, `tbbo`, `cmbp-1`, `bbo-1s`, `bbo-1m`, `imbalance`, `statistics`, `status`.
 
 **Parameters:**
 | Name | Type | Required | Description |

@@ -80,6 +80,14 @@ func ParquetGroupNodeForDbnSchema(dbnSchema dbn.Schema) *pqschema.GroupNode {
 		return ParquetGroupNode_ImbalanceMsg()
 	case dbn.Schema_Statistics:
 		return ParquetGroupNode_StatMsg()
+	case dbn.Schema_Bbo1S, dbn.Schema_Bbo1M:
+		return ParquetGroupNode_BboMsg()
+	case dbn.Schema_Cmbp1:
+		return ParquetGroupNode_Cmbp1Msg()
+	case dbn.Schema_Mbp10:
+		return ParquetGroupNode_Mbp10Msg()
+	case dbn.Schema_Status:
+		return ParquetGroupNode_StatusMsg()
 	default:
 		return nil
 	}
@@ -136,6 +144,46 @@ func scanAndWriteParquet(scanner *dbn.DbnScanner, rgw pqfile.BufferedRowGroupWri
 				return err
 			} else {
 				if err := ParquetWriteRow_StatMsg(rgw, r, dbnSymbolMap); err != nil {
+					return err
+				}
+			}
+		}
+	case dbn.Schema_Bbo1S, dbn.Schema_Bbo1M:
+		for scanner.Next() {
+			if r, err := dbn.DbnScannerDecode[dbn.BboMsg](scanner); err != nil {
+				return err
+			} else {
+				if err := ParquetWriteRow_BboMsg(rgw, r, dbnSymbolMap); err != nil {
+					return err
+				}
+			}
+		}
+	case dbn.Schema_Cmbp1:
+		for scanner.Next() {
+			if r, err := dbn.DbnScannerDecode[dbn.Cmbp1Msg](scanner); err != nil {
+				return err
+			} else {
+				if err := ParquetWriteRow_Cmbp1Msg(rgw, r, dbnSymbolMap); err != nil {
+					return err
+				}
+			}
+		}
+	case dbn.Schema_Mbp10:
+		for scanner.Next() {
+			if r, err := dbn.DbnScannerDecode[dbn.Mbp10Msg](scanner); err != nil {
+				return err
+			} else {
+				if err := ParquetWriteRow_Mbp10Msg(rgw, r, dbnSymbolMap); err != nil {
+					return err
+				}
+			}
+		}
+	case dbn.Schema_Status:
+		for scanner.Next() {
+			if r, err := dbn.DbnScannerDecode[dbn.StatusMsg](scanner); err != nil {
+				return err
+			} else {
+				if err := ParquetWriteRow_StatusMsg(rgw, r, dbnSymbolMap); err != nil {
 					return err
 				}
 			}
@@ -694,6 +742,414 @@ func ParquetWriteRow_StatMsg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Stat
 		return err
 	}
 	if err := writeInt64Column(rgw, 14, int64(record.TsRef)); err != nil {
+		return err
+	}
+	return nil
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+// ParquetGroupNode_BboMsg returns the Parquet Schema's Group Node for BboMsg (bbo-1s, bbo-1m).
+//
+// optional int64 field_id=-1 ts_event (Timestamp(isAdjustedToUTC=true, timeUnit=nanoseconds, is_from_converted_type=false, force_set_converted_type=false));
+// optional int32 field_id=-1 rtype (Int(bitWidth=8, isSigned=false));
+// optional int32 field_id=-1 publisher_id (Int(bitWidth=16, isSigned=false));
+// optional int32 field_id=-1 instrument_id (Int(bitWidth=32, isSigned=false));
+// optional binary field_id=-1 side (String);
+// optional double field_id=-1 price;
+// optional int32 field_id=-1 size (Int(bitWidth=32, isSigned=false));
+// optional int32 field_id=-1 flags (Int(bitWidth=8, isSigned=false));
+// optional int32 field_id=-1 sequence (Int(bitWidth=32, isSigned=false));
+// optional double field_id=-1 bid_px_00;
+// optional double field_id=-1 ask_px_00;
+// optional int32 field_id=-1 bid_sz_00 (Int(bitWidth=32, isSigned=false));
+// optional int32 field_id=-1 ask_sz_00 (Int(bitWidth=32, isSigned=false));
+// optional int32 field_id=-1 bid_ct_00 (Int(bitWidth=32, isSigned=false));
+// optional int32 field_id=-1 ask_ct_00 (Int(bitWidth=32, isSigned=false));
+// optional binary field_id=-1 symbol (String);
+// optional int64 field_id=-1 ts_recv (Timestamp(isAdjustedToUTC=true, timeUnit=nanoseconds, is_from_converted_type=false, force_set_converted_type=false));
+func ParquetGroupNode_BboMsg() *pqschema.GroupNode {
+	return pqschema.MustGroup(pqschema.NewGroupNode("schema", parquet.Repetitions.Required, pqschema.FieldList{
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("ts_event", parquet.Repetitions.Optional, pqschema.NewTimestampLogicalType(true, pqschema.TimeUnitNanos), parquet.Types.Int64, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("rtype", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(8, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("publisher_id", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(16, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("instrument_id", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(32, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeConverted("side", parquet.Repetitions.Optional, parquet.Types.ByteArray, pqschema.ConvertedTypes.UTF8, 0, 0, 0, -1)),
+		pqschema.NewFloat64Node("price", parquet.Repetitions.Optional, -1),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("size", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(32, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("flags", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(8, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("sequence", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(32, false), parquet.Types.Int32, 0, -1)),
+		pqschema.NewFloat64Node("bid_px_00", parquet.Repetitions.Optional, -1),
+		pqschema.NewFloat64Node("ask_px_00", parquet.Repetitions.Optional, -1),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("bid_sz_00", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(32, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("ask_sz_00", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(32, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("bid_ct_00", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(32, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("ask_ct_00", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(32, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeConverted("symbol", parquet.Repetitions.Optional, parquet.Types.ByteArray, pqschema.ConvertedTypes.UTF8, 0, 0, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("ts_recv", parquet.Repetitions.Optional, pqschema.NewTimestampLogicalType(true, pqschema.TimeUnitNanos), parquet.Types.Int64, 0, -1)),
+	}, -1))
+}
+
+func ParquetWriteRow_BboMsg(rgw pqfile.BufferedRowGroupWriter, record *dbn.BboMsg, dbnSymbolMap *dbn.TsSymbolMap) error {
+	if err := writeInt64Column(rgw, 0, int64(record.Header.TsEvent)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 1, int32(record.Header.RType)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 2, int32(record.Header.PublisherID)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 3, int32(record.Header.InstrumentID)); err != nil {
+		return err
+	}
+	if err := writeByteArrayColumn(rgw, 4, parquet.ByteArray{record.Side}); err != nil {
+		return err
+	}
+	if err := writeFloat64Column(rgw, 5, dbn.Fixed9ToFloat64(record.Price)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 6, int32(record.Size)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 7, int32(record.Flags)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 8, int32(record.Sequence)); err != nil {
+		return err
+	}
+	if err := writeFloat64Column(rgw, 9, dbn.Fixed9ToFloat64(record.Level.BidPx)); err != nil {
+		return err
+	}
+	if err := writeFloat64Column(rgw, 10, dbn.Fixed9ToFloat64(record.Level.AskPx)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 11, int32(record.Level.BidSz)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 12, int32(record.Level.AskSz)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 13, int32(record.Level.BidCt)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 14, int32(record.Level.AskCt)); err != nil {
+		return err
+	}
+	dbnSymbol := dbnSymbolMap.GetForTs(record.Header.TsEvent, record.Header.InstrumentID)
+	if err := writeByteArrayColumn(rgw, 15, parquet.ByteArray(dbnSymbol)); err != nil {
+		return err
+	}
+	if err := writeInt64Column(rgw, 16, int64(record.TsRecv)); err != nil {
+		return err
+	}
+	return nil
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+// ParquetGroupNode_Cmbp1Msg returns the Parquet Schema's Group Node for Cmbp1Msg (cmbp-1).
+// Databento's Cmbp1Msg has no sequence field (those bytes are reserved), so it is omitted.
+//
+// optional int64 field_id=-1 ts_event (Timestamp(isAdjustedToUTC=true, timeUnit=nanoseconds, is_from_converted_type=false, force_set_converted_type=false));
+// optional int32 field_id=-1 rtype (Int(bitWidth=8, isSigned=false));
+// optional int32 field_id=-1 publisher_id (Int(bitWidth=16, isSigned=false));
+// optional int32 field_id=-1 instrument_id (Int(bitWidth=32, isSigned=false));
+// optional binary field_id=-1 action (String);
+// optional binary field_id=-1 side (String);
+// optional double field_id=-1 price;
+// optional int32 field_id=-1 size (Int(bitWidth=32, isSigned=false));
+// optional int32 field_id=-1 flags (Int(bitWidth=8, isSigned=false));
+// optional int32 field_id=-1 ts_in_delta;
+// optional double field_id=-1 bid_px_00;
+// optional double field_id=-1 ask_px_00;
+// optional int32 field_id=-1 bid_sz_00 (Int(bitWidth=32, isSigned=false));
+// optional int32 field_id=-1 ask_sz_00 (Int(bitWidth=32, isSigned=false));
+// optional int32 field_id=-1 bid_pb_00 (Int(bitWidth=16, isSigned=false));
+// optional int32 field_id=-1 ask_pb_00 (Int(bitWidth=16, isSigned=false));
+// optional binary field_id=-1 symbol (String);
+// optional int64 field_id=-1 ts_recv (Timestamp(isAdjustedToUTC=true, timeUnit=nanoseconds, is_from_converted_type=false, force_set_converted_type=false));
+func ParquetGroupNode_Cmbp1Msg() *pqschema.GroupNode {
+	return pqschema.MustGroup(pqschema.NewGroupNode("schema", parquet.Repetitions.Required, pqschema.FieldList{
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("ts_event", parquet.Repetitions.Optional, pqschema.NewTimestampLogicalType(true, pqschema.TimeUnitNanos), parquet.Types.Int64, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("rtype", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(8, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("publisher_id", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(16, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("instrument_id", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(32, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeConverted("action", parquet.Repetitions.Optional, parquet.Types.ByteArray, pqschema.ConvertedTypes.UTF8, 0, 0, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeConverted("side", parquet.Repetitions.Optional, parquet.Types.ByteArray, pqschema.ConvertedTypes.UTF8, 0, 0, 0, -1)),
+		pqschema.NewFloat64Node("price", parquet.Repetitions.Optional, -1),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("size", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(32, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("flags", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(8, false), parquet.Types.Int32, 0, -1)),
+		pqschema.NewInt32Node("ts_in_delta", parquet.Repetitions.Optional, -1),
+		pqschema.NewFloat64Node("bid_px_00", parquet.Repetitions.Optional, -1),
+		pqschema.NewFloat64Node("ask_px_00", parquet.Repetitions.Optional, -1),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("bid_sz_00", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(32, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("ask_sz_00", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(32, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("bid_pb_00", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(16, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("ask_pb_00", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(16, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeConverted("symbol", parquet.Repetitions.Optional, parquet.Types.ByteArray, pqschema.ConvertedTypes.UTF8, 0, 0, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("ts_recv", parquet.Repetitions.Optional, pqschema.NewTimestampLogicalType(true, pqschema.TimeUnitNanos), parquet.Types.Int64, 0, -1)),
+	}, -1))
+}
+
+func ParquetWriteRow_Cmbp1Msg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Cmbp1Msg, dbnSymbolMap *dbn.TsSymbolMap) error {
+	if err := writeInt64Column(rgw, 0, int64(record.Header.TsEvent)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 1, int32(record.Header.RType)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 2, int32(record.Header.PublisherID)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 3, int32(record.Header.InstrumentID)); err != nil {
+		return err
+	}
+	if err := writeByteArrayColumn(rgw, 4, parquet.ByteArray{record.Action}); err != nil {
+		return err
+	}
+	if err := writeByteArrayColumn(rgw, 5, parquet.ByteArray{record.Side}); err != nil {
+		return err
+	}
+	if err := writeFloat64Column(rgw, 6, dbn.Fixed9ToFloat64(record.Price)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 7, int32(record.Size)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 8, int32(record.Flags)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 9, record.TsInDelta); err != nil {
+		return err
+	}
+	if err := writeFloat64Column(rgw, 10, dbn.Fixed9ToFloat64(record.Level.BidPx)); err != nil {
+		return err
+	}
+	if err := writeFloat64Column(rgw, 11, dbn.Fixed9ToFloat64(record.Level.AskPx)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 12, int32(record.Level.BidSz)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 13, int32(record.Level.AskSz)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 14, int32(record.Level.BidPb)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 15, int32(record.Level.AskPb)); err != nil {
+		return err
+	}
+	dbnSymbol := dbnSymbolMap.GetForTs(record.Header.TsEvent, record.Header.InstrumentID)
+	if err := writeByteArrayColumn(rgw, 16, parquet.ByteArray(dbnSymbol)); err != nil {
+		return err
+	}
+	if err := writeInt64Column(rgw, 17, int64(record.TsRecv)); err != nil {
+		return err
+	}
+	return nil
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+// ParquetGroupNode_Mbp10Msg returns the Parquet Schema's Group Node for Mbp10Msg (mbp-10).
+//
+// optional int64 field_id=-1 ts_event (Timestamp(isAdjustedToUTC=true, timeUnit=nanoseconds, is_from_converted_type=false, force_set_converted_type=false));
+// optional int32 field_id=-1 rtype (Int(bitWidth=8, isSigned=false));
+// optional int32 field_id=-1 publisher_id (Int(bitWidth=16, isSigned=false));
+// optional int32 field_id=-1 instrument_id (Int(bitWidth=32, isSigned=false));
+// optional binary field_id=-1 action (String);
+// optional binary field_id=-1 side (String);
+// optional int32 field_id=-1 depth (Int(bitWidth=8, isSigned=false));
+// optional double field_id=-1 price;
+// optional int32 field_id=-1 size (Int(bitWidth=32, isSigned=false));
+// optional int32 field_id=-1 flags (Int(bitWidth=8, isSigned=false));
+// optional int32 field_id=-1 ts_in_delta;
+// optional int32 field_id=-1 sequence (Int(bitWidth=32, isSigned=false));
+// for NN in 00..09:
+//
+//	optional double field_id=-1 bid_px_NN;
+//	optional double field_id=-1 ask_px_NN;
+//	optional int32 field_id=-1 bid_sz_NN (Int(bitWidth=32, isSigned=false));
+//	optional int32 field_id=-1 ask_sz_NN (Int(bitWidth=32, isSigned=false));
+//	optional int32 field_id=-1 bid_ct_NN (Int(bitWidth=32, isSigned=false));
+//	optional int32 field_id=-1 ask_ct_NN (Int(bitWidth=32, isSigned=false));
+//
+// optional binary field_id=-1 symbol (String);
+// optional int64 field_id=-1 ts_recv (Timestamp(isAdjustedToUTC=true, timeUnit=nanoseconds, is_from_converted_type=false, force_set_converted_type=false));
+func ParquetGroupNode_Mbp10Msg() *pqschema.GroupNode {
+	fields := pqschema.FieldList{
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("ts_event", parquet.Repetitions.Optional, pqschema.NewTimestampLogicalType(true, pqschema.TimeUnitNanos), parquet.Types.Int64, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("rtype", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(8, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("publisher_id", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(16, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("instrument_id", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(32, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeConverted("action", parquet.Repetitions.Optional, parquet.Types.ByteArray, pqschema.ConvertedTypes.UTF8, 0, 0, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeConverted("side", parquet.Repetitions.Optional, parquet.Types.ByteArray, pqschema.ConvertedTypes.UTF8, 0, 0, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("depth", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(8, false), parquet.Types.Int32, 0, -1)),
+		pqschema.NewFloat64Node("price", parquet.Repetitions.Optional, -1),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("size", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(32, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("flags", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(8, false), parquet.Types.Int32, 0, -1)),
+		pqschema.NewInt32Node("ts_in_delta", parquet.Repetitions.Optional, -1),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("sequence", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(32, false), parquet.Types.Int32, 0, -1)),
+	}
+	for i := 0; i < 10; i++ {
+		fields = append(fields,
+			pqschema.NewFloat64Node(fmt.Sprintf("bid_px_%02d", i), parquet.Repetitions.Optional, -1),
+			pqschema.NewFloat64Node(fmt.Sprintf("ask_px_%02d", i), parquet.Repetitions.Optional, -1),
+			pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical(fmt.Sprintf("bid_sz_%02d", i), parquet.Repetitions.Optional, pqschema.NewIntLogicalType(32, false), parquet.Types.Int32, 0, -1)),
+			pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical(fmt.Sprintf("ask_sz_%02d", i), parquet.Repetitions.Optional, pqschema.NewIntLogicalType(32, false), parquet.Types.Int32, 0, -1)),
+			pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical(fmt.Sprintf("bid_ct_%02d", i), parquet.Repetitions.Optional, pqschema.NewIntLogicalType(32, false), parquet.Types.Int32, 0, -1)),
+			pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical(fmt.Sprintf("ask_ct_%02d", i), parquet.Repetitions.Optional, pqschema.NewIntLogicalType(32, false), parquet.Types.Int32, 0, -1)),
+		)
+	}
+	fields = append(fields,
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeConverted("symbol", parquet.Repetitions.Optional, parquet.Types.ByteArray, pqschema.ConvertedTypes.UTF8, 0, 0, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("ts_recv", parquet.Repetitions.Optional, pqschema.NewTimestampLogicalType(true, pqschema.TimeUnitNanos), parquet.Types.Int64, 0, -1)),
+	)
+	return pqschema.MustGroup(pqschema.NewGroupNode("schema", parquet.Repetitions.Required, fields, -1))
+}
+
+func ParquetWriteRow_Mbp10Msg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Mbp10Msg, dbnSymbolMap *dbn.TsSymbolMap) error {
+	if err := writeInt64Column(rgw, 0, int64(record.Header.TsEvent)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 1, int32(record.Header.RType)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 2, int32(record.Header.PublisherID)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 3, int32(record.Header.InstrumentID)); err != nil {
+		return err
+	}
+	if err := writeByteArrayColumn(rgw, 4, parquet.ByteArray{record.Action}); err != nil {
+		return err
+	}
+	if err := writeByteArrayColumn(rgw, 5, parquet.ByteArray{record.Side}); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 6, int32(record.Depth)); err != nil {
+		return err
+	}
+	if err := writeFloat64Column(rgw, 7, dbn.Fixed9ToFloat64(record.Price)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 8, int32(record.Size)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 9, int32(record.Flags)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 10, record.TsInDelta); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 11, int32(record.Sequence)); err != nil {
+		return err
+	}
+	idx := 12
+	for _, level := range record.Levels {
+		if err := writeFloat64Column(rgw, idx, dbn.Fixed9ToFloat64(level.BidPx)); err != nil {
+			return err
+		}
+		if err := writeFloat64Column(rgw, idx+1, dbn.Fixed9ToFloat64(level.AskPx)); err != nil {
+			return err
+		}
+		if err := writeInt32Column(rgw, idx+2, int32(level.BidSz)); err != nil {
+			return err
+		}
+		if err := writeInt32Column(rgw, idx+3, int32(level.AskSz)); err != nil {
+			return err
+		}
+		if err := writeInt32Column(rgw, idx+4, int32(level.BidCt)); err != nil {
+			return err
+		}
+		if err := writeInt32Column(rgw, idx+5, int32(level.AskCt)); err != nil {
+			return err
+		}
+		idx += 6
+	}
+	dbnSymbol := dbnSymbolMap.GetForTs(record.Header.TsEvent, record.Header.InstrumentID)
+	if err := writeByteArrayColumn(rgw, idx, parquet.ByteArray(dbnSymbol)); err != nil {
+		return err
+	}
+	if err := writeInt64Column(rgw, idx+1, int64(record.TsRecv)); err != nil {
+		return err
+	}
+	return nil
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+// ParquetGroupNode_StatusMsg returns the Parquet Schema's Group Node for StatusMsg (status).
+// is_trading, is_quoting and is_short_sell_restricted are single-character strings
+// ('Y', 'N', or '~' when not available), matching Databento's c_char representation.
+//
+// optional int64 field_id=-1 ts_event (Timestamp(isAdjustedToUTC=true, timeUnit=nanoseconds, is_from_converted_type=false, force_set_converted_type=false));
+// optional int32 field_id=-1 rtype (Int(bitWidth=8, isSigned=false));
+// optional int32 field_id=-1 publisher_id (Int(bitWidth=16, isSigned=false));
+// optional int32 field_id=-1 instrument_id (Int(bitWidth=32, isSigned=false));
+// optional int32 field_id=-1 action (Int(bitWidth=16, isSigned=false));
+// optional int32 field_id=-1 reason (Int(bitWidth=16, isSigned=false));
+// optional int32 field_id=-1 trading_event (Int(bitWidth=16, isSigned=false));
+// optional binary field_id=-1 is_trading (String);
+// optional binary field_id=-1 is_quoting (String);
+// optional binary field_id=-1 is_short_sell_restricted (String);
+// optional binary field_id=-1 symbol (String);
+// optional int64 field_id=-1 ts_recv (Timestamp(isAdjustedToUTC=true, timeUnit=nanoseconds, is_from_converted_type=false, force_set_converted_type=false));
+func ParquetGroupNode_StatusMsg() *pqschema.GroupNode {
+	return pqschema.MustGroup(pqschema.NewGroupNode("schema", parquet.Repetitions.Required, pqschema.FieldList{
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("ts_event", parquet.Repetitions.Optional, pqschema.NewTimestampLogicalType(true, pqschema.TimeUnitNanos), parquet.Types.Int64, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("rtype", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(8, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("publisher_id", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(16, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("instrument_id", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(32, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("action", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(16, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("reason", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(16, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("trading_event", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(16, false), parquet.Types.Int32, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeConverted("is_trading", parquet.Repetitions.Optional, parquet.Types.ByteArray, pqschema.ConvertedTypes.UTF8, 0, 0, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeConverted("is_quoting", parquet.Repetitions.Optional, parquet.Types.ByteArray, pqschema.ConvertedTypes.UTF8, 0, 0, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeConverted("is_short_sell_restricted", parquet.Repetitions.Optional, parquet.Types.ByteArray, pqschema.ConvertedTypes.UTF8, 0, 0, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeConverted("symbol", parquet.Repetitions.Optional, parquet.Types.ByteArray, pqschema.ConvertedTypes.UTF8, 0, 0, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("ts_recv", parquet.Repetitions.Optional, pqschema.NewTimestampLogicalType(true, pqschema.TimeUnitNanos), parquet.Types.Int64, 0, -1)),
+	}, -1))
+}
+
+func ParquetWriteRow_StatusMsg(rgw pqfile.BufferedRowGroupWriter, record *dbn.StatusMsg, dbnSymbolMap *dbn.TsSymbolMap) error {
+	if err := writeInt64Column(rgw, 0, int64(record.Header.TsEvent)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 1, int32(record.Header.RType)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 2, int32(record.Header.PublisherID)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 3, int32(record.Header.InstrumentID)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 4, int32(record.Action)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 5, int32(record.Reason)); err != nil {
+		return err
+	}
+	if err := writeInt32Column(rgw, 6, int32(record.TradingEvent)); err != nil {
+		return err
+	}
+	if err := writeByteArrayColumn(rgw, 7, parquet.ByteArray{record.IsTrading}); err != nil {
+		return err
+	}
+	if err := writeByteArrayColumn(rgw, 8, parquet.ByteArray{record.IsQuoting}); err != nil {
+		return err
+	}
+	if err := writeByteArrayColumn(rgw, 9, parquet.ByteArray{record.IsShortSellRestricted}); err != nil {
+		return err
+	}
+	dbnSymbol := dbnSymbolMap.GetForTs(record.Header.TsEvent, record.Header.InstrumentID)
+	if err := writeByteArrayColumn(rgw, 10, parquet.ByteArray(dbnSymbol)); err != nil {
+		return err
+	}
+	if err := writeInt64Column(rgw, 11, int64(record.TsRecv)); err != nil {
 		return err
 	}
 	return nil
