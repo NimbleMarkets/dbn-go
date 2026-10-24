@@ -13,27 +13,62 @@ import "fmt"
 // Version-aware decoders for records that differ across DBN versions.
 // These convert V1/V2 records up to the V3 layout (the canonical type).
 
-// decodeErrorMsg decodes a ErrorMsg, upgrading from V1 if needed.
+// DecodeErrorMsg decodes an ErrorMsg, upgrading from V1 if needed.
 // V1 only has a short error message
 func DecodeErrorMsg(metadata *Metadata, body []byte) (*ErrorMsgV2, error) {
+	if metadata == nil {
+		return nil, ErrNoMetadata
+	}
 	switch metadata.VersionNum {
 	case HeaderVersion1:
 		var v1 ErrorMsgV1
-		if err := v1.Fill_Raw(body[:ErrorMsgV1_Size]); err != nil {
+		if err := v1.Fill_Raw(body); err != nil {
 			return nil, err
 		}
-		var v2 ErrorMsgV2
+		v2 := NewErrorMsgV2()
+		v2.Header = v1.Header
+		v2.Header.Length = ErrorMsgV2_Size / 4
 		copy(v2.Error[:], v1.Error[:])
 		return &v2, nil
 	case HeaderVersion2, HeaderVersion3:
 		var v2 ErrorMsgV2
-		if err := v2.Fill_Raw(body[:ErrorMsgV2_Size]); err != nil {
+		if err := v2.Fill_Raw(body); err != nil {
 			return nil, err
 		}
 		return &v2, nil
 	default:
 		return nil, ErrInvalidDBNVersion
 	}
+}
+
+// DecodeSystemMsg decodes a SystemMsg, upgrading the 80-byte V1 layout when needed.
+func DecodeSystemMsg(metadata *Metadata, body []byte) (*SystemMsg, error) {
+	if metadata == nil {
+		return nil, ErrNoMetadata
+	}
+	r := NewSystemMsg()
+	switch metadata.VersionNum {
+	case HeaderVersion1:
+		const v1Size = RHeader_Size + 64
+		if len(body) < v1Size {
+			return nil, unexpectedBytesError(len(body), v1Size)
+		}
+		if err := r.Header.Fill_Raw(body[:RHeader_Size]); err != nil {
+			return nil, err
+		}
+		r.Header.Length = SystemMsg_Size / 4
+		copy(r.Message[:], body[RHeader_Size:v1Size])
+		if r.IsHeartbeat() {
+			r.Code = SystemCode_Heartbeat
+		}
+	case HeaderVersion2, HeaderVersion3:
+		if err := r.Fill_Raw(body); err != nil {
+			return nil, err
+		}
+	default:
+		return nil, ErrInvalidDBNVersion
+	}
+	return &r, nil
 }
 
 // decodeStatMsg decodes a StatMsg, upgrading from V1/V2 if needed.

@@ -106,8 +106,8 @@ func (r *SymbolMappingMsgV1) Fill_Json(val *fastjson.Value, header *RHeader) err
 	r.StypeInSymbol = string(val.GetStringBytes("stype_in_symbol"))
 	r.StypeOut = SType(val.GetUint("stype_out"))
 	r.StypeOutSymbol = string(val.GetStringBytes("stype_out_symbol"))
-	r.StartTs = val.GetUint64("start_ts")
-	r.EndTs = val.GetUint64("end_ts")
+	r.StartTs = fastjson_GetUint64Tolerant(val, "start_ts")
+	r.EndTs = fastjson_GetUint64Tolerant(val, "end_ts")
 	return nil
 }
 

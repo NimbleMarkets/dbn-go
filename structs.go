@@ -19,7 +19,6 @@
 package dbn
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 
@@ -75,6 +74,23 @@ func fastjson_GetUint64Tolerant(val *fastjson.Value, key string) uint64 {
 		return fastfloat.ParseUint64BestEffort(string(v.GetStringBytes()))
 	}
 	return v.GetUint64()
+}
+
+// Decodes a single-byte JSON string or a legacy numeric character code.
+// Missing, empty, or multi-byte strings decode as zero, like other best-effort getters.
+func fastjson_GetCharTolerant(val *fastjson.Value, key string) byte {
+	v := val.Get(key)
+	if v == nil {
+		return 0
+	}
+	if v.Type() == fastjson.TypeString {
+		b := v.GetStringBytes()
+		if len(b) == 1 {
+			return b[0]
+		}
+		return 0
+	}
+	return byte(v.GetUint())
 }
 
 func (rtype RType) IsCompatibleWith(rtype2 RType) bool {
@@ -269,8 +285,8 @@ func (r *Mbp0Msg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 	r.Header = *header
 	r.Price = fastjson_GetInt64FromString(val, "price")
 	r.Size = uint32(val.GetUint("size"))
-	r.Action = uint8(val.GetUint("action"))
-	r.Side = uint8(val.GetUint("side"))
+	r.Action = fastjson_GetCharTolerant(val, "action")
+	r.Side = fastjson_GetCharTolerant(val, "side")
 	r.Flags = uint8(val.GetUint("flags"))
 	r.Depth = uint8(val.GetUint("depth"))
 	r.TsRecv = fastjson_GetUint64FromString(val, "ts_recv")
@@ -336,8 +352,8 @@ func (r *MboMsg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 	r.Size = uint32(val.GetUint("size"))
 	r.Flags = uint8(val.GetUint("flags"))
 	r.ChannelID = uint8(val.GetUint("channel_id"))
-	r.Action = byte(val.GetUint("action"))
-	r.Side = byte(val.GetUint("side"))
+	r.Action = fastjson_GetCharTolerant(val, "action")
+	r.Side = fastjson_GetCharTolerant(val, "side")
 	r.TsRecv = fastjson_GetUint64FromString(val, "ts_recv")
 	r.TsInDelta = int32(val.GetUint("ts_in_delta"))
 	r.Sequence = uint32(val.GetUint("sequence"))
@@ -397,8 +413,8 @@ func (r *Mbp1Msg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 	r.Header = *header
 	r.Price = fastjson_GetInt64FromString(val, "price")
 	r.Size = uint32(val.GetUint("size"))
-	r.Action = byte(val.GetUint("action"))
-	r.Side = byte(val.GetUint("side"))
+	r.Action = fastjson_GetCharTolerant(val, "action")
+	r.Side = fastjson_GetCharTolerant(val, "side")
 	r.Flags = uint8(val.GetUint("flags"))
 	r.Depth = uint8(val.GetUint("depth"))
 	r.TsRecv = fastjson_GetUint64FromString(val, "ts_recv")
@@ -466,8 +482,8 @@ func (r *Cmbp1Msg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 	r.Header = *header
 	r.Price = fastjson_GetInt64FromString(val, "price")
 	r.Size = uint32(val.GetUint("size"))
-	r.Action = byte(val.GetUint("action"))
-	r.Side = byte(val.GetUint("side"))
+	r.Action = fastjson_GetCharTolerant(val, "action")
+	r.Side = fastjson_GetCharTolerant(val, "side")
 	r.Flags = uint8(val.GetUint("flags"))
 	r.TsRecv = fastjson_GetUint64FromString(val, "ts_recv")
 	r.TsInDelta = int32(val.GetUint("ts_in_delta"))
@@ -536,8 +552,8 @@ func (r *Mbp10Msg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 	r.Header = *header
 	r.Price = fastjson_GetInt64FromString(val, "price")
 	r.Size = uint32(val.GetUint("size"))
-	r.Action = byte(val.GetUint("action"))
-	r.Side = byte(val.GetUint("side"))
+	r.Action = fastjson_GetCharTolerant(val, "action")
+	r.Side = fastjson_GetCharTolerant(val, "side")
 	r.Flags = uint8(val.GetUint("flags"))
 	r.Depth = uint8(val.GetUint("depth"))
 	r.TsRecv = fastjson_GetUint64FromString(val, "ts_recv")
@@ -691,13 +707,13 @@ func (r *ImbalanceMsg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 	r.TotalImbalanceQty = uint32(val.GetUint("total_imbalance_qty"))
 	r.MarketImbalanceQty = uint32(val.GetUint("market_imbalance_qty"))
 	r.UnpairedQty = int32(val.GetUint("unpaired_qty"))
-	r.AuctionType = uint8(val.GetUint("auction_type"))
-	r.Side = uint8(val.GetUint("side"))
+	r.AuctionType = fastjson_GetCharTolerant(val, "auction_type")
+	r.Side = fastjson_GetCharTolerant(val, "side")
 	r.AuctionStatus = uint8(val.GetUint("auction_status"))
 	r.FreezeStatus = uint8(val.GetUint("freeze_status"))
 	r.NumExtensions = uint8(val.GetUint("num_extensions"))
-	r.UnpairedSide = uint8(val.GetUint("unpaired_side"))
-	r.SignificantImbalance = uint8(val.GetUint("significant_imbalance"))
+	r.UnpairedSide = fastjson_GetCharTolerant(val, "unpaired_side")
+	r.SignificantImbalance = fastjson_GetCharTolerant(val, "significant_imbalance")
 	r.Reserved = uint8(val.GetUint("reserved"))
 	return nil
 }
@@ -749,7 +765,8 @@ func (r *SystemMsg) IsHeartbeat() bool {
 		return true
 	}
 	// Fallback to string check for backwards compatibility
-	if bytes.Equal(r.Message[:], []byte(SystemCodeString_Heartbeat)) {
+	message := TrimNullBytes(r.Message[:])
+	if message == "Heartbeat" || message == SystemCodeString_Heartbeat {
 		return true
 	}
 	return false
@@ -805,9 +822,9 @@ func (r *StatusMsg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 	r.Action = uint16(val.GetUint("action"))
 	r.Reason = uint16(val.GetUint("reason"))
 	r.TradingEvent = uint16(val.GetUint("trading_event"))
-	r.IsTrading = uint8(val.GetUint("is_trading"))
-	r.IsQuoting = uint8(val.GetUint("is_quoting"))
-	r.IsShortSellRestricted = uint8(val.GetUint("is_short_sell_restricted"))
+	r.IsTrading = fastjson_GetCharTolerant(val, "is_trading")
+	r.IsQuoting = fastjson_GetCharTolerant(val, "is_quoting")
+	r.IsShortSellRestricted = fastjson_GetCharTolerant(val, "is_short_sell_restricted")
 	return nil
 }
 
@@ -867,20 +884,15 @@ func (r *BboMsg) Fill_Json(val *fastjson.Value, header *RHeader) error {
 	r.Header = *header
 	r.Price = fastjson_GetInt64FromString(val, "price")
 	r.Size = uint32(val.GetUint("size"))
-	r.Side = byte(val.Get("side").String()[1]) // Get the first character from the JSON string
+	r.Side = fastjson_GetCharTolerant(val, "side")
 	r.Flags = uint8(val.GetUint("flags"))
 	r.TsRecv = fastjson_GetUint64FromString(val, "ts_recv")
 	r.Sequence = uint32(val.GetUint("sequence"))
-
-	levels := val.Get("levels")
-	if levels != nil {
-		r.Level.BidPx = fastjson_GetInt64FromString(levels, "bid_px")
-		r.Level.AskPx = fastjson_GetInt64FromString(levels, "ask_px")
-		r.Level.BidSz = uint32(levels.GetUint("bid_sz"))
-		r.Level.AskSz = uint32(levels.GetUint("ask_sz"))
-		r.Level.BidCt = uint32(levels.GetUint("bid_ct"))
-		r.Level.AskCt = uint32(levels.GetUint("ask_ct"))
+	levelsArr := val.GetArray("levels")
+	if len(levelsArr) == 0 {
+		return errors.New("levels array is empty")
 	}
+	r.Level.Fill_Json(levelsArr[0])
 	return nil
 }
 

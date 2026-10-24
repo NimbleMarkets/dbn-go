@@ -168,7 +168,15 @@ func dispatchJsonVisitor(val *fastjson.Value, header *RHeader, visitor Visitor) 
 		} else {
 			return visitor.OnStatusMsg(&record)
 		}
-	// Status
+	// BBO schemas
+	case RType_Bbo1S, RType_Bbo1M:
+		record := BboMsg{}
+		if err := record.Fill_Json(val, header); err != nil {
+			return err // TODO: OnError()
+		} else {
+			return visitor.OnBbo(&record)
+		}
+	// InstrumentDef
 	case RType_InstrumentDef:
 		record := InstrumentDefMsg{}
 		if err := record.Fill_Json(val, header); err != nil {

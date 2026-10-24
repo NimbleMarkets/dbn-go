@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## v0.11.0 (2026-10-24)
+
+ * live: Add optional `LiveConfig.Gateway` and `LiveConfig.Port` overrides and `dbn-go-live --gateway/-g` and `--port/-p` flags for custom gateways and local replay servers. Empty host and zero port retain the existing defaults (#24, thanks @mfelker).
+ * Add Parquet conversion for `bbo-1s`, `bbo-1m`, `cmbp-1`, `mbp-10`, and `status`, including support in MCP `fetch_range` (#25, thanks @mfelker).
+ * Fix truncated metadata ending at a required count-field boundary being reported as a clean `io.EOF`. These files now return `io.ErrUnexpectedEOF` instead of appearing to be successful empty reads (#22, thanks @mfelker).
+ * tui: Release download contexts and close HTTP response bodies on unsuccessful responses (#23, thanks @mfelker).
+ * Fix JSON decoding of single-character action, side, status, imbalance, and instrument-definition fields (`auction_type`, `unpaired_side`, `significant_imbalance`, `instrument_class`, `match_algorithm`, `security_update_action`, `user_defined_instrument`, `leg_instrument_class`, and `leg_side`), accepting both character strings and legacy numeric codes.
+ * Fix `BboMsg` JSON `levels` decoding to read from a 1-element array like `Mbp1Msg`, and dispatch `RType_Bbo1S`/`RType_Bbo1M` in `JsonScanner.Visit`.
+ * Fix V1/V2 symbol-mapping JSON decoding of quoted `start_ts` and `end_ts`. Continue accepting bare integers and preserve full uint64 precision.
+ * Fix V1 error-message upgrades to preserve record headers, set the upgraded record length, and initialize missing error-code and final-message fields to unset values.
+ * Fix V1 system-message decoding to use the 80-byte layout without reading stale bytes from a previous record. Add version-aware `DecodeSystemMsg` and `DbnScanner.DecodeSystemMsg` helpers, and use them for visitor dispatch.
+ * Fix heartbeat text detection for null-padded legacy messages, recognizing both `Heartbeat` and `HEARTBEAT`.
+ * Expand binary and JSON decoder coverage using upstream fixtures and live-control streams (#26, thanks @mfelker). Enable all nine regression specs that exposed the decoding bugs above, with additional numeric-compatibility, timestamp-precision, and short-record tests.
+
 ## v0.10.0 (2026-10-23)
 
 **Compatibility notes:** `TsSymbolMap.Len()` now counts coalesced intervals rather than daily entries. Symbol mapping end dates are exclusive, and invalid mapping dates or instrument IDs return errors. When `--cache-dir` is relative, MCP `fetch_range` now returns absolute `ParquetPath` values.

@@ -438,7 +438,7 @@ var _ = Describe("DbnScanner live-control records", func() {
 			Expect(sm.EndTs).To(Equal(uint64(1609200000000000000)))
 
 			Expect(scanner.Next()).To(BeTrue())
-			sys, err := dbn.DbnScannerDecode[dbn.SystemMsg](scanner)
+			sys, err := scanner.DecodeSystemMsg()
 			Expect(err).To(BeNil())
 			Expect(sys.Header.TsEvent).To(Equal(uint64(1609160400000000003)))
 			Expect(dbn.TrimNullBytes(sys.Message[:])).To(Equal("Subscription request 1 for mbo data succeeded"))
@@ -501,13 +501,7 @@ var _ = Describe("DbnScanner live-control records", func() {
 			Expect(s0.IsHeartbeat()).To(BeTrue())
 		})
 
-		// BUG (decoder, not fixed in this branch): DbnScanner.Visit decodes every SystemMsg
-		// with the V2 layout via lastRecord[:SystemMsg_Size] (320 bytes), even when the stream
-		// is V1 and the record is only 80 bytes. Bytes 80..319 of the scratch buffer are stale
-		// data left by an earlier, larger record (here an MBP-10), so they leak into
-		// Message[64:] and Code. Upstream's V1->V3 upgrade yields msg="Heartbeat" (zero padded)
-		// and code=SystemCode.HEARTBEAT (0) for this stream.
-		PIt("should Visit a V1 SystemMsg after a larger record without reading stale bytes", func() {
+		It("should Visit a V1 SystemMsg after a larger record without reading stale bytes", func() {
 			scanner := dbn.NewDbnScanner(bytes.NewReader(upstreamMbp10ThenHeartbeatStreamV1))
 			Expect(scanner.Next()).To(BeTrue()) // MBP-10 (368 bytes)
 			Expect(scanner.Next()).To(BeTrue()) // SystemMsgV1 (80 bytes)
@@ -519,6 +513,10 @@ var _ = Describe("DbnScanner live-control records", func() {
 			Expect(s0.Header.TsEvent).To(Equal(uint64(1609160400000000010)))
 			Expect(dbn.TrimNullBytes(s0.Message[:])).To(Equal("Heartbeat"))
 			Expect(s0.Code).To(Equal(dbn.SystemCode(0)))
+			Expect(s0.Header.Length).To(Equal(uint8(dbn.SystemMsg_Size / 4)))
+			decoded, err := scanner.DecodeSystemMsg()
+			Expect(err).To(BeNil())
+			Expect(*decoded).To(Equal(s0))
 		})
 
 		It("should Visit a V1 ErrorMsg and upgrade its error text", func() {
@@ -534,12 +532,7 @@ var _ = Describe("DbnScanner live-control records", func() {
 			Expect(dbn.TrimNullBytes(visitor.Errors[0].Error[:])).To(Equal("Unknown dataset"))
 		})
 
-		// BUG (decoder, not fixed in this branch): DecodeErrorMsg's V1->V2 upgrade
-		// (messages.go) copies only the error text into a fresh ErrorMsgV2 and drops the
-		// record header, so RType/TsEvent/Length come back as zero. Upstream's V1->V3
-		// upgrade keeps the header (rtype=21, ts_event=1609160400000000002) and sets
-		// code=ErrorCode.UNSET (255) and is_last=255 (code/is_last not asserted here).
-		PIt("should keep the record header when upgrading a V1 ErrorMsg", func() {
+		It("should keep the record header when upgrading a V1 ErrorMsg", func() {
 			scanner := dbn.NewDbnScanner(bytes.NewReader(upstreamLiveControlStreamV1))
 			Expect(scanner.Next()).To(BeTrue()) // symbol mapping
 			Expect(scanner.Next()).To(BeTrue()) // system
@@ -553,6 +546,12 @@ var _ = Describe("DbnScanner live-control records", func() {
 			Expect(dbn.TrimNullBytes(e0.Error[:])).To(Equal("Unknown dataset"))
 			Expect(e0.Header.RType).To(Equal(dbn.RType_Error))
 			Expect(e0.Header.TsEvent).To(Equal(uint64(1609160400000000002)))
+			Expect(e0.Header.Length).To(Equal(uint8(dbn.ErrorMsgV2_Size / 4)))
+			Expect(e0.Code).To(Equal(dbn.ErrorCode(dbn.ErrorCode_Unset)))
+			Expect(e0.IsLast).To(Equal(uint8(255)))
+			decoded, err := scanner.DecodeErrorMsg()
+			Expect(err).To(BeNil())
+			Expect(*decoded).To(Equal(e0))
 		})
 	})
 })

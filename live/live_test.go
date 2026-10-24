@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -185,6 +186,50 @@ var _ = Describe("DbnLive", func() {
 				sessionID:  "sess-123",
 			}
 			Expect(client.GetSessionID()).To(Equal("sess-123"))
+		})
+	})
+
+	Context("gateway", func() {
+		It("should derive the gateway from the dataset by default", func() {
+			host, port := resolveGateway(LiveConfig{Dataset: "XNAS.ITCH"})
+			Expect(host).To(Equal("xnas-itch.lsg.databento.com"))
+			Expect(port).To(Equal(uint16(LIVE_API_PORT)))
+		})
+
+		It("should use the configured gateway and port when set", func() {
+			host, port := resolveGateway(LiveConfig{Dataset: "XNAS.ITCH", Gateway: "127.0.0.1", Port: 4242})
+			Expect(host).To(Equal("127.0.0.1"))
+			Expect(port).To(Equal(uint16(4242)))
+		})
+
+		It("should connect to the configured gateway and port", func() {
+			ln, err := net.Listen("tcp", "127.0.0.1:0")
+			Expect(err).To(BeNil())
+			defer ln.Close()
+			listenPort := uint16(ln.Addr().(*net.TCPAddr).Port)
+
+			accepted := make(chan net.Conn, 1)
+			go func() {
+				if conn, err := ln.Accept(); err == nil {
+					accepted <- conn
+				}
+			}()
+
+			client, err := NewLiveClient(LiveConfig{
+				ApiKey:  strings.Repeat("a", API_KEY_LENGTH),
+				Dataset: "XNAS.ITCH",
+				Gateway: "127.0.0.1",
+				Port:    listenPort,
+			})
+			Expect(err).To(BeNil())
+			defer func() { _ = client.Stop() }()
+
+			Expect(client.GetGateway()).To(Equal("127.0.0.1"))
+			Expect(client.GetPort()).To(Equal(listenPort))
+
+			var serverConn net.Conn
+			Eventually(accepted, 2*time.Second).Should(Receive(&serverConn))
+			defer serverConn.Close()
 		})
 	})
 

@@ -56,7 +56,7 @@ var _ = Describe("JsonScanner", func() {
 	})
 })
 
-///////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////////
 // Upstream JSON encodings
 //
 // The JSON constants below are the upstream JSON encoder's output for the V3
@@ -66,13 +66,6 @@ var _ = Describe("JsonScanner", func() {
 //
 // JSON records carry no `len`, so Header.Length is cleared before comparing.
 //
-// BUG (decoder, not fixed in this branch): upstream encodes single-character
-// fields as JSON strings ("action":"C", "side":"A", "is_trading":"Y", ...), but the
-// Fill_Json methods of MboMsg, Mbp1Msg, Mbp10Msg, Cmbp1Msg and StatusMsg read them
-// with fastjson GetUint, which returns 0 for strings. The passing specs below compare
-// every other field (char fields cleared on both sides); the PIt specs pin the
-// char fields and should be un-pended once Fill_Json is fixed.
-
 // mapRecords returns a modified copy of records.
 func mapRecords[R any](records []R, f func(*R)) []R {
 	out := make([]R, len(records))
@@ -104,7 +97,7 @@ var _ = Describe("JsonScanner upstream JSON", func() {
 			Expect(err).To(BeNil())
 			Expect(mapRecords(records, mboNoChars)).To(Equal(mapRecords(upstreamMboV3, mboNoChars)))
 		})
-		PIt("should decode upstream mbo JSON action/side", func() {
+		It("should decode upstream mbo JSON action/side", func() {
 			records, err := dbn.ReadJsonToSlice[dbn.MboMsg](strings.NewReader(upstreamMboV3Json))
 			Expect(err).To(BeNil())
 			Expect(records).To(Equal(mapRecords(upstreamMboV3, mboNoLen)))
@@ -115,7 +108,7 @@ var _ = Describe("JsonScanner upstream JSON", func() {
 			Expect(err).To(BeNil())
 			Expect(mapRecords(records, mbp1NoChars)).To(Equal(mapRecords(upstreamMbp1V3, mbp1NoChars)))
 		})
-		PIt("should decode upstream mbp1 JSON action/side", func() {
+		It("should decode upstream mbp1 JSON action/side", func() {
 			records, err := dbn.ReadJsonToSlice[dbn.Mbp1Msg](strings.NewReader(upstreamMbp1V3Json))
 			Expect(err).To(BeNil())
 			Expect(records).To(Equal(mapRecords(upstreamMbp1V3, mbp1NoLen)))
@@ -126,7 +119,7 @@ var _ = Describe("JsonScanner upstream JSON", func() {
 			Expect(err).To(BeNil())
 			Expect(mapRecords(records, mbp10NoChars)).To(Equal(mapRecords(upstreamMbp10V3, mbp10NoChars)))
 		})
-		PIt("should decode upstream mbp10 JSON action/side", func() {
+		It("should decode upstream mbp10 JSON action/side", func() {
 			records, err := dbn.ReadJsonToSlice[dbn.Mbp10Msg](strings.NewReader(upstreamMbp10V3Json))
 			Expect(err).To(BeNil())
 			Expect(records).To(Equal(mapRecords(upstreamMbp10V3, mbp10NoLen)))
@@ -137,7 +130,7 @@ var _ = Describe("JsonScanner upstream JSON", func() {
 			Expect(err).To(BeNil())
 			Expect(mapRecords(records, cmbp1NoChars)).To(Equal(mapRecords(upstreamCmbp1V3, cmbp1NoChars)))
 		})
-		PIt("should decode upstream cmbp1 JSON action/side", func() {
+		It("should decode upstream cmbp1 JSON action/side", func() {
 			records, err := dbn.ReadJsonToSlice[dbn.Cmbp1Msg](strings.NewReader(upstreamCmbp1V3Json))
 			Expect(err).To(BeNil())
 			Expect(records).To(Equal(mapRecords(upstreamCmbp1V3, cmbp1NoLen)))
@@ -148,10 +141,58 @@ var _ = Describe("JsonScanner upstream JSON", func() {
 			Expect(err).To(BeNil())
 			Expect(mapRecords(records, statusNoChars)).To(Equal(mapRecords(upstreamStatusV3, statusNoChars)))
 		})
-		PIt("should decode upstream status JSON is_trading/is_quoting/is_short_sell_restricted", func() {
+		It("should decode upstream status JSON is_trading/is_quoting/is_short_sell_restricted", func() {
 			records, err := dbn.ReadJsonToSlice[dbn.StatusMsg](strings.NewReader(upstreamStatusV3Json))
 			Expect(err).To(BeNil())
 			Expect(records).To(Equal(mapRecords(upstreamStatusV3, statusNoLen)))
+		})
+
+		It("should decode upstream bbo-1s and bbo-1m JSON and dispatch via Visit", func() {
+			bboNoLen := func(r *dbn.BboMsg) { r.Header.Length = 0 }
+			want1s := mapRecords(readV3Fixture[dbn.BboMsg]("./tests/data/test_data.bbo-1s.v3.dbn.zst"), bboNoLen)
+			got1s, err := dbn.ReadJsonToSlice[dbn.BboMsg](strings.NewReader(upstreamBbo1sJson))
+			Expect(err).To(BeNil())
+			Expect(got1s).To(Equal(want1s))
+
+			want1m := mapRecords(readV3Fixture[dbn.BboMsg]("./tests/data/test_data.bbo-1m.v3.dbn.zst"), bboNoLen)
+			got1m, err := dbn.ReadJsonToSlice[dbn.BboMsg](strings.NewReader(upstreamBbo1mJson))
+			Expect(err).To(BeNil())
+			Expect(got1m[:2]).To(Equal(want1m[:2]))
+
+			scanner := dbn.NewJsonScanner(strings.NewReader(upstreamBbo1sJson + upstreamBbo1mJson))
+			var visited []dbn.BboMsg
+			v := &bboDefJsonVisitor{onBbo: func(r *dbn.BboMsg) { visited = append(visited, *r) }}
+			for scanner.Next() {
+				Expect(scanner.Visit(v)).To(Succeed())
+			}
+			Expect(scanner.Error()).To(BeNil())
+			Expect(visited).To(Equal(append(want1s, want1m[:2]...)))
+
+			_, err = dbn.ReadJsonToSlice[dbn.BboMsg](strings.NewReader(`{"hd":{"rtype":195},"levels":[]}`))
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("should decode upstream definition V3 and V2 JSON and dispatch via Visit", func() {
+			defV3NoLen := func(r *dbn.InstrumentDefMsgV3) { r.Header.Length = 0 }
+			wantV3 := mapRecords(readV3Fixture[dbn.InstrumentDefMsgV3]("./tests/data/test_data.definition.v3.dbn.zst"), defV3NoLen)
+			gotV3, err := dbn.ReadJsonToSlice[dbn.InstrumentDefMsgV3](strings.NewReader(upstreamDefinitionV3Record1Json))
+			Expect(err).To(BeNil())
+			Expect(gotV3).To(Equal(wantV3[1:2]))
+
+			scanner := dbn.NewJsonScanner(strings.NewReader(upstreamDefinitionV3Record1Json))
+			var visited []dbn.InstrumentDefMsg
+			v := &bboDefJsonVisitor{onDef: func(r *dbn.InstrumentDefMsg) { visited = append(visited, *r) }}
+			Expect(scanner.Next()).To(BeTrue())
+			Expect(scanner.Visit(v)).To(Succeed())
+			Expect(visited).To(Equal(wantV3[1:2]))
+
+			gotV2, err := dbn.ReadJsonToSlice[dbn.InstrumentDefMsgV2](strings.NewReader(upstreamDefinitionV3Record1Json))
+			Expect(err).To(BeNil())
+			Expect(gotV2).To(HaveLen(1))
+			Expect(gotV2[0].InstrumentClass).To(Equal(byte('K')))
+			Expect(gotV2[0].MatchAlgorithm).To(Equal(byte('F')))
+			Expect(gotV2[0].SecurityUpdateAction).To(Equal(byte('A')))
+			Expect(gotV2[0].UserDefinedInstrument).To(Equal(dbn.UserDefinedInstrument('N')))
 		})
 	})
 
@@ -169,10 +210,7 @@ var _ = Describe("JsonScanner upstream JSON", func() {
 			Expect(sm.StypeOutSymbol).To(Equal("5482"))
 		})
 
-		// BUG (decoder, not fixed in this branch): upstream encodes start_ts/end_ts as quoted
-		// strings ("start_ts":"1609113600000000000"), but SymbolMappingMsgV1/V2.Fill_Json read
-		// them with fastjson GetUint64, which returns 0 for strings.
-		PIt("should decode upstream V3 SymbolMappingMsg JSON start_ts/end_ts", func() {
+		It("should decode upstream V3 SymbolMappingMsg JSON start_ts/end_ts", func() {
 			scanner := dbn.NewJsonScanner(strings.NewReader(upstreamLiveControlStreamV3Json))
 			Expect(scanner.Next()).To(BeTrue())
 			sm, err := dbn.JsonScannerDecode[dbn.SymbolMappingMsg](scanner)
@@ -181,7 +219,7 @@ var _ = Describe("JsonScanner upstream JSON", func() {
 			Expect(sm.EndTs).To(Equal(uint64(1609200000000000000)))
 		})
 
-		PIt("should decode upstream V1 SymbolMappingMsg JSON start_ts/end_ts", func() {
+		It("should decode upstream V1 SymbolMappingMsg JSON start_ts/end_ts", func() {
 			scanner := dbn.NewJsonScanner(strings.NewReader(upstreamLiveControlStreamV1Json))
 			Expect(scanner.Next()).To(BeTrue())
 			sm, err := dbn.JsonScannerDecode[dbn.SymbolMappingMsgV1](scanner)
@@ -235,7 +273,6 @@ var _ = Describe("JsonScanner upstream JSON", func() {
 			Expect(sm.Header).To(Equal(dbn.RHeader{RType: dbn.RType_SymbolMapping, PublisherID: 1, InstrumentID: 5482, TsEvent: 1609160400000000007}))
 			Expect(sm.StypeInSymbol).To(Equal("ESH1"))
 			Expect(sm.StypeOutSymbol).To(Equal("5482"))
-			// start_ts/end_ts: see the pending spec above.
 
 			Expect(scanner.Next()).To(BeTrue())
 			s0, err := dbn.JsonScannerDecode[dbn.SystemMsg](scanner)
@@ -292,4 +329,40 @@ const upstreamLiveControlStreamV3Json = `{"hd":{"ts_event":"1609160400000000006"
 const upstreamLiveControlStreamV1Json = `{"hd":{"ts_event":"1609160400000000007","rtype":22,"publisher_id":1,"instrument_id":5482},"stype_in_symbol":"ESH1","stype_out_symbol":"5482","start_ts":"1609113600000000000","end_ts":"1609200000000000000"}
 {"hd":{"ts_event":"1609160400000000005","rtype":23,"publisher_id":0,"instrument_id":0},"msg":"Heartbeat"}
 {"hd":{"ts_event":"1609160400000000002","rtype":21,"publisher_id":0,"instrument_id":0},"err":"Unknown dataset"}
+`
+
+type bboDefJsonVisitor struct {
+	dbn.NullVisitor
+	onBbo func(*dbn.BboMsg)
+	onDef func(*dbn.InstrumentDefMsg)
+}
+
+func (v *bboDefJsonVisitor) OnBbo(r *dbn.BboMsg) error {
+	if v.onBbo != nil {
+		v.onBbo(r)
+	}
+	return nil
+}
+
+func (v *bboDefJsonVisitor) OnInstrumentDefMsg(r *dbn.InstrumentDefMsg) error {
+	if v.onDef != nil {
+		v.onDef(r)
+	}
+	return nil
+}
+
+// dbn -J ./tests/data/test_data.bbo-1s.dbn
+const upstreamBbo1sJson = `{"ts_recv":"1609113600000000000","hd":{"ts_event":"1609113599045849637","rtype":195,"publisher_id":1,"instrument_id":5482},"side":"A","price":"3702500000000","size":2,"flags":168,"sequence":145799,"levels":[{"bid_px":"3702250000000","ask_px":"3702750000000","bid_sz":18,"ask_sz":13,"bid_ct":10,"ask_ct":13}]}
+{"ts_recv":"1609113601000000000","hd":{"ts_event":"1609113600986911551","rtype":195,"publisher_id":1,"instrument_id":5482},"side":"B","price":"3702500000000","size":2,"flags":130,"sequence":145998,"levels":[{"bid_px":"3702500000000","ask_px":"3702750000000","bid_sz":2,"ask_sz":10,"bid_ct":1,"ask_ct":10}]}
+{"ts_recv":"1609113602000000000","hd":{"ts_event":"1609113601149205775","rtype":195,"publisher_id":1,"instrument_id":5482},"side":"A","price":"3702500000000","size":1,"flags":130,"sequence":146034,"levels":[{"bid_px":"3702250000000","ask_px":"3702750000000","bid_sz":20,"ask_sz":11,"bid_ct":12,"ask_ct":11}]}
+{"ts_recv":"1609113603000000000","hd":{"ts_event":"1609113602738022089","rtype":195,"publisher_id":1,"instrument_id":5482},"side":"B","price":"3702500000000","size":1,"flags":130,"sequence":146167,"levels":[{"bid_px":"3702500000000","ask_px":"3702750000000","bid_sz":2,"ask_sz":11,"bid_ct":2,"ask_ct":11}]}
+`
+
+// dbn -J ./tests/data/test_data.bbo-1m.dbn (first 2 records)
+const upstreamBbo1mJson = `{"ts_recv":"1609113600000000000","hd":{"ts_event":"1609113599045849637","rtype":196,"publisher_id":1,"instrument_id":5482},"side":"A","price":"3702500000000","size":2,"flags":168,"sequence":145799,"levels":[{"bid_px":"3702250000000","ask_px":"3702750000000","bid_sz":18,"ask_sz":13,"bid_ct":10,"ask_ct":13}]}
+{"ts_recv":"1609113660000000000","hd":{"ts_event":"1609113659578979253","rtype":196,"publisher_id":1,"instrument_id":5482},"side":"B","price":"3704750000000","size":1,"flags":130,"sequence":149903,"levels":[{"bid_px":"3704500000000","ask_px":"3705000000000","bid_sz":15,"ask_sz":22,"bid_ct":10,"ask_ct":22}]}
+`
+
+// dbn -J ./tests/data/test_data.definition.v3.dbn.zst (record 1)
+const upstreamDefinitionV3Record1Json = `{"ts_recv":"1633417621703120931","hd":{"ts_event":"1633417621703109854","rtype":19,"publisher_id":2,"instrument_id":6830},"raw_symbol":"MSFT","security_update_action":"A","instrument_class":"K","min_price_increment":"9223372036854775807","display_factor":"100000000000000","expiration":"18446744073709551615","activation":"18446744073709551615","high_limit_price":"9223372036854775807","low_limit_price":"9223372036854775807","max_price_variation":"9223372036854775807","unit_of_measure_qty":"9223372036854775807","min_price_increment_amount":"9223372036854775807","price_ratio":"9223372036854775807","inst_attrib_value":2147483647,"underlying_id":0,"raw_instrument_id":"2147483647","market_depth_implied":2147483647,"market_depth":2147483647,"market_segment_id":4294967295,"max_trade_vol":4294967295,"min_lot_size":2147483647,"min_lot_size_block":2147483647,"min_lot_size_round_lot":100,"min_trade_vol":4294967295,"contract_multiplier":2147483647,"decay_quantity":2147483647,"original_contract_size":2147483647,"appl_id":32767,"maturity_year":65535,"decay_start_date":65535,"channel_id":0,"currency":"","settl_currency":"","secsubtype":"Z ","group":"pxnas-1","exchange":"XNAS","asset":"","cfi":"","security_type":"","unit_of_measure":"","underlying":"","strike_price_currency":"","strike_price":"9223372036854775807","match_algorithm":"F","main_fraction":255,"price_display_format":255,"sub_fraction":255,"underlying_product":255,"maturity_month":255,"maturity_day":255,"maturity_week":255,"user_defined_instrument":"N","contract_multiplier_unit":127,"flow_schedule_type":127,"tick_rule":255,"leg_count":0,"leg_index":0,"leg_instrument_id":0,"leg_raw_symbol":"","leg_instrument_class":null,"leg_side":"N","leg_price":"9223372036854775807","leg_delta":"9223372036854775807","leg_ratio_price_numerator":0,"leg_ratio_price_denominator":0,"leg_ratio_qty_numerator":0,"leg_ratio_qty_denominator":0,"leg_underlying_id":0}
 `
