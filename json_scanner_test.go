@@ -162,10 +162,7 @@ var _ = Describe("JsonScanner upstream JSON", func() {
 			Expect(sm.StypeOutSymbol).To(Equal("5482"))
 		})
 
-		// BUG (decoder, not fixed in this branch): upstream encodes start_ts/end_ts as quoted
-		// strings ("start_ts":"1609113600000000000"), but SymbolMappingMsgV1/V2.Fill_Json read
-		// them with fastjson GetUint64, which returns 0 for strings.
-		PIt("should decode upstream V3 SymbolMappingMsg JSON start_ts/end_ts", func() {
+		It("should decode upstream V3 SymbolMappingMsg JSON start_ts/end_ts", func() {
 			scanner := dbn.NewJsonScanner(strings.NewReader(upstreamLiveControlStreamV3Json))
 			Expect(scanner.Next()).To(BeTrue())
 			sm, err := dbn.JsonScannerDecode[dbn.SymbolMappingMsg](scanner)
@@ -174,7 +171,7 @@ var _ = Describe("JsonScanner upstream JSON", func() {
 			Expect(sm.EndTs).To(Equal(uint64(1609200000000000000)))
 		})
 
-		PIt("should decode upstream V1 SymbolMappingMsg JSON start_ts/end_ts", func() {
+		It("should decode upstream V1 SymbolMappingMsg JSON start_ts/end_ts", func() {
 			scanner := dbn.NewJsonScanner(strings.NewReader(upstreamLiveControlStreamV1Json))
 			Expect(scanner.Next()).To(BeTrue())
 			sm, err := dbn.JsonScannerDecode[dbn.SymbolMappingMsgV1](scanner)
