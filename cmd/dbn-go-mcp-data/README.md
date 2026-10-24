@@ -48,7 +48,7 @@ These are identical to those in `dbn-go-mcp-meta`:
 |------|--------|-------------|
 | `fetch_range` | `dataset`, `schema`, `symbols`, `start`, `end`, `stype_in`?, `stype_out`? | Fetches market data and caches as Parquet. Returns metadata (view name, record count, size). **Incurs billing.** |
 
-Supported schemas for `fetch_range`: `ohlcv-1s`, `ohlcv-1m`, `ohlcv-1h`, `ohlcv-1d`, `trades`, `mbp-1`, `tbbo`, `imbalance`, `statistics`.
+Supported schemas for `fetch_range`: `ohlcv-1s`, `ohlcv-1m`, `ohlcv-1h`, `ohlcv-1d`, `trades`, `mbp-1`, `mbp-10`, `tbbo`, `cmbp-1`, `bbo-1s`, `bbo-1m`, `imbalance`, `statistics`, `status`.
 
 ### Cache Tools (no billing)
 

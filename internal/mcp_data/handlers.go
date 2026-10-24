@@ -126,7 +126,7 @@ func (s *Server) fetchRangeHandler(ctx context.Context, request mcp.CallToolRequ
 	}
 
 	if !schemaSupportsParquet(schema) {
-		return mcp.NewToolResultErrorf("schema %q is not supported by fetch_range (no parquet conversion). Supported: ohlcv-1s, ohlcv-1m, ohlcv-1h, ohlcv-1d, trades, mbp-1, tbbo, imbalance, statistics", p.SchemaStr), nil
+		return mcp.NewToolResultErrorf("schema %q is not supported by fetch_range (no parquet conversion). Supported: ohlcv-1s, ohlcv-1m, ohlcv-1h, ohlcv-1d, trades, mbp-1, mbp-10, tbbo, cmbp-1, bbo-1s, bbo-1m, imbalance, statistics, status", p.SchemaStr), nil
 	}
 
 	stypeOut := dbn.SType_InstrumentId
