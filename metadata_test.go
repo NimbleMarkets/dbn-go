@@ -128,7 +128,7 @@ var _ = Describe("Metadata", func() {
 			// Write a test record
 			record := &dbn.OhlcvMsg{
 				Header: dbn.RHeader{
-					Length:       dbn.OhlcvMsg_Size / 4,  // Size in 32-bit words
+					Length:       dbn.OhlcvMsg_Size / 4, // Size in 32-bit words
 					RType:        dbn.RType_OhlcvEod,
 					PublisherID:  1,
 					InstrumentID: 12345,

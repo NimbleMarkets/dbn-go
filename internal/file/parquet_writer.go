@@ -55,7 +55,10 @@ func WriteDbnFileAsParquet(sourceFile string, forceZstdInput bool, destFile stri
 	pw := pqfile.NewParquetWriter(outfile, pqGroupNode, pqfile.WithWriterProps(pwProperties))
 	defer pw.Close()
 
-	rgw := pw.AppendBufferedRowGroup()
+	rgw, err := pw.AppendBufferedRowGroupChecked()
+	if err != nil {
+		return fmt.Errorf("failed to append row group: %w", err)
+	}
 
 	errWrite := scanAndWriteParquet(dbnScanner, rgw, dbnSymbolMap)
 
@@ -1174,7 +1177,10 @@ func WritePublishersAsParquet(publishers []dbn_hist.PublisherDetail, forceZstdIn
 	defer pw.Close()
 
 	// Write the publishers
-	rgw := pw.AppendBufferedRowGroup()
+	rgw, err := pw.AppendBufferedRowGroupChecked()
+	if err != nil {
+		return fmt.Errorf("failed to append publisher row group: %w", err)
+	}
 	var errWrite error
 	for _, publisher := range publishers {
 		if err := ParquetWriteRow_Publisher(rgw, &publisher); err != nil {

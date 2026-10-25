@@ -86,6 +86,67 @@ tasks:
       - live/*.go
       - cmd/**/*.go
 
+  go-tidy-check:
+    desc: 'Check that go.mod and go.sum are tidy'
+    cmds:
+      - go mod tidy -diff
+
+  go-verify:
+    desc: 'Verify module dependencies'
+    cmds:
+      - go mod verify
+
+  fmt:
+    desc: 'Format Go sources'
+    cmds:
+      - gofmt -w .
+
+  fmt-check:
+    desc: 'Check Go formatting'
+    cmds:
+      - 'test -z "$(gofmt -l .)"'
+
+  vet:
+    desc: 'Run Go static checks'
+    cmds:
+      - go vet -mod=readonly ./...
+
+  test-race:
+    desc: 'Run tests with race detection'
+    cmds:
+      - go test -mod=readonly -race ./...
+
+  cross-windows:
+    desc: 'Compile and vet pure-Go packages for Windows, which CI does not run on (the release ships them)'
+    env:
+      CGO_ENABLED: '0'
+      GOOS: windows
+    cmds:
+      - go build -mod=readonly -o /dev/null . ./hist ./live ./internal/file ./internal/mcp_meta ./internal/tui ./internal/version ./cmd/dbn-go-file ./cmd/dbn-go-hist ./cmd/dbn-go-live ./cmd/dbn-go-mcp-meta ./cmd/dbn-go-slurp-docs ./cmd/dbn-go-tui
+      - go vet -mod=readonly . ./hist ./live ./internal/file ./internal/mcp_meta ./internal/tui ./internal/version ./cmd/dbn-go-file ./cmd/dbn-go-hist ./cmd/dbn-go-live ./cmd/dbn-go-mcp-meta ./cmd/dbn-go-slurp-docs ./cmd/dbn-go-tui
+
+  staticcheck:
+    desc: 'Run staticcheck'
+    cmds:
+      - go run honnef.co/go/tools/cmd/staticcheck@latest ./...
+
+  vulncheck:
+    desc: 'Check the modules linked for known vulnerabilities'
+    cmds:
+      - go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+  ci:
+    desc: 'Check the pinned release dependencies, ignoring local workspaces'
+    env:
+      GOWORK: 'off'
+    # A subprocess carries this environment into every child task. Task's
+    # direct task references do not inherit their parent's task-level env.
+    cmds:
+      - task fmt-check go-tidy-check go-verify test-race vet cross-windows staticcheck vulncheck
+      # A preceding workspace build may have the same sources and version.
+      - task --force build
+      - task test-mcp docs-check
+
   go-update:
     desc: 'Update Go dependencies'
     cmds:
@@ -362,6 +423,24 @@ tasks:
     desc: 'Clean generated man pages'
     cmds:
       - rm -rf docs/man
+
+  docs-check:
+    desc: 'Check that man pages, completions, and markdown docs can be generated'
+    cmds:
+      - |
+        dir="$(mktemp -d)"
+        trap 'rm -rf "$dir"' EXIT
+        mkdir -p "$dir/man" "$dir/md/file" "$dir/md/hist" "$dir/completions"
+        go run ./cmd/dbn-go-file docs man -o "$dir/man"
+        go run ./cmd/dbn-go-file docs markdown --hugo -o "$dir/md/file"
+        go run ./cmd/dbn-go-file completion bash > "$dir/completions/dbn-go-file.bash"
+        go run ./cmd/dbn-go-file completion fish > "$dir/completions/dbn-go-file.fish"
+        go run ./cmd/dbn-go-file completion zsh > "$dir/completions/dbn-go-file.zsh"
+        go run ./cmd/dbn-go-hist docs man -o "$dir/man"
+        go run ./cmd/dbn-go-hist docs markdown --hugo -o "$dir/md/hist"
+        go run ./cmd/dbn-go-hist completion bash > "$dir/completions/dbn-go-hist.bash"
+        go run ./cmd/dbn-go-hist completion fish > "$dir/completions/dbn-go-hist.fish"
+        go run ./cmd/dbn-go-hist completion zsh > "$dir/completions/dbn-go-hist.zsh"
 
   docs:hugo:serve:
     desc: 'Serve Hugo docs locally'

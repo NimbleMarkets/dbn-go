@@ -32,11 +32,11 @@ import (
 ///////////////////////////////////////////////////////////////////////////////
 
 const (
-	baseURL       = "https://databento.com/docs"
-	defaultDelay  = 3 * time.Second
-	maxRetries    = 3
-	pageTimeout   = 60 * time.Second
-	progressFile  = ".slurp-progress.json"
+	baseURL      = "https://databento.com/docs"
+	defaultDelay = 3 * time.Second
+	maxRetries   = 3
+	pageTimeout  = 60 * time.Second
+	progressFile = ".slurp-progress.json"
 )
 
 // Progress tracks which URLs have been successfully fetched
@@ -143,13 +143,13 @@ type ExtractedData struct {
 
 func main() {
 	var (
-		outputDir    = flag.String("output", "docs-corpus", "Output directory for documentation corpus")
-		shouldFetch  = flag.Bool("fetch", false, "Fetch page content (requires Chrome)")
-		genSitemap   = flag.Bool("generate-sitemap", false, "Generate sitemap from Databento docs (requires Chrome)")
-		delay        = flag.Duration("delay", defaultDelay, "Base delay between requests")
-		verbose      = flag.Bool("v", false, "Verbose logging")
-		noResume     = flag.Bool("no-resume", false, "Don't resume from previous run")
-		showVersion  = flag.Bool("version", false, "Show version")
+		outputDir   = flag.String("output", "docs-corpus", "Output directory for documentation corpus")
+		shouldFetch = flag.Bool("fetch", false, "Fetch page content (requires Chrome)")
+		genSitemap  = flag.Bool("generate-sitemap", false, "Generate sitemap from Databento docs (requires Chrome)")
+		delay       = flag.Duration("delay", defaultDelay, "Base delay between requests")
+		verbose     = flag.Bool("v", false, "Verbose logging")
+		noResume    = flag.Bool("no-resume", false, "Don't resume from previous run")
+		showVersion = flag.Bool("version", false, "Show version")
 	)
 	flag.Parse()
 

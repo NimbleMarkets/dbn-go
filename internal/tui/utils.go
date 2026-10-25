@@ -1,5 +1,7 @@
 // Copyright (c) 2025 Neomantra Corp
 
+//lint:file-ignore U1000 keep generic TUI utility helpers
+
 package tui
 
 import (

@@ -46,19 +46,19 @@ var stypes = []dbn.SType{
 // Test symbols per stype_in that are plausibly formatted for each symbology.
 // We don't need them to resolve; we just need a non-422 response to confirm the combo is accepted.
 var testSymbolForStypeIn = map[dbn.SType]string{
-	dbn.SType_RawSymbol:    "ZZZTESTZZ",
-	dbn.SType_InstrumentId: "999999999",
-	dbn.SType_Smart:        "ZZZTESTZZ",
-	dbn.SType_Continuous:   "ZZ.c.0",
-	dbn.SType_Parent:       "ZZ",
-	dbn.SType_NasdaqSymbol: "ZZZTESTZZ",
-	dbn.SType_CmsSymbol:    "ZZZTESTZZ",
-	dbn.SType_Isin:         "US0000000000",
-	dbn.SType_UsCode:       "000000000",
-	dbn.SType_BbgCompId:    "000000000",
+	dbn.SType_RawSymbol:     "ZZZTESTZZ",
+	dbn.SType_InstrumentId:  "999999999",
+	dbn.SType_Smart:         "ZZZTESTZZ",
+	dbn.SType_Continuous:    "ZZ.c.0",
+	dbn.SType_Parent:        "ZZ",
+	dbn.SType_NasdaqSymbol:  "ZZZTESTZZ",
+	dbn.SType_CmsSymbol:     "ZZZTESTZZ",
+	dbn.SType_Isin:          "US0000000000",
+	dbn.SType_UsCode:        "000000000",
+	dbn.SType_BbgCompId:     "000000000",
 	dbn.SType_BbgCompTicker: "ZZZTESTZZ",
-	dbn.SType_Figi:         "BBG000000000",
-	dbn.SType_FigiTicker:   "ZZZTESTZZ",
+	dbn.SType_Figi:          "BBG000000000",
+	dbn.SType_FigiTicker:    "ZZZTESTZZ",
 }
 
 type probeResult struct {
@@ -70,9 +70,9 @@ type probeResult struct {
 
 func probe(apiKey string, dataset string, stypeIn dbn.SType, stypeOut dbn.SType, symbol string) probeResult {
 	params := dbn_hist.ResolveParams{
-		Dataset: dataset,
-		Symbols: []string{symbol},
-		StypeIn: stypeIn,
+		Dataset:  dataset,
+		Symbols:  []string{symbol},
+		StypeIn:  stypeIn,
 		StypeOut: stypeOut,
 		DateRange: dbn_hist.DateRange{
 			Start: time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC),

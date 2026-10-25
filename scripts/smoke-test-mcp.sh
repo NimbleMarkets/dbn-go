@@ -29,6 +29,18 @@ ok()   { echo "  PASS: $*"; PASS=$((PASS + 1)); }
 fail() { echo "  FAIL: $*" >&2; FAIL=$((FAIL + 1)); }
 skip() { echo "  SKIP: $*"; }
 
+run_with_timeout() {
+  local secs="$1"
+  shift
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$secs" "$@"
+  elif command -v gtimeout >/dev/null 2>&1; then
+    gtimeout "$secs" "$@"
+  else
+    perl -e 'alarm shift; exec @ARGV' "$secs" "$@"
+  fi
+}
+
 resolve_key() {
   if [[ -n "${DATABENTO_API_KEY:-}" ]]; then
     return
@@ -71,7 +83,7 @@ send_mcp() {
 
   # Send all messages; server exits when stdin closes.
   printf '%s\n' "${msgs[@]}" \
-    | timeout "$TIMEOUT" "${cmd[@]}" \
+    | run_with_timeout "$TIMEOUT" "${cmd[@]}" \
     >"$tmpout" 2>"$tmperr" || true
 
   # Show stderr/stdout only in verbose mode

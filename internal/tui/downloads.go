@@ -61,23 +61,17 @@ const (
 	columnDownloadsStateWidth    = 10
 	columnDownloadsProgressWidth = 20
 
-	columnDownloadsJobMinWidth      = 10
-	columnDownloadsFileMinWidth     = 10
-	columnDownloadsSizeMinWidth     = 12
-	columnDownloadsStateMinWidth    = 10
-	columnDownloadsProgressMinWidth = 12
-
 	countsReportFormat = "Finished %d of %d (%d active)"
 	countsReportWidth  = 40 // "%d done of %d (%d active)"
 )
 
 func NewDownloadsPage(config Config) DownloadsPageModel {
 	downloadsTable := table.New(table.WithColumns([]table.Column{
-		{Title: "Job", Width: columnDownloadsJobWidth},
-		{Title: "File", Width: columnDownloadsFileWidth},
-		{Title: "Size", Width: columnDownloadsSizeWidth},
-		{Title: "State", Width: columnDownloadsStateWidth},
-		{Title: "Progress", Width: columnDownloadsProgressWidth},
+		{Title: columnDownloadsJobKey, Width: columnDownloadsJobWidth},
+		{Title: columnDownloadsFileKey, Width: columnDownloadsFileWidth},
+		{Title: columnDownloadsSizeKey, Width: columnDownloadsSizeWidth},
+		{Title: columnDownloadsStateKey, Width: columnDownloadsStateWidth},
+		{Title: columnDownloadsProgressKey, Width: columnDownloadsProgressWidth},
 	}), table.WithStyles(nimbleTableStyles),
 		table.WithFocused(true))
 
@@ -240,7 +234,7 @@ func (m *DownloadsPageModel) onDownloadProgress(msg DownloadProgressMsg) tea.Cmd
 	// Render progress or report an error
 	var progressStr string
 	if msg.Error != nil {
-		progressStr = fmt.Sprintf("%s", msg.Error.Error())
+		progressStr = msg.Error.Error()
 		m.lastError = msg.Error
 	} else {
 		progress := clampFloat(float64(msg.CurrentSize)/float64(msg.Desc.Size), 0, 1)
