@@ -30,7 +30,6 @@ const (
 	defaultSSEHostPort = "127.0.0.1:8889"
 	defaultMaxCost     = 1.0 // $1.00
 	defaultCacheDir    = "~/.dbn-go/cache/"
-	defaultCacheDB     = "~/.dbn-go/cache.duckdb"
 
 	// serverInstructions is sent to LLM clients during MCP initialization.
 	serverInstructions = `dbn-go-mcp-data provides full access to Databento's historical market data APIs with a local DuckDB cache.
@@ -66,7 +65,7 @@ type Config struct {
 
 	Verbose bool // Verbose logging
 
-	mcp_data.ServerConfig // MCP data config (MaxCost, CacheDir, CacheDB, ReadOnly)
+	mcp_data.ServerConfig // MCP data config (MaxCost, CacheDir, ReadOnly)
 
 	// TODO:
 	//   allow/deny lists for schema/dataset
@@ -91,7 +90,6 @@ func main() {
 	pflag.StringVarP(&config.SSEHostPort, "hostport", "p", "", "host:port to listen to SSE connections")
 	pflag.Float64VarP(&config.MaxCost, "max-cost", "c", defaultMaxCost, "Max cost, in dollars, for a query (<=0 is unlimited)")
 	pflag.StringVar(&config.CacheDir, "cache-dir", defaultCacheDir, "Directory for cached data files")
-	pflag.StringVar(&config.CacheDB, "cache-db", defaultCacheDB, "Path to DuckDB database file")
 	pflag.BoolVar(&config.ReadOnly, "read-only", false, "Disable fetch_range tool (no billing possible)")
 	pflag.BoolVarP(&config.UseSSE, "sse", "", false, "Use SSE Transport (default is STDIO transport)")
 	pflag.BoolVarP(&config.Verbose, "verbose", "v", false, "Verbose logging")
@@ -131,9 +129,8 @@ func main() {
 		config.SSEHostPort = defaultSSEHostPort
 	}
 
-	// Expand ~ in cache paths
+	// Expand ~ in cache path
 	config.CacheDir = expandHome(config.CacheDir)
-	config.CacheDB = expandHome(config.CacheDB)
 
 	config.Name = "dbn-go-mcp-data"
 	config.Version = mcpServerVersion
@@ -198,7 +195,6 @@ func run() error {
 		ApiKey:   config.ApiKey,
 		MaxCost:  config.MaxCost,
 		CacheDir: config.CacheDir,
-		CacheDB:  config.CacheDB,
 		ReadOnly: config.ReadOnly,
 	}, logger)
 

@@ -3,19 +3,18 @@
 package mcp_data
 
 import (
-	"database/sql"
 	"log/slog"
 	"sync"
 
 	"github.com/NimbleMarkets/dbn-go/internal/mcp_meta"
 	"golang.org/x/sync/singleflight"
+	"nimbleterminal.dev/ntduckbox"
 )
 
 type ServerConfig struct {
 	ApiKey   string  // Databento API key
 	MaxCost  float64 // Max cost for a query
 	CacheDir string  // Directory for cached data files
-	CacheDB  string  // Path to DuckDB database file (reserved for future use)
 	ReadOnly bool    // When true, fetch_range is disabled (no billing possible)
 }
 
@@ -26,9 +25,8 @@ type Server struct {
 	maxCost  float64
 	readOnly bool // When true, fetch_range is not registered
 
-	cacheDir string  // Directory for cached data files
-	cacheDB  string  // Path to DuckDB database file (reserved for future use)
-	db       *sql.DB // DuckDB in-memory connection
+	cacheDir string        // Directory for cached data files
+	box      *ntduckbox.DB // Locked-down DuckDB in-memory instance via ntduckbox
 	mu       sync.Mutex
 	fetches  singleflight.Group
 }
@@ -40,7 +38,6 @@ func NewServer(config ServerConfig, logger *slog.Logger) *Server {
 		maxCost:  config.MaxCost,
 		readOnly: config.ReadOnly,
 		cacheDir: config.CacheDir,
-		cacheDB:  config.CacheDB,
 	}
 }
 
@@ -50,8 +47,4 @@ func (s *Server) GetMaxCost() float64 {
 
 func (s *Server) GetCacheDir() string {
 	return s.cacheDir
-}
-
-func (s *Server) GetCacheDB() string {
-	return s.cacheDB
 }

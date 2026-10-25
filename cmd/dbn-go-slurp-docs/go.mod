@@ -1,6 +1,6 @@
 module github.com/NimbleMarkets/dbn-go/cmd/dbn-go-slurp-docs
 
-go 1.25.8
+go 1.26.0
 
 replace github.com/NimbleMarkets/dbn-go => ../..
 
@@ -16,5 +16,5 @@ require (
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.4.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
 )

@@ -35,7 +35,6 @@ The MCP server supports two transport modes:
   -j, --log-json            Log in JSON (default is plaintext)
   -c, --max-cost float      Max cost, in dollars, for a query (<=0 is unlimited) (default 1)
       --cache-dir string    Directory for cached data files (default "~/.dbn-go/cache/")
-      --cache-db string     Path to DuckDB database file (default "~/.dbn-go/cache.duckdb")
   -p, --hostport string     host:port to listen to SSE connections (default "127.0.0.1:8889")
       --sse                 Use SSE Transport (default is STDIO transport)
   -v, --verbose             Verbose logging

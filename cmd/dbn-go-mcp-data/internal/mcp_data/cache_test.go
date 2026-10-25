@@ -3,6 +3,7 @@
 package mcp_data
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,13 +17,17 @@ import (
 	"time"
 
 	"github.com/NimbleMarkets/dbn-go/internal/file"
+	"github.com/NimbleMarkets/dbn-go/internal/mcp_meta"
 	"github.com/duckdb/duckdb-go/v2"
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 func testServer(t *testing.T) *Server {
 	t.Helper()
 	cacheDir := t.TempDir()
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	return &Server{
+		Server:   mcp_meta.NewServer("", logger),
 		cacheDir: cacheDir,
 	}
 }
@@ -653,10 +658,7 @@ func TestInitCache_DuckDBBlocksFilesOutsideCacheDir(t *testing.T) {
 	}
 	for _, q := range queries {
 		t.Run(q, func(t *testing.T) {
-			rows, err := s.db.Query(q)
-			if rows != nil {
-				rows.Close()
-			}
+			_, err := s.box.Query(context.Background(), q)
 			assertDuckDBPermissionError(t, err)
 		})
 	}
@@ -672,10 +674,9 @@ func assertDuckDBPermissionError(t *testing.T, err error) {
 
 func TestInitCache_ExternalAccessCannotBeReenabled(t *testing.T) {
 	s := testServerWithDB(t)
-	_, err := s.db.Exec("SET enable_external_access = true")
-	var dbErr *duckdb.Error
-	if !errors.As(err, &dbErr) || dbErr.Type != duckdb.ErrorTypeInvalidInput || !strings.Contains(dbErr.Msg, "configuration has been locked") {
-		t.Fatalf("expected locked configuration error, got %v", err)
+	_, err := s.box.Query(context.Background(), "SET enable_external_access = true")
+	if err == nil {
+		t.Fatal("expected SET enable_external_access = true to be rejected")
 	}
 }
 
@@ -929,8 +930,38 @@ func TestQueryDuckDB_InvalidFormat(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for unsupported format")
 	}
-	if !strings.Contains(err.Error(), "unsupported format") {
+	if !strings.Contains(err.Error(), "format must be") {
 		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestQueryDuckDB_TruncationAndClamping(t *testing.T) {
+	s := testServerWithDB(t)
+
+	// Truncates to MaxRows and sets Truncated=true, Rows=5
+	res, err := s.queryDuckDBResult(
+		context.Background(),
+		"SELECT unnest(range(100)) AS n",
+		queryDuckDBOptions{Format: "csv", MaxRows: 5},
+	)
+	if err != nil {
+		t.Fatalf("queryDuckDBResult failed: %v", err)
+	}
+	if !res.Truncated || res.Rows != 5 {
+		t.Errorf("expected Truncated=true and Rows=5, got Truncated=%v Rows=%d", res.Truncated, res.Rows)
+	}
+
+	// MaxRows larger than maxQueryRows (100,000) is clamped rather than failing
+	res, err = s.queryDuckDBResult(
+		context.Background(),
+		"SELECT 1 AS val",
+		queryDuckDBOptions{Format: "csv", MaxRows: maxQueryRows + 50000},
+	)
+	if err != nil {
+		t.Fatalf("expected clamped MaxRows to succeed, got error: %v", err)
+	}
+	if res.Truncated || res.Rows != 1 {
+		t.Errorf("expected Truncated=false and Rows=1, got Truncated=%v Rows=%d", res.Truncated, res.Rows)
 	}
 }
 
@@ -964,5 +995,31 @@ func TestQueryDuckDB_JSONRows_NumericTypes(t *testing.T) {
 		t.Errorf("float_val should be a number, got %T: %v", rows[0]["float_val"], rows[0]["float_val"])
 	} else if floatVal != 3.14 {
 		t.Errorf("float_val = %v, want 3.14", floatVal)
+	}
+}
+
+func TestQueryCacheHandler_RelaysTruncated(t *testing.T) {
+	s := testServerWithDB(t)
+
+	req := mcp.CallToolRequest{}
+	req.Params.Name = "query_cache"
+	req.Params.Arguments = map[string]any{
+		"sql":      "SELECT unnest(range(20)) AS n",
+		"format":   "json_rows",
+		"max_rows": 5,
+	}
+	res, err := s.queryCacheHandler(context.Background(), req)
+	if err != nil {
+		t.Fatalf("queryCacheHandler returned error: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("expected non-error result, got: %#v", res)
+	}
+	if len(res.Content) < 2 {
+		t.Fatalf("expected truncation notice in Content[1], got %d content blocks", len(res.Content))
+	}
+	notice, ok := res.Content[1].(mcp.TextContent)
+	if !ok || !strings.Contains(notice.Text, "Showing 5 rows, more exist") {
+		t.Errorf("unexpected truncation notice: %#v", res.Content[1])
 	}
 }

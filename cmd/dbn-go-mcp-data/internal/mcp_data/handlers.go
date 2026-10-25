@@ -56,9 +56,14 @@ func (s *Server) fetchRangeOnce(cacheKey string, fn func() (string, error)) (str
 
 func (s *Server) countParquetRecords(parquetPath string) int64 {
 	var recordCount int64
-	if s.db != nil {
-		row := s.db.QueryRow(fmt.Sprintf(`SELECT count(*) FROM read_parquet(%s)`, sqlLiteral(parquetPath)))
-		_ = row.Scan(&recordCount)
+	if s.box != nil {
+		out, err := s.box.Query(context.Background(), fmt.Sprintf(`SELECT count(*) AS n FROM read_parquet(%s)`, sqlLiteral(parquetPath)))
+		if err == nil {
+			lines := strings.Split(strings.TrimSpace(out), "\n")
+			if len(lines) >= 2 {
+				_, _ = fmt.Sscanf(strings.TrimSpace(lines[1]), "%d", &recordCount)
+			}
+		}
 	}
 	return recordCount
 }
@@ -252,7 +257,7 @@ func (s *Server) queryCacheHandler(ctx context.Context, request mcp.CallToolRequ
 	format := request.GetString("format", "csv")
 	maxRows := request.GetInt("max_rows", 0)
 
-	result, err := s.queryDuckDB(sqlStr, queryDuckDBOptions{
+	res, err := s.queryDuckDBResult(ctx, sqlStr, queryDuckDBOptions{
 		Format:  format,
 		MaxRows: maxRows,
 	})
@@ -260,8 +265,14 @@ func (s *Server) queryCacheHandler(ctx context.Context, request mcp.CallToolRequ
 		return mcp.NewToolResultErrorf("query failed: %s", err), nil
 	}
 
-	s.Logger.Info("query_cache", "sql", sqlStr, "format", format, "max_rows", maxRows)
-	return mcp.NewToolResultText(result), nil
+	s.Logger.Info("query_cache", "sql", sqlStr, "format", format, "max_rows", maxRows, "rows", res.Rows, "truncated", res.Truncated)
+	toolResult := mcp.NewToolResultText(res.Text)
+	if res.Truncated {
+		toolResult.Content = append(toolResult.Content, mcp.NewTextContent(
+			fmt.Sprintf("Showing %d rows, more exist. Add a SQL LIMIT/WHERE clause or increase max_rows (up to %d).", res.Rows, maxQueryRows),
+		))
+	}
+	return toolResult, nil
 }
 
 func (s *Server) listCacheHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
