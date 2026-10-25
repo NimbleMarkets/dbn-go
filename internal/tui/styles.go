@@ -1,13 +1,12 @@
 // Copyright (c) 2025 Neomantra Corp
 
-//lint:file-ignore U1000 keep full Nimble color palette and table style definitions
+//lint:file-ignore U1000 keep full Nimble color palette
 
 package tui
 
 import (
 	"charm.land/bubbles/v2/table"
 	"charm.land/lipgloss/v2"
-	stickersTable "github.com/76creates/stickers/table"
 )
 
 var (
@@ -39,23 +38,5 @@ var (
 		Header:   lipgloss.NewStyle().Bold(true).Foreground(colorRed).Padding(0, 1),
 		Selected: lipgloss.NewStyle().Bold(true).Foreground(colorGrue),
 		Cell:     lipgloss.NewStyle().Padding(0, 1),
-	}
-
-	nimbleStickerTableStyles = map[stickersTable.StyleKey]lipgloss.Style{
-		stickersTable.StyleKeyHeader: lipgloss.NewStyle().
-			Foreground(colorRed),
-		stickersTable.StyleKeyFooter: lipgloss.NewStyle().
-			Align(lipgloss.Right).
-			Height(1).
-			Foreground(colorRed).
-			Background(colorLightPurple),
-		stickersTable.StyleKeyRows: lipgloss.NewStyle().
-			Foreground(colorWhite),
-		stickersTable.StyleKeyRowsSubsequent: lipgloss.NewStyle().
-			Foreground(colorWhite),
-		stickersTable.StyleKeyRowsCursor: lipgloss.NewStyle().
-			Foreground(colorGrue),
-		stickersTable.StyleKeyCellCursor: lipgloss.NewStyle().
-			Foreground(colorGrue),
 	}
 )

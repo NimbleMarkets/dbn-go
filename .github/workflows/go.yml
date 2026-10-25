@@ -24,10 +24,15 @@ jobs:
         go-version: '1.25'
 
     - name: Build
-      run: go build -v ./...
+      run: |
+        go build -v ./...
+        go -C ./cmd/dbn-go-mcp-data build -v ./...
+        go -C ./cmd/dbn-go-slurp-docs build -v ./...
 
     - name: Test
-      run: go test -v ./...
+      run: |
+        go test -v ./...
+        go -C ./cmd/dbn-go-mcp-data test -v ./...
 
     - name: Integration Tests
       if: ${{ env.DATABENTO_API_KEY != '' }}
@@ -38,5 +43,5 @@ jobs:
         go build -o bin/dbn-go-hist ./cmd/dbn-go-hist
         DBN_GO_HIST=./bin/dbn-go-hist ./tests/exercise_dbn-go-hist.sh > /dev/null
         go build -o bin/dbn-go-mcp-meta ./cmd/dbn-go-mcp-meta
-        go build -o bin/dbn-go-mcp-data ./cmd/dbn-go-mcp-data
+        go -C ./cmd/dbn-go-mcp-data build -o ../../bin/dbn-go-mcp-data .
         ./scripts/smoke-test-mcp.sh -q -a

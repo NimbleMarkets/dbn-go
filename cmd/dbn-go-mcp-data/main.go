@@ -16,7 +16,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/NimbleMarkets/dbn-go/internal/mcp_data"
+	"github.com/NimbleMarkets/dbn-go/cmd/dbn-go-mcp-data/internal/mcp_data"
 	"github.com/NimbleMarkets/dbn-go/internal/version"
 	mcp_server "github.com/mark3labs/mcp-go/server"
 	"github.com/spf13/pflag"

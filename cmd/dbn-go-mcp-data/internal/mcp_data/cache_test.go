@@ -728,7 +728,7 @@ func TestInitCache_ViewsReadParquetInsideCacheDir(t *testing.T) {
 		t.Fatal(err)
 	}
 	parquetPath := filepath.Join(parquetDir, "test.parquet")
-	if err := file.WriteDbnFileAsParquet("../../tests/data/test_data.ohlcv-1s.dbn", false, parquetPath); err != nil {
+	if err := file.WriteDbnFileAsParquet("../../../../tests/data/test_data.ohlcv-1s.dbn", false, parquetPath); err != nil {
 		t.Fatalf("failed to write parquet: %v", err)
 	}
 	if err := s.InitCache(); err != nil {

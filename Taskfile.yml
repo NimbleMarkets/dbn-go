@@ -77,8 +77,11 @@ tasks:
 
   go-tidy:
     desc: 'Tidy all'
+    run: once
     cmds:
       - go mod tidy
+      - go -C ./cmd/dbn-go-mcp-data mod tidy
+      - go -C ./cmd/dbn-go-slurp-docs mod tidy
     sources:
       - ./*.go
       - hist/*.go
@@ -90,11 +93,15 @@ tasks:
     desc: 'Check that go.mod and go.sum are tidy'
     cmds:
       - go mod tidy -diff
+      - go -C ./cmd/dbn-go-mcp-data mod tidy -diff
+      - go -C ./cmd/dbn-go-slurp-docs mod tidy -diff
 
   go-verify:
     desc: 'Verify module dependencies'
     cmds:
       - go mod verify
+      - go -C ./cmd/dbn-go-mcp-data mod verify
+      - go -C ./cmd/dbn-go-slurp-docs mod verify
 
   fmt:
     desc: 'Format Go sources'
@@ -110,11 +117,14 @@ tasks:
     desc: 'Run Go static checks'
     cmds:
       - go vet -mod=readonly ./...
+      - go -C ./cmd/dbn-go-mcp-data vet -mod=readonly ./...
+      - go -C ./cmd/dbn-go-slurp-docs vet -mod=readonly ./...
 
   test-race:
     desc: 'Run tests with race detection'
     cmds:
       - go test -mod=readonly -race ./...
+      - go -C ./cmd/dbn-go-mcp-data test -mod=readonly -race ./...
 
   cross-windows:
     desc: 'Compile and vet pure-Go packages for Windows, which CI does not run on (the release ships them)'
@@ -122,18 +132,24 @@ tasks:
       CGO_ENABLED: '0'
       GOOS: windows
     cmds:
-      - go build -mod=readonly -o /dev/null . ./hist ./live ./internal/file ./internal/mcp_meta ./internal/tui ./internal/version ./cmd/dbn-go-file ./cmd/dbn-go-hist ./cmd/dbn-go-live ./cmd/dbn-go-mcp-meta ./cmd/dbn-go-slurp-docs ./cmd/dbn-go-tui
-      - go vet -mod=readonly . ./hist ./live ./internal/file ./internal/mcp_meta ./internal/tui ./internal/version ./cmd/dbn-go-file ./cmd/dbn-go-hist ./cmd/dbn-go-live ./cmd/dbn-go-mcp-meta ./cmd/dbn-go-slurp-docs ./cmd/dbn-go-tui
+      - go build -mod=readonly -o /dev/null ./...
+      - go vet -mod=readonly ./...
+      - go -C ./cmd/dbn-go-slurp-docs build -mod=readonly -o /dev/null ./...
+      - go -C ./cmd/dbn-go-slurp-docs vet -mod=readonly ./...
 
   staticcheck:
     desc: 'Run staticcheck'
     cmds:
       - go run honnef.co/go/tools/cmd/staticcheck@latest ./...
+      - cd ./cmd/dbn-go-mcp-data && go run honnef.co/go/tools/cmd/staticcheck@latest ./...
+      - cd ./cmd/dbn-go-slurp-docs && go run honnef.co/go/tools/cmd/staticcheck@latest ./...
 
   vulncheck:
     desc: 'Check the modules linked for known vulnerabilities'
     cmds:
       - go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+      - cd ./cmd/dbn-go-mcp-data && go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+      - cd ./cmd/dbn-go-slurp-docs && go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
   ci:
     desc: 'Check the pinned release dependencies, ignoring local workspaces'
@@ -285,11 +301,11 @@ tasks:
       - ./*.go
       - hist/*.go
       - internal/**/*.go
-      - cmd/dbn-go-mcp-data/*.go
+      - cmd/dbn-go-mcp-data/**/*.go
     generates:
       - bin/dbn-go-mcp-data
     cmds:
-      - go build -o bin/dbn-go-mcp-data cmd/dbn-go-mcp-data/*.go
+      - go -C ./cmd/dbn-go-mcp-data build -o ../../bin/dbn-go-mcp-data .
 
   build-dbn-go-tui:
     desc: 'Build dbn-go-tui'
@@ -309,11 +325,11 @@ tasks:
     deps: [go-tidy]
     sources:
       - cmd/dbn-go-slurp-docs/*.go
-      - internal/docs/*.go
+      - internal/version/*.go
     generates:
       - bin/dbn-go-slurp-docs
     cmds:
-      - go build -o bin/dbn-go-slurp-docs cmd/dbn-go-slurp-docs/*.go
+      - go -C ./cmd/dbn-go-slurp-docs build -o ../../bin/dbn-go-slurp-docs .
 
   go-test:
     desc: 'Test Go (offline-safe)'
@@ -324,13 +340,14 @@ tasks:
       - cmd/dbn-go-hist/*.go
       - cmd/dbn-go-live/*.go
       - cmd/dbn-go-mcp-meta/*.go
-      - cmd/dbn-go-mcp-data/*.go
+      - cmd/dbn-go-mcp-data/**/*.go
       - cmd/dbn-go-tui/*.go
       - hist/*.go
       - internal/**/*.go
       - live/*.go
     cmds:
       - go test ./...
+      - go -C ./cmd/dbn-go-mcp-data test ./...
 
   fuzz:
     desc: 'Run a fuzz session (TARGET=FuzzRecordDecode TIME=30s PARALLEL=2)'

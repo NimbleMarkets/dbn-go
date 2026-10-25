@@ -9,6 +9,8 @@ version: 2
 before:
   hooks:
     - go mod tidy
+    - go -C ./cmd/dbn-go-mcp-data mod tidy
+    - go -C ./cmd/dbn-go-slurp-docs mod tidy
     - rm -rf completions
     - mkdir completions
     - rm -rf manpages
@@ -62,7 +64,8 @@ builds:
       - -s -w -X github.com/NimbleMarkets/dbn-go/internal/version.Version=v{{.Version}}
 
   - id: "dbn-go-slurp-docs"
-    main: ./cmd/dbn-go-slurp-docs
+    dir: ./cmd/dbn-go-slurp-docs
+    main: .
     binary: bin/dbn-go-slurp-docs
     env: [CGO_ENABLED=0]
     goos: [linux, darwin, windows]
@@ -83,7 +86,8 @@ builds:
   # Per-platform builds with explicit cross-compilers from goreleaser-cross.
 
   - id: "dbn-go-mcp-data-linux-amd64"
-    main: ./cmd/dbn-go-mcp-data
+    dir: ./cmd/dbn-go-mcp-data
+    main: .
     binary: bin/dbn-go-mcp-data
     goos: [linux]
     goarch: [amd64]
@@ -95,7 +99,8 @@ builds:
       - CXX=x86_64-linux-gnu-g++
 
   - id: "dbn-go-mcp-data-linux-arm64"
-    main: ./cmd/dbn-go-mcp-data
+    dir: ./cmd/dbn-go-mcp-data
+    main: .
     binary: bin/dbn-go-mcp-data
     goos: [linux]
     goarch: [arm64]
@@ -107,7 +112,8 @@ builds:
       - CXX=aarch64-linux-gnu-g++
 
   - id: "dbn-go-mcp-data-darwin-amd64"
-    main: ./cmd/dbn-go-mcp-data
+    dir: ./cmd/dbn-go-mcp-data
+    main: .
     binary: bin/dbn-go-mcp-data
     goos: [darwin]
     goarch: [amd64]
@@ -120,7 +126,8 @@ builds:
       - CXX=o64-clang++
 
   - id: "dbn-go-mcp-data-darwin-arm64"
-    main: ./cmd/dbn-go-mcp-data
+    dir: ./cmd/dbn-go-mcp-data
+    main: .
     binary: bin/dbn-go-mcp-data
     goos: [darwin]
     goarch: [arm64]
