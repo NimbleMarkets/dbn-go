@@ -1,6 +1,8 @@
 # CHANGELOG
 
-## v0.11.0 (2026-10-24)
+## v0.11.0 (2026-10-26)
+
+**Compatibility notes:** `dbn-go-mcp-data` and `dbn-go-slurp-docs` are now separate Go modules (`cmd/dbn-go-mcp-data/go.mod`, `cmd/dbn-go-slurp-docs/go.mod`), so the root `github.com/NimbleMarkets/dbn-go` module no longer pulls in DuckDB C bindings, chromedp, or `github.com/76creates/stickers`. The `internal/mcp_data` package moved to `cmd/dbn-go-mcp-data/internal/mcp_data`. These two tools can no longer be installed with `go install`; use the release binaries, Homebrew, or build from source.
 
  * live: Add optional `LiveConfig.Gateway` and `LiveConfig.Port` overrides and `dbn-go-live --gateway/-g` and `--port/-p` flags for custom gateways and local replay servers. Empty host and zero port retain the existing defaults (#24, thanks @mfelker).
  * Add Parquet conversion for `bbo-1s`, `bbo-1m`, `cmbp-1`, `mbp-10`, and `status`, including support in MCP `fetch_range` (#25, thanks @mfelker).
@@ -13,6 +15,8 @@
  * Fix V1 system-message decoding to use the 80-byte layout without reading stale bytes from a previous record. Add version-aware `DecodeSystemMsg` and `DbnScanner.DecodeSystemMsg` helpers, and use them for visitor dispatch.
  * Fix heartbeat text detection for null-padded legacy messages, recognizing both `Heartbeat` and `HEARTBEAT`.
  * Expand binary and JSON decoder coverage using upstream fixtures and live-control streams (#26, thanks @mfelker). Enable all nine regression specs that exposed the decoding bugs above, with additional numeric-compatibility, timestamp-precision, and short-record tests.
+ * Add a `task ci` gate with `fmt-check`, `go-tidy-check`, `go-verify`, `vet`, `test-race`, `cross-windows`, `staticcheck`, `vulncheck`, and `docs-check` tasks, and fix the staticcheck and gofmt findings it surfaced. Parquet writing now uses `AppendBufferedRowGroupChecked` in place of the deprecated `AppendBufferedRowGroup`.
+ * Update Go dependencies, including `mcp-go` v1.3.0, `duckdb-go/v2` v2.10506.0 (DuckDB 1.5.6), `arrow-go/v18` v18.8.0, and the Charm v2 libraries (`bubbletea` v2.0.9, `huh` v2.0.3, `lipgloss` v2.0.5).
 
 ## v0.10.0 (2026-10-23)
 
