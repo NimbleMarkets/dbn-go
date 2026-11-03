@@ -4,7 +4,10 @@ package dbn_live
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/NimbleMarkets/dbn-go"
@@ -53,6 +56,11 @@ func NewGreetingMsgFromBytes(b []byte) *GreetingMsg {
 	return &GreetingMsg{LsgVersion: version}
 }
 
+// Encode converts GreetingMsg to its line protocol representation.
+func (m *GreetingMsg) Encode() []byte {
+	return fmt.Appendf(nil, "lsg_version=%s\n", m.LsgVersion)
+}
+
 // ChallengeRequestMsg is sent by the gateway upon connection.
 type ChallengeRequestMsg struct {
 	Cram string // key: cram
@@ -67,6 +75,11 @@ func NewChallengeRequestMsgFromBytes(b []byte) *ChallengeRequestMsg {
 		return nil // required
 	}
 	return &ChallengeRequestMsg{Cram: cram}
+}
+
+// Encode converts ChallengeRequestMsg to its line protocol representation.
+func (m *ChallengeRequestMsg) Encode() []byte {
+	return fmt.Appendf(nil, "cram=%s\n", m.Cram)
 }
 
 // AuthenticationResponseMsg is an authentication response is sent by the gateway after a valid
@@ -91,6 +104,19 @@ func NewAuthenticationResponseMsgFromBytes(b []byte) *AuthenticationResponseMsg 
 		Error:     m["error"],
 		SessionID: m["session_id"],
 	}
+}
+
+// Encode converts AuthenticationResponseMsg to its line protocol representation.
+// Empty Error and SessionID fields are omitted.
+func (m *AuthenticationResponseMsg) Encode() []byte {
+	b := fmt.Appendf(nil, "success=%s", m.Success)
+	if m.Error != "" {
+		b = fmt.Appendf(b, "|error=%s", m.Error)
+	}
+	if m.SessionID != "" {
+		b = fmt.Appendf(b, "|session_id=%s", m.SessionID)
+	}
+	return append(b, '\n')
 }
 
 // AuthenticationRequestMsg is an authentication request is sent to the gateway after a challenge response is received.
@@ -157,6 +183,74 @@ func (m *AuthenticationRequestMsg) Encode() []byte {
 	return b
 }
 
+// NewAuthenticationRequestMsgFromBytes parses an authentication request control
+// message, as produced by AuthenticationRequestMsg.Encode. It is the gateway-side
+// counterpart of Encode. Absent optional fields take Encode's defaults.
+// Returns an error if a required field (auth, dataset) is missing or a field value is invalid.
+func NewAuthenticationRequestMsgFromBytes(b []byte) (*AuthenticationRequestMsg, error) {
+	m := parseControlMessage(b)
+	msg := &AuthenticationRequestMsg{
+		Encoding:           defaultGatewayEncoding,
+		Compression:        defaultGatewayCompression,
+		SlowReaderBehavior: defaultGatewaySlowReaderBehavior,
+	}
+	var ok bool
+	if msg.Auth, ok = m["auth"]; !ok {
+		return nil, errors.New("authentication request missing auth")
+	}
+	if msg.Dataset, ok = m["dataset"]; !ok {
+		return nil, errors.New("authentication request missing dataset")
+	}
+	msg.Client = m["client"]
+	var err error
+	if str, ok := m["encoding"]; ok {
+		if msg.Encoding, err = dbn.EncodingFromString(str); err != nil {
+			return nil, err
+		}
+	}
+	if str, ok := m["compression"]; ok {
+		if msg.Compression, err = dbn.CompressionFromString(str); err != nil {
+			return nil, err
+		}
+	}
+	if msg.TsOut, err = parseControlBool(m, "ts_out"); err != nil {
+		return nil, err
+	}
+	if msg.PrettyPx, err = parseControlBool(m, "pretty_px"); err != nil {
+		return nil, err
+	}
+	if msg.PrettyTs, err = parseControlBool(m, "pretty_ts"); err != nil {
+		return nil, err
+	}
+	if str, ok := m["heartbeat_interval_s"]; ok {
+		v, err := strconv.ParseUint(str, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("invalid heartbeat_interval_s: %w", err)
+		}
+		msg.HeartbeatIntervalS = uint32(v)
+	}
+	if str, ok := m["slow_reader_behavior"]; ok {
+		if msg.SlowReaderBehavior, err = dbn.SlowReaderBehaviorFromString(str); err != nil {
+			return nil, err
+		}
+	}
+	return msg, nil
+}
+
+// parseControlBool parses an optional boolean control field ("0"/"1"/"false"/"true").
+// An absent field is false.
+func parseControlBool(m map[string]string, key string) (bool, error) {
+	str, ok := m[key]
+	if !ok {
+		return false, nil
+	}
+	v, err := strconv.ParseBool(str)
+	if err != nil {
+		return false, fmt.Errorf("invalid %s: %w", key, err)
+	}
+	return v, nil
+}
+
 // A subscription request is sent to the gateway upon request from the client.
 type SubscriptionRequestMsg struct {
 	Schema   string    // key: schema
@@ -190,6 +284,39 @@ func (m *SubscriptionRequestMsg) Encode() []byte {
 	return b
 }
 
+// NewSubscriptionRequestMsgFromBytes parses a subscription request control message,
+// as produced by SubscriptionRequestMsg.Encode. It is the gateway-side counterpart of Encode.
+// Returns an error if the schema field is missing or a field value is invalid.
+// An empty symbols field yields nil Symbols; an absent start yields a zero Start.
+func NewSubscriptionRequestMsgFromBytes(b []byte) (*SubscriptionRequestMsg, error) {
+	m := parseControlMessage(b)
+	schema, ok := m["schema"]
+	if !ok {
+		return nil, errors.New("subscription request missing schema")
+	}
+	msg := &SubscriptionRequestMsg{Schema: schema}
+	var err error
+	if str, ok := m["stype_in"]; ok {
+		if msg.StypeIn, err = dbn.STypeFromString(str); err != nil {
+			return nil, err
+		}
+	}
+	if str, ok := m["start"]; ok {
+		nanos, err := strconv.ParseInt(str, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid start: %w", err)
+		}
+		msg.Start = time.Unix(0, nanos)
+	}
+	if msg.Snapshot, err = parseControlBool(m, "snapshot"); err != nil {
+		return nil, err
+	}
+	if str := m["symbols"]; str != "" {
+		msg.Symbols = strings.Split(str, ",")
+	}
+	return msg, nil
+}
+
 // A session start message is sent to the gateway upon request from the client.
 type SessionStartMsg struct {
 	StartSession string // key: start_session
@@ -198,4 +325,16 @@ type SessionStartMsg struct {
 // Encode converts SessionStartMsg to its line protocol representation.
 func (m *SessionStartMsg) Encode() []byte {
 	return fmt.Appendf(nil, "start_session=%s\n", m.StartSession)
+}
+
+// NewSessionStartMsgFromBytes parses a session start control message, as produced by
+// SessionStartMsg.Encode. It is the gateway-side counterpart of Encode.
+// Returns an error if the start_session key is missing (its value may be empty).
+func NewSessionStartMsgFromBytes(b []byte) (*SessionStartMsg, error) {
+	m := parseControlMessage(b)
+	value, ok := m["start_session"]
+	if !ok {
+		return nil, errors.New("not a session start message")
+	}
+	return &SessionStartMsg{StartSession: value}, nil
 }

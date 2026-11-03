@@ -401,6 +401,14 @@ func (c *LiveClient) decodeAuthResponse() (string, error) {
 	return resp.SessionID, nil
 }
 
+// GenerateCramReply returns the `auth` value of an authentication request:
+// the hex SHA-256 of "<cram>|<apiKey>", a dash, and the last BUCKET_ID_LENGTH
+// characters of apiKey (all of apiKey, if shorter).
+// Gateways, such as a replay server, can use it to verify a client's reply.
+func GenerateCramReply(apiKey string, challengeKey string) string {
+	return generateCramReply(apiKey, challengeKey)
+}
+
 func generateCramReply(apiKey string, challengeKey string) string {
 	request := fmt.Sprintf("%s|%s", challengeKey, apiKey)
 
@@ -408,7 +416,6 @@ func generateCramReply(apiKey string, challengeKey string) string {
 	hasher.Write([]byte(request))
 	checksum := hasher.Sum(nil)
 
-	firstKeyIndex := API_KEY_LENGTH - BUCKET_ID_LENGTH
-	bucketID := apiKey[firstKeyIndex:]
+	bucketID := apiKey[max(0, len(apiKey)-BUCKET_ID_LENGTH):]
 	return fmt.Sprintf("%x-%s", checksum, bucketID)
 }

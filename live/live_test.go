@@ -179,6 +179,121 @@ var _ = Describe("DbnLive", func() {
 		})
 	})
 
+	Context("gateway message parsers", func() {
+		It("should export the CRAM reply generator", func() {
+			apiKey := "db-89s9vCvwDDKPdQJ5Pb30Fyj9mNUM6"
+			cram := "j5pwMHz6vwXruJM4cOwQrQeQE0bImIzT"
+			Expect(GenerateCramReply(apiKey, cram)).To(Equal(generateCramReply(apiKey, cram)))
+		})
+
+		It("should round-trip the gateway-side messages", func() {
+			greeting := GreetingMsg{LsgVersion: "0.1.2"}
+			Expect(string(greeting.Encode())).To(Equal("lsg_version=0.1.2\n"))
+			Expect(NewGreetingMsgFromBytes(greeting.Encode())).To(Equal(&greeting))
+
+			challenge := ChallengeRequestMsg{Cram: "abc123"}
+			Expect(string(challenge.Encode())).To(Equal("cram=abc123\n"))
+			Expect(NewChallengeRequestMsgFromBytes(challenge.Encode())).To(Equal(&challenge))
+
+			ok := AuthenticationResponseMsg{Success: "1", SessionID: "42"}
+			Expect(string(ok.Encode())).To(Equal("success=1|session_id=42\n"))
+			Expect(NewAuthenticationResponseMsgFromBytes(ok.Encode())).To(Equal(&ok))
+
+			bad := AuthenticationResponseMsg{Success: "0", Error: "bad key"}
+			Expect(string(bad.Encode())).To(Equal("success=0|error=bad key\n"))
+			Expect(NewAuthenticationResponseMsgFromBytes(bad.Encode())).To(Equal(&bad))
+		})
+
+		It("should round-trip a default AuthenticationRequestMsg", func() {
+			// The zero SlowReaderBehavior ("") is encoded like the default "warn", so it decodes as "warn".
+			msg := AuthenticationRequestMsg{Auth: "a-b", Dataset: "GLBX.MDP3", Client: "c", SlowReaderBehavior: dbn.SlowReaderBehavior_Warn}
+			parsed, err := NewAuthenticationRequestMsgFromBytes(msg.Encode())
+			Expect(err).ToNot(HaveOccurred())
+			Expect(*parsed).To(Equal(msg))
+			Expect(parsed.Encoding).To(Equal(dbn.Encoding_Dbn))
+			Expect(parsed.Compression).To(Equal(dbn.Compress_None))
+			Expect(parsed.SlowReaderBehavior).To(Equal(dbn.SlowReaderBehavior_Warn))
+		})
+
+		It("should round-trip an AuthenticationRequestMsg with all fields set", func() {
+			msg := AuthenticationRequestMsg{
+				Auth:               "my-auth",
+				Dataset:            "XNAS.ITCH",
+				Client:             "my-client",
+				Encoding:           dbn.Encoding_Json,
+				Compression:        dbn.Compress_ZStd,
+				TsOut:              true,
+				PrettyPx:           true,
+				PrettyTs:           true,
+				HeartbeatIntervalS: 30,
+				SlowReaderBehavior: dbn.SlowReaderBehavior_Skip,
+			}
+			parsed, err := NewAuthenticationRequestMsgFromBytes(msg.Encode())
+			Expect(err).ToNot(HaveOccurred())
+			Expect(*parsed).To(Equal(msg))
+		})
+
+		It("should reject AuthenticationRequestMsg lines missing required fields or with bad values", func() {
+			_, err := NewAuthenticationRequestMsgFromBytes([]byte("dataset=GLBX.MDP3\n"))
+			Expect(err).To(HaveOccurred())
+			_, err = NewAuthenticationRequestMsgFromBytes([]byte("auth=x\n"))
+			Expect(err).To(HaveOccurred())
+			_, err = NewAuthenticationRequestMsgFromBytes([]byte("auth=x|dataset=d|encoding=xml\n"))
+			Expect(err).To(HaveOccurred())
+			_, err = NewAuthenticationRequestMsgFromBytes([]byte("auth=x|dataset=d|heartbeat_interval_s=abc\n"))
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("should round-trip a SubscriptionRequestMsg", func() {
+			start := time.Unix(1700000000, 123456789)
+			msg := SubscriptionRequestMsg{
+				Schema:   "ohlcv-1s",
+				StypeIn:  dbn.SType_Parent,
+				Symbols:  []string{"ES.FUT", "NQ.FUT"},
+				Start:    start,
+				Snapshot: true,
+			}
+			parsed, err := NewSubscriptionRequestMsgFromBytes(msg.Encode())
+			Expect(err).ToNot(HaveOccurred())
+			Expect(parsed.Schema).To(Equal("ohlcv-1s"))
+			Expect(parsed.StypeIn).To(Equal(dbn.SType_Parent))
+			Expect(parsed.Symbols).To(Equal([]string{"ES.FUT", "NQ.FUT"}))
+			Expect(parsed.Start.UnixNano()).To(Equal(start.UnixNano()))
+			Expect(parsed.Snapshot).To(BeTrue())
+			Expect(parsed.Encode()).To(Equal(msg.Encode()))
+		})
+
+		It("should parse a minimal SubscriptionRequestMsg", func() {
+			msg := SubscriptionRequestMsg{Schema: "trades", StypeIn: dbn.SType_RawSymbol}
+			parsed, err := NewSubscriptionRequestMsgFromBytes(msg.Encode())
+			Expect(err).ToNot(HaveOccurred())
+			Expect(parsed.Schema).To(Equal("trades"))
+			Expect(parsed.StypeIn).To(Equal(dbn.SType_RawSymbol))
+			Expect(parsed.Symbols).To(BeEmpty())
+			Expect(parsed.Start.IsZero()).To(BeTrue())
+			Expect(parsed.Snapshot).To(BeFalse())
+		})
+
+		It("should reject SubscriptionRequestMsg lines that are not subscriptions or have bad values", func() {
+			_, err := NewSubscriptionRequestMsgFromBytes([]byte("start_session=\n"))
+			Expect(err).To(HaveOccurred())
+			_, err = NewSubscriptionRequestMsgFromBytes([]byte("schema=trades|stype_in=bogus|symbols=A\n"))
+			Expect(err).To(HaveOccurred())
+			_, err = NewSubscriptionRequestMsgFromBytes([]byte("schema=trades|stype_in=raw_symbol|start=notanumber|symbols=A\n"))
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("should round-trip a SessionStartMsg", func() {
+			msg := SessionStartMsg{}
+			parsed, err := NewSessionStartMsgFromBytes(msg.Encode())
+			Expect(err).ToNot(HaveOccurred())
+			Expect(*parsed).To(Equal(msg))
+
+			_, err = NewSessionStartMsgFromBytes([]byte("schema=trades|stype_in=raw_symbol|symbols=A\n"))
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
 	Context("getters", func() {
 		It("should return session ID from GetSessionID", func() {
 			client := &LiveClient{

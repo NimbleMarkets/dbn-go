@@ -46,6 +46,8 @@ func TestSTypeRoundTrip(t *testing.T) {
 		value uint8
 		str   string
 	}{
+		{dbn.SType_NasdaqSymbol, 5, "nasdaq_symbol"},
+		{dbn.SType_CmsSymbol, 6, "cms_symbol"},
 		{dbn.SType_FigiTicker, 12, "figi_ticker"},
 		{dbn.SType_ListingId, 13, "listing_id"},
 		{dbn.SType_IssuerId, 14, "issuer_id"},
