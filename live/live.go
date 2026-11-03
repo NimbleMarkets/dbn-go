@@ -41,7 +41,12 @@ const (
 	API_KEY_LENGTH  = 32
 
 	MAX_STR_LENGTH = 24 * 1024
+
+	DIAL_TIMEOUT = 10 * time.Second
 )
+
+// ErrNotConnected is returned when using a LiveClient whose connection was closed by Stop.
+var ErrNotConnected = errors.New("live client is not connected")
 
 type SystemMsgV1 struct {
 	Msg [SYSTEM_MSG_SIZE_V1]byte `json:"msg"` // The message from the gateway
@@ -104,6 +109,12 @@ func (c *LiveConfig) validate() error {
 	}
 	if len(c.Dataset) == 0 {
 		return errors.New("field Dataset is unset")
+	}
+	if err := validateControlValue("Dataset", c.Dataset); err != nil {
+		return err
+	}
+	if err := validateControlValue("Client", c.Client); err != nil {
+		return err
 	}
 	return nil
 }
@@ -169,7 +180,7 @@ func NewLiveClient(config LiveConfig) (*LiveClient, error) {
 
 	// Connect to server
 	hostPort := net.JoinHostPort(c.gateway, strconv.FormatUint(uint64(c.port), 10))
-	if conn, err := net.Dial("tcp", hostPort); err != nil {
+	if conn, err := net.DialTimeout("tcp", hostPort, DIAL_TIMEOUT); err != nil {
 		return nil, err
 	} else {
 		c.conn = conn
@@ -226,8 +237,19 @@ func (c *LiveClient) GetJsonScanner() *dbn.JsonScanner {
 // subscriptions. Note there is no unsubscribe method. Subscriptions end
 // when the client disconnects with Stop or the LiveClient instance is garbage collected.
 func (c *LiveClient) Subscribe(sub SubscriptionRequestMsg) error {
+	if c.conn == nil {
+		return ErrNotConnected
+	}
 	if len(sub.Symbols) == 0 {
 		return errors.New("subscribe request must contain at least one symbol")
+	}
+	if err := validateControlValue("Schema", sub.Schema); err != nil {
+		return err
+	}
+	for _, symbol := range sub.Symbols {
+		if err := validateControlValue("symbol", symbol); err != nil {
+			return err
+		}
 	}
 	requestBytes := sub.Encode()
 	if n, err := c.conn.Write(requestBytes); err != nil {
@@ -252,6 +274,9 @@ func (c *LiveClient) Subscribe(sub SubscriptionRequestMsg) error {
 // This method should only be called once per instance.
 func (c *LiveClient) Start() error {
 	// TODO: don't start twice, etc
+	if c.conn == nil {
+		return ErrNotConnected
+	}
 	// Send start_session
 	msg := SessionStartMsg{}
 	startBytes := msg.Encode()
@@ -311,6 +336,20 @@ func (c *LiveClient) Stop() error {
 // Authenticate performs read/write with the server to authenticate.
 // Returns a sessionID or an error.
 func (c *LiveClient) Authenticate(apiKey string) (string, error) {
+	if c.conn == nil {
+		return "", ErrNotConnected
+	}
+	if len(apiKey) != API_KEY_LENGTH {
+		return "", fmt.Errorf("apiKey must contain %d characters", API_KEY_LENGTH)
+	}
+	for _, field := range []struct{ name, value string }{
+		{"apiKey", apiKey}, {"Dataset", c.config.Dataset}, {"Client", c.config.Client},
+	} {
+		if err := validateControlValue(field.name, field.value); err != nil {
+			return "", err
+		}
+	}
+
 	// Read challege from socket and calcluate reply
 	challengeKey, err := c.decodeChallenge()
 	if err != nil {
@@ -394,8 +433,8 @@ func (c *LiveClient) decodeAuthResponse() (string, error) {
 		c.logger.Info("[LiveClient.decodeAuthResponse", "success", resp.Success, "error", resp.Error, "session_id", resp.SessionID)
 	}
 
-	if resp.Success == "0" {
-		return "", fmt.Errorf("failed to authenticate: error: %s", resp.Error)
+	if resp.Success != "1" {
+		return "", fmt.Errorf("failed to authenticate: success: %q error: %s", resp.Success, resp.Error)
 	}
 
 	return resp.SessionID, nil
