@@ -241,7 +241,7 @@ func (s *DbnScanner) DecodeStatMsg() (*StatMsgV3, error) {
 	if !rtype.IsCompatibleWith(RType_Statistics) {
 		return nil, unexpectedRTypeError(rtype, RType_Statistics)
 	}
-	return DecodeStatMsg(s.metadata, s.lastRecord)
+	return DecodeStatMsg(s.metadata, s.lastRecord[:s.lastSize])
 }
 
 // DecodeInstrumentDefMsg parses the Scanner's current record as an InstrumentDefMsg (V3 layout).
@@ -280,7 +280,7 @@ func (s *DbnScanner) Visit(visitor Visitor) error {
 	// Trade
 	case RType_Mbp0:
 		record := Mbp0Msg{}
-		if err := record.Fill_Raw(s.lastRecord[:Mbp0Msg_Size]); err != nil {
+		if err := record.Fill_Raw(s.lastRecord[:s.lastSize]); err != nil {
 			return err // TODO: OnError()
 		} else {
 			return visitor.OnMbp0(&record)
@@ -288,7 +288,7 @@ func (s *DbnScanner) Visit(visitor Visitor) error {
 	// Market-by-price, 1 depth
 	case RType_Mbp1:
 		record := Mbp1Msg{}
-		if err := record.Fill_Raw(s.lastRecord[:Mbp1Msg_Size]); err != nil {
+		if err := record.Fill_Raw(s.lastRecord[:s.lastSize]); err != nil {
 			return err // TODO: OnError()
 		} else {
 			return visitor.OnMbp1(&record)
@@ -296,7 +296,7 @@ func (s *DbnScanner) Visit(visitor Visitor) error {
 	// Market-by-price, 10 depth
 	case RType_Mbp10:
 		record := Mbp10Msg{}
-		if err := record.Fill_Raw(s.lastRecord[:Mbp10Msg_Size]); err != nil {
+		if err := record.Fill_Raw(s.lastRecord[:s.lastSize]); err != nil {
 			return err // TODO: OnError()
 		} else {
 			return visitor.OnMbp10(&record)
@@ -304,7 +304,7 @@ func (s *DbnScanner) Visit(visitor Visitor) error {
 	// Market-by-Order
 	case RType_Mbo:
 		record := MboMsg{}
-		if err := record.Fill_Raw(s.lastRecord[:MboMsg_Size]); err != nil {
+		if err := record.Fill_Raw(s.lastRecord[:s.lastSize]); err != nil {
 			return err // TODO: OnError()
 		} else {
 			return visitor.OnMbo(&record)
@@ -312,7 +312,7 @@ func (s *DbnScanner) Visit(visitor Visitor) error {
 	// Candlestick schemas
 	case RType_Ohlcv1S, RType_Ohlcv1M, RType_Ohlcv1H, RType_Ohlcv1D, RType_OhlcvEod, RType_OhlcvDeprecated:
 		record := OhlcvMsg{}
-		if err := record.Fill_Raw(s.lastRecord[:OhlcvMsg_Size]); err != nil {
+		if err := record.Fill_Raw(s.lastRecord[:s.lastSize]); err != nil {
 			return err // TODO: OnError()
 		} else {
 			return visitor.OnOhlcv(&record)
@@ -320,7 +320,7 @@ func (s *DbnScanner) Visit(visitor Visitor) error {
 	// CBBO schemas
 	case RType_Cmbp1, RType_Cbbo1S, RType_Cbbo1M, RType_Tcbbo:
 		record := Cmbp1Msg{}
-		if err := record.Fill_Raw(s.lastRecord[:Cmbp1Msg_Size]); err != nil {
+		if err := record.Fill_Raw(s.lastRecord[:s.lastSize]); err != nil {
 			return err // TODO: OnError()
 		} else {
 			return visitor.OnCmbp1(&record)
@@ -328,7 +328,7 @@ func (s *DbnScanner) Visit(visitor Visitor) error {
 	// Imbalance
 	case RType_Imbalance:
 		record := ImbalanceMsg{}
-		if err := record.Fill_Raw(s.lastRecord[:ImbalanceMsg_Size]); err != nil {
+		if err := record.Fill_Raw(s.lastRecord[:s.lastSize]); err != nil {
 			return err // TODO: OnError()
 		} else {
 			return visitor.OnImbalance(&record)
@@ -366,7 +366,7 @@ func (s *DbnScanner) Visit(visitor Visitor) error {
 		if s.metadata == nil {
 			return ErrNoMetadata
 		}
-		record, err := DecodeStatMsg(s.metadata, s.lastRecord)
+		record, err := DecodeStatMsg(s.metadata, s.lastRecord[:s.lastSize])
 		if err != nil {
 			return err
 		}
@@ -374,7 +374,7 @@ func (s *DbnScanner) Visit(visitor Visitor) error {
 	// Status
 	case RType_Status:
 		record := StatusMsg{}
-		if err := record.Fill_Raw(s.lastRecord[:StatusMsg_Size]); err != nil {
+		if err := record.Fill_Raw(s.lastRecord[:s.lastSize]); err != nil {
 			return err // TODO: OnError()
 		} else {
 			return visitor.OnStatusMsg(&record)
@@ -382,7 +382,7 @@ func (s *DbnScanner) Visit(visitor Visitor) error {
 	// BBO schemas
 	case RType_Bbo1S, RType_Bbo1M:
 		record := BboMsg{}
-		if err := record.Fill_Raw(s.lastRecord[:BboMsg_Size]); err != nil {
+		if err := record.Fill_Raw(s.lastRecord[:s.lastSize]); err != nil {
 			return err // TODO: OnError()
 		} else {
 			return visitor.OnBbo(&record)

@@ -78,7 +78,7 @@ func DecodeStatMsg(metadata *Metadata, body []byte) (*StatMsgV3, error) {
 	switch metadata.VersionNum {
 	case HeaderVersion1, HeaderVersion2:
 		var v2 StatMsgV2
-		if err := v2.Fill_Raw(body[:StatMsgV2_Size]); err != nil {
+		if err := v2.Fill_Raw(body); err != nil {
 			return nil, err
 		}
 		// Upgrade V2 → V3: sign-extend Quantity from int32 to int64
@@ -97,7 +97,7 @@ func DecodeStatMsg(metadata *Metadata, body []byte) (*StatMsgV3, error) {
 		}, nil
 	case HeaderVersion3:
 		var v3 StatMsgV3
-		if err := v3.Fill_Raw(body[:StatMsgV3_Size]); err != nil {
+		if err := v3.Fill_Raw(body); err != nil {
 			return nil, err
 		}
 		return &v3, nil
