@@ -64,7 +64,7 @@ tasks:
   clean:
     desc: 'Clean all'
     cmds:
-      - rm -f bin/dbn-go-file bin/dbn-go-hist bin/dbn-go-live bin/dbn-go-mcp-meta bin/dbn-go-mcp-data bin/dbn-go-tui bin/dbn-go-slurp-docs
+      - rm -f bin/dbn-go-file bin/dbn-go-hist bin/dbn-go-live bin/dbn-go-live-replay bin/dbn-go-mcp-meta bin/dbn-go-mcp-data bin/dbn-go-tui bin/dbn-go-slurp-docs
 
   docker-build:
     desc: 'Docker build'
@@ -86,7 +86,7 @@ tasks:
       - ./*.go
       - hist/*.go
       - internal/**/*.go
-      - live/*.go
+      - live/**/*.go
       - cmd/**/*.go
 
   go-tidy-check:
@@ -193,6 +193,7 @@ tasks:
       - build-dbn-go-file
       - build-dbn-go-hist
       - build-dbn-go-live
+      - build-dbn-go-live-replay
       - build-dbn-go-mcp-meta
       - build-dbn-go-mcp-data
       - build-dbn-go-tui
@@ -272,12 +273,25 @@ tasks:
     deps: [go-tidy]
     sources:
       - ./*.go
-      - live/*.go
+      - live/**/*.go
       - cmd/dbn-go-live/*.go
     generates:
       - bin/dbn-go-live
     cmds:
       - go build -o bin/dbn-go-live cmd/dbn-go-live/*.go
+
+  build-dbn-go-live-replay:
+    desc: 'Build dbn-go-live-replay'
+    deps: [go-tidy]
+    sources:
+      - ./*.go
+      - internal/version/*.go
+      - live/**/*.go
+      - cmd/dbn-go-live-replay/*.go
+    generates:
+      - bin/dbn-go-live-replay
+    cmds:
+      - go build -o bin/dbn-go-live-replay cmd/dbn-go-live-replay/*.go
 
   build-dbn-go-mcp-meta:
     desc: 'Build dbn-go-mcp-meta'
@@ -339,12 +353,13 @@ tasks:
       - cmd/dbn-go-file/*.go
       - cmd/dbn-go-hist/*.go
       - cmd/dbn-go-live/*.go
+      - cmd/dbn-go-live-replay/*.go
       - cmd/dbn-go-mcp-meta/*.go
       - cmd/dbn-go-mcp-data/**/*.go
       - cmd/dbn-go-tui/*.go
       - hist/*.go
       - internal/**/*.go
-      - live/*.go
+      - live/**/*.go
     cmds:
       - go test ./...
       - go -C ./cmd/dbn-go-mcp-data test ./...

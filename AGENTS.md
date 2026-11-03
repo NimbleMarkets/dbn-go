@@ -10,7 +10,7 @@ Key capabilities:
 - DBN file reading/writing (binary and JSON formats)
 - Historical API client (`hist/`)
 - Live API client (`live/`)
-- 6 CLI tools for file processing, API interaction, TUI, docs scraping, and MCP server
+- CLI tools for file processing, API interaction, live replay, TUI, docs scraping, and MCP servers
 
 ## Project Structure
 
@@ -18,11 +18,13 @@ Key capabilities:
 .
 ├── *.go                    # Core library: structs, consts, scanners, metadata
 ├── hist/                   # Historical API client
-├── live/                   # Live API client  
+├── live/                   # Live API client
+│   └── replay/             # Live gateway that replays DBN files (for testing)
 ├── cmd/                    # CLI tools
 │   ├── dbn-go-file/        # DBN file processing (parquet, split, etc.)
 │   ├── dbn-go-hist/        # Historical API CLI
 │   ├── dbn-go-live/        # Live feed handler
+│   ├── dbn-go-live-replay/ # Local Live gateway replaying DBN files
 │   ├── dbn-go-mcp/         # MCP (Model Context Protocol) server
 │   ├── dbn-go-slurp-docs/  # Databento docs scraper
 │   └── dbn-go-tui/         # Terminal UI for Databento account
@@ -83,6 +85,7 @@ All Go files must include:
 - Root package: `dbn`
 - Historical API: `dbn_hist` (import path `github.com/NimbleMarkets/dbn-go/hist`)
 - Live API: `dbn_live` (import path `github.com/NimbleMarkets/dbn-go/live`)
+- Live replay server: `dbn_live_replay` (import path `github.com/NimbleMarkets/dbn-go/live/replay`)
 
 ### Error Handling
 - Use sentinel errors defined in `errors.go`

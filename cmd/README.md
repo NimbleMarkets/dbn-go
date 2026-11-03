@@ -6,6 +6,7 @@ It includes:
  * [`dbn-go-file`](#dbn-go-file): a CLI to process DBN files
  * [`dbn-go-hist`](#dbn-go-hist): a CLI to use the Historical API
  * [`dbn-go-live`](#dbn-go-live): a simple Live API feed handler
+ * [`dbn-go-live-replay`](#dbn-go-live-replay): a local Live gateway that replays DBN files for testing
  * [`dbn-go-slurp-docs`](#dbn-go-slurp-docs): a tool to scrape Databento docs for offline use
  * [`dbn-go-tui`](#dbn-go-tui): a TUI for your Databento account
 
@@ -207,7 +208,7 @@ Simple invocation:
 $ dbn-go-live -d EQUS.MINI -s ohlcv-1h -o foo.dbn -v -t QQQ SPY 
 ```
 
-Connecting to a non-default gateway, such as a local test or replay server:
+Connecting to a non-default gateway, such as a local test server or [`dbn-go-live-replay`](#dbn-go-live-replay):
 ```
 $ dbn-go-live -d EQUS.MINI -s ohlcv-1h -o foo.dbn --gateway 127.0.0.1 --port 13000 QQQ SPY
 ```
@@ -221,6 +222,35 @@ $ docker run -it --rm \
     ghcr.io/nimblemarkets/dbn-go:0.0.11 \
     /usr/local/bin/dbn-go-live -d EQUS.MINI -s ohlcv-1h -o /dbn/foo.dbn -v -t QQQ SPY 
 ```
+
+----
+
+## `dbn-go-live-replay`
+
+`dbn-go-live-replay` is a local Live gateway that replays DBN files.  Point a Live client at it, such as `dbn-go-live --gateway/--port` or a [`LiveConfig`](https://pkg.go.dev/github.com/NimbleMarkets/dbn-go/live#LiveConfig) with `Gateway` and `Port`, to develop and test without a Databento connection or billing.  The server is also available as a library in [`live/replay`](https://pkg.go.dev/github.com/NimbleMarkets/dbn-go/live/replay), which tests can start on `127.0.0.1:0`.
+
+```
+$ dbn-go-live-replay --help
+usage: dbn-go-live-replay [opts] file1.dbn.zst [file2.dbn ...]
+
+  -f, --file stringArray   DBN file to replay, .dbn or .dbn.zst (multiple allowed)
+  -h, --help               Show help
+  -k, --key string         API key clients must use (or set 'DATABENTO_API_KEY' envvar; default: accept any key)
+  -l, --listen string      Address to listen on (default "127.0.0.1:13000")
+      --no-auth            Accept any API key, ignoring 'DATABENTO_API_KEY'
+  -s, --speed float        Replay speed by ts_event: 1 is real time, 2 is double speed; 0 is as fast as possible
+  -v, --verbose            Verbose logging
+      --version            Show version
+```
+
+Replay a test file and capture it with `dbn-go-live`:
+```
+$ dbn-go-live-replay --no-auth tests/data/test_data.ohlcv-1s.v3.dbn.zst &
+$ dbn-go-live --gateway 127.0.0.1 --port 13000 -k db-0123456789abcdef0123456789abc \
+    -d GLBX.MDP3 -s ohlcv-1s -o replayed.dbn ESH1
+```
+
+Each session replays one file, chosen from the files whose dataset matches the client's: the first whose schema matches a subscribed schema, or else the first.  The file's metadata and all of its records are sent unchanged, regardless of the subscribed symbols or start time, and then the connection is closed.  Only DBN encoding is supported.  With `--speed`, records are paced by their `ts_event`.
 
 ----
 
