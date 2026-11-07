@@ -1,12 +1,15 @@
 # CHANGELOG
 
-## v0.11.0 (2026-10-26)
+## v0.11.0 (2026-11-07)
 
 **Compatibility notes:** `dbn-go-mcp-data` and `dbn-go-slurp-docs` are now separate Go modules (`cmd/dbn-go-mcp-data/go.mod`, `cmd/dbn-go-slurp-docs/go.mod`), so the root `github.com/NimbleMarkets/dbn-go` module no longer pulls in DuckDB C bindings, chromedp, or `github.com/76creates/stickers`. The `internal/mcp_data` package moved to `cmd/dbn-go-mcp-data/internal/mcp_data`. These two tools can no longer be installed with `go install`; use the release binaries, Homebrew, or build from source.
 
  * live: Add optional `LiveConfig.Gateway` and `LiveConfig.Port` overrides and `dbn-go-live --gateway/-g` and `--port/-p` flags for custom gateways and local replay servers. Empty host and zero port retain the existing defaults (#24, thanks @mfelker).
+ * live: Add a 10s dial timeout, validate API key length and control-message delimiters (`|`, `\r`, `\n`), require `success=1` in auth responses, and return `ErrNotConnected` when a client is used after `Stop` (#29, thanks @mfelker).
+ * hist: Share an HTTP transport with a 100s `ResponseHeaderTimeout` and send `Accept` instead of `Accept-Encoding` in `GetRange` (#29, thanks @mfelker).
  * Add Parquet conversion for `bbo-1s`, `bbo-1m`, `cmbp-1`, `mbp-10`, and `status`, including support in MCP `fetch_range` (#25, thanks @mfelker).
  * Fix truncated metadata ending at a required count-field boundary being reported as a clean `io.EOF`. These files now return `io.ErrUnexpectedEOF` instead of appearing to be successful empty reads (#22, thanks @mfelker).
+ * Reject record lengths shorter than `RHeader_Size` (including `0`) in `DbnScanner.Next` with `ErrMalformedRecord`, and slice `s.lastRecord[:s.lastSize]` in `Visit` and `DecodeStatMsg` so truncated records fail length checks instead of panicking or reading stale buffer bytes (#27, #28, thanks @mfelker).
  * tui: Release download contexts and close HTTP response bodies on unsuccessful responses (#23, thanks @mfelker).
  * Fix JSON decoding of single-character action, side, status, imbalance, and instrument-definition fields (`auction_type`, `unpaired_side`, `significant_imbalance`, `instrument_class`, `match_algorithm`, `security_update_action`, `user_defined_instrument`, `leg_instrument_class`, and `leg_side`), accepting both character strings and legacy numeric codes.
  * Fix `BboMsg` JSON `levels` decoding to read from a 1-element array like `Mbp1Msg`, and dispatch `RType_Bbo1S`/`RType_Bbo1M` in `JsonScanner.Visit`.
