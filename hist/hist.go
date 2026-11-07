@@ -37,7 +37,12 @@ type RequestErrorResp struct {
 // newHTTPClient returns an HTTP client whose transport gives up on a server
 // that does not send response headers within headerTimeout.
 func newHTTPClient(headerTimeout time.Duration) *http.Client {
-	transport := http.DefaultTransport.(*http.Transport).Clone()
+	var transport *http.Transport
+	if defaultTransport, ok := http.DefaultTransport.(*http.Transport); ok {
+		transport = defaultTransport.Clone()
+	} else {
+		transport = &http.Transport{}
+	}
 	transport.ResponseHeaderTimeout = headerTimeout
 	return &http.Client{Transport: transport}
 }
