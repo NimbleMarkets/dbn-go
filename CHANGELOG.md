@@ -19,7 +19,7 @@
  * Fix heartbeat text detection for null-padded legacy messages, recognizing both `Heartbeat` and `HEARTBEAT`.
  * Expand binary and JSON decoder coverage using upstream fixtures and live-control streams (#26, thanks @mfelker). Enable all nine regression specs that exposed the decoding bugs above, with additional numeric-compatibility, timestamp-precision, and short-record tests.
  * Add a `task ci` gate with `fmt-check`, `go-tidy-check`, `go-verify`, `vet`, `test-race`, `cross-windows`, `staticcheck`, `vulncheck`, and `docs-check` tasks, and fix the staticcheck and gofmt findings it surfaced. Parquet writing now uses `AppendBufferedRowGroupChecked` in place of the deprecated `AppendBufferedRowGroup`.
- * Update Go dependencies, including `mcp-go` v1.3.0, `duckdb-go/v2` v2.10506.0 (DuckDB 1.5.6), `arrow-go/v18` v18.8.0, and the Charm v2 libraries (`bubbletea` v2.0.9, `huh` v2.0.3, `lipgloss` v2.0.5).
+ * Update Go dependencies, including `mcp-go` v1.5.0, `duckdb-go/v2` v2.10506.0 (DuckDB 1.5.6), `arrow-go/v18` v18.8.0, `brotli` v1.2.8, and the Charm v2 libraries (`bubbles` v2.2.1, `bubbletea` v2.0.9, `huh` v2.0.3, `lipgloss` v2.0.6).
 
 ## v0.10.0 (2026-10-23)
 
