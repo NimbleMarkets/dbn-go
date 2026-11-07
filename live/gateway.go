@@ -13,9 +13,9 @@ import (
 )
 
 // validateControlValue returns an error if value contains a character that
-// would delimit a field ('|') or a message ('\n') in the gateway line protocol.
+// would delimit a field ('|') or a message ('\r', '\n') in the gateway line protocol.
 func validateControlValue(name string, value string) error {
-	if strings.ContainsAny(value, "|\n") {
+	if strings.ContainsAny(value, "|\r\n") {
 		return fmt.Errorf("field %s must not contain '|' or newline", name)
 	}
 	return nil

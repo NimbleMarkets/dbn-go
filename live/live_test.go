@@ -496,8 +496,10 @@ var _ = Describe("DbnLive", func() {
 			},
 			Entry("pipe in symbol", SubscriptionRequestMsg{Schema: "trades", Symbols: []string{"AAPL|snapshot=1"}}),
 			Entry("newline in symbol", SubscriptionRequestMsg{Schema: "trades", Symbols: []string{"AAPL", "MSFT\nstart_session=0"}}),
+			Entry("carriage return in symbol", SubscriptionRequestMsg{Schema: "trades", Symbols: []string{"AAPL\r"}}),
 			Entry("pipe in schema", SubscriptionRequestMsg{Schema: "trades|snapshot=1", Symbols: []string{"AAPL"}}),
 			Entry("newline in schema", SubscriptionRequestMsg{Schema: "trades\n", Symbols: []string{"AAPL"}}),
+			Entry("carriage return in schema", SubscriptionRequestMsg{Schema: "trades\r", Symbols: []string{"AAPL"}}),
 		)
 
 		DescribeTable("should reject control characters in auth fields without writing",
@@ -512,8 +514,10 @@ var _ = Describe("DbnLive", func() {
 			},
 			Entry("pipe in dataset", "XNAS.ITCH|ts_out=1", "c"),
 			Entry("newline in dataset", "XNAS.ITCH\n", "c"),
+			Entry("carriage return in dataset", "XNAS.ITCH\r", "c"),
 			Entry("pipe in client", "XNAS.ITCH", "c|pretty_px=1"),
 			Entry("newline in client", "XNAS.ITCH", "c\nstart_session=0"),
+			Entry("carriage return in client", "XNAS.ITCH", "c\r"),
 		)
 
 		It("should reject control characters in the config before dialing", func() {
