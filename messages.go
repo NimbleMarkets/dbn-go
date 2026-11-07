@@ -75,6 +75,9 @@ func DecodeSystemMsg(metadata *Metadata, body []byte) (*SystemMsg, error) {
 // V1 and V2 share the same 64-byte layout (int32 Quantity).
 // V3 has an 80-byte layout (int64 Quantity).
 func DecodeStatMsg(metadata *Metadata, body []byte) (*StatMsgV3, error) {
+	if metadata == nil {
+		return nil, ErrNoMetadata
+	}
 	switch metadata.VersionNum {
 	case HeaderVersion1, HeaderVersion2:
 		var v2 StatMsgV2
@@ -111,6 +114,9 @@ func DecodeStatMsg(metadata *Metadata, body []byte) (*StatMsgV3, error) {
 // V2 has a different field layout (uint32 RawInstrumentID, extra fields removed in V3).
 // V3 has uint64 RawInstrumentID and multi-leg strategy fields.
 func DecodeInstrumentDefMsg(metadata *Metadata, body []byte, size int) (*InstrumentDefMsgV3, error) {
+	if metadata == nil {
+		return nil, ErrNoMetadata
+	}
 	switch metadata.VersionNum {
 	case HeaderVersion1:
 		return nil, fmt.Errorf("InstrumentDefMsg V1 (22-byte symbols) is not supported")

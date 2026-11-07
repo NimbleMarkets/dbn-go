@@ -1,6 +1,6 @@
 //go:build !integration
 
-// Copyright (c) 2024 Neomantra Corp
+// Copyright (c) 2024-2025 Neomantra Corp
 
 package dbn_hist
 
@@ -68,5 +68,26 @@ func TestDefaultHTTPClientHasResponseHeaderTimeout(t *testing.T) {
 	}
 	if httpClient.Timeout != 0 {
 		t.Errorf("Timeout = %v, want 0 so large downloads are not cut off", httpClient.Timeout)
+	}
+}
+
+type customRoundTripper struct{}
+
+func (customRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, nil
+}
+
+func TestNewHTTPClientHandlesCustomDefaultTransport(t *testing.T) {
+	oldTransport := http.DefaultTransport
+	http.DefaultTransport = customRoundTripper{}
+	defer func() { http.DefaultTransport = oldTransport }()
+
+	client := newHTTPClient(5 * time.Second)
+	transport, ok := client.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("unexpected transport type %T", client.Transport)
+	}
+	if transport.ResponseHeaderTimeout != 5*time.Second {
+		t.Errorf("ResponseHeaderTimeout = %v, want 5s", transport.ResponseHeaderTimeout)
 	}
 }
