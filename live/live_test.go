@@ -395,6 +395,142 @@ var _ = Describe("DbnLive", func() {
 			Expect(record.Header.InstrumentID).To(Equal(uint32(5482)))
 		})
 	})
+
+	Context("robustness", func() {
+		authConn := func(authResponse string) *scriptedConn {
+			return &scriptedConn{
+				reads: [][]byte{
+					[]byte("lsg_version=1.0\n"),
+					[]byte("cram=challenge-value\n"),
+					[]byte(authResponse),
+				},
+			}
+		}
+		newClient := func(conn net.Conn) *LiveClient {
+			return &LiveClient{
+				config:    LiveConfig{Dataset: "XNAS.ITCH", Client: "dbn-go-live-test"},
+				conn:      conn,
+				bufReader: bufio.NewReaderSize(conn, MAX_STR_LENGTH),
+			}
+		}
+		apiKey := "db-89s9vCvwDDKPdQJ5Pb30Fyj9mNUM6"
+
+		It("should reject an auth response with an empty success value", func() {
+			client := newClient(authConn("success=|session_id=sess-1\n"))
+			_, err := client.Authenticate(apiKey)
+			Expect(err).To(HaveOccurred())
+			Expect(client.GetSessionID()).To(BeEmpty())
+		})
+
+		It("should reject an auth response with an unexpected success value", func() {
+			client := newClient(authConn("success=true|session_id=sess-1\n"))
+			_, err := client.Authenticate(apiKey)
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("should reject an auth response with no success field", func() {
+			client := newClient(authConn("session_id=sess-1\n"))
+			_, err := client.Authenticate(apiKey)
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("should return an error, not panic, on a short API key", func() {
+			conn := authConn("success=1|session_id=sess-1\n")
+			client := newClient(conn)
+			var err error
+			Expect(func() { _, err = client.Authenticate("short") }).ToNot(Panic())
+			Expect(err).To(HaveOccurred())
+			Expect(conn.writes.Len()).To(Equal(0))
+		})
+
+		It("should return errors, not panic, after Stop", func() {
+			conn := authConn("success=1|session_id=sess-1\n")
+			client := newClient(conn)
+			Expect(client.Stop()).To(Succeed())
+
+			var err error
+			Expect(func() {
+				err = client.Subscribe(SubscriptionRequestMsg{Schema: "trades", Symbols: []string{"AAPL"}})
+			}).ToNot(Panic())
+			Expect(err).To(HaveOccurred())
+
+			Expect(func() { err = client.Start() }).ToNot(Panic())
+			Expect(err).To(HaveOccurred())
+
+			Expect(func() { _, err = client.Authenticate(apiKey) }).ToNot(Panic())
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("should return an error from Subscribe after Stop on a real connection", func() {
+			ln, err := net.Listen("tcp", "127.0.0.1:0")
+			Expect(err).To(BeNil())
+			defer ln.Close()
+			go func() {
+				if conn, err := ln.Accept(); err == nil {
+					defer conn.Close()
+					_, _ = io.Copy(io.Discard, conn)
+				}
+			}()
+
+			client, err := NewLiveClient(LiveConfig{
+				ApiKey:  strings.Repeat("a", API_KEY_LENGTH),
+				Dataset: "XNAS.ITCH",
+				Gateway: "127.0.0.1",
+				Port:    uint16(ln.Addr().(*net.TCPAddr).Port),
+			})
+			Expect(err).To(BeNil())
+			Expect(client.Stop()).To(Succeed())
+
+			Expect(func() {
+				err = client.Subscribe(SubscriptionRequestMsg{Schema: "trades", Symbols: []string{"AAPL"}})
+			}).ToNot(Panic())
+			Expect(err).To(HaveOccurred())
+		})
+
+		DescribeTable("should reject control characters in subscription fields without writing",
+			func(sub SubscriptionRequestMsg) {
+				conn := &scriptedConn{}
+				client := newClient(conn)
+				Expect(client.Subscribe(sub)).ToNot(Succeed())
+				Expect(conn.writes.Len()).To(Equal(0))
+			},
+			Entry("pipe in symbol", SubscriptionRequestMsg{Schema: "trades", Symbols: []string{"AAPL|snapshot=1"}}),
+			Entry("newline in symbol", SubscriptionRequestMsg{Schema: "trades", Symbols: []string{"AAPL", "MSFT\nstart_session=0"}}),
+			Entry("carriage return in symbol", SubscriptionRequestMsg{Schema: "trades", Symbols: []string{"AAPL\r"}}),
+			Entry("pipe in schema", SubscriptionRequestMsg{Schema: "trades|snapshot=1", Symbols: []string{"AAPL"}}),
+			Entry("newline in schema", SubscriptionRequestMsg{Schema: "trades\n", Symbols: []string{"AAPL"}}),
+			Entry("carriage return in schema", SubscriptionRequestMsg{Schema: "trades\r", Symbols: []string{"AAPL"}}),
+		)
+
+		DescribeTable("should reject control characters in auth fields without writing",
+			func(dataset, clientName string) {
+				conn := authConn("success=1|session_id=sess-1\n")
+				client := newClient(conn)
+				client.config.Dataset = dataset
+				client.config.Client = clientName
+				_, err := client.Authenticate(apiKey)
+				Expect(err).To(HaveOccurred())
+				Expect(conn.writes.Len()).To(Equal(0))
+			},
+			Entry("pipe in dataset", "XNAS.ITCH|ts_out=1", "c"),
+			Entry("newline in dataset", "XNAS.ITCH\n", "c"),
+			Entry("carriage return in dataset", "XNAS.ITCH\r", "c"),
+			Entry("pipe in client", "XNAS.ITCH", "c|pretty_px=1"),
+			Entry("newline in client", "XNAS.ITCH", "c\nstart_session=0"),
+			Entry("carriage return in client", "XNAS.ITCH", "c\r"),
+		)
+
+		It("should reject control characters in the config before dialing", func() {
+			_, err := NewLiveClient(LiveConfig{
+				ApiKey:  strings.Repeat("a", API_KEY_LENGTH),
+				Dataset: "XNAS.ITCH|ts_out=1",
+				Gateway: "127.0.0.1",
+				Port:    1,
+			})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("Dataset"))
+		})
+	})
 })
 
 type scriptedConn struct {

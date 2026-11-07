@@ -26,12 +26,15 @@ These tools are available as:
 
  * Homebrew packages via:
    * `brew install NimbleMarkets/homebrew-tap/dbn-go`
+   * `brew install --cask NimbleMarkets/homebrew-tap/dbn-go-mcp-data`
 
  * Docker multi-architecture images on [GitHub's Container Registry](https://github.com/NimbleMarkets/dbn-go/pkgs/container/dbn-go) at `ghcr.io/nimblemarkets/dbn-go`: 
-   * Hist query: `docker run -e DATABENTO_API_KEY --rm ghcr.io/nimblemarkets/dbn-go:0.0.12 /usr/local/bin/dbn-go-hist datasets` 
-   * Simple Live feed handler: `docker run -e DATABENTO_API_KEY -v ${pwd}/dbn --rm ghcr.io/nimblemarkets/dbn-go:0.0.12 /usr/local/bin/dbn-go-live -d EQUS.MINI -s ohlcv-1h -o /dbn/foo.dbn -v -t QQQ SPY`
+   * Hist query: `docker run -e DATABENTO_API_KEY --rm ghcr.io/nimblemarkets/dbn-go:0.11.0 /usr/local/bin/dbn-go-hist datasets` 
+   * Simple Live feed handler: `docker run -e DATABENTO_API_KEY -v $(pwd):/dbn --rm ghcr.io/nimblemarkets/dbn-go:0.11.0 /usr/local/bin/dbn-go-live -d EQUS.MINI -s ohlcv-1h -o /dbn/foo.dbn -v QQQ SPY`
 
  * Built-from-source to the `./bin` folder with the command `task go-build` (install [Taskfile](https://taskfile.dev)).  
+
+ * `go install` for the tools in the root module, e.g. `go install github.com/NimbleMarkets/dbn-go/cmd/dbn-go-hist@latest`.  `dbn-go-mcp-data` and `dbn-go-slurp-docs` are separate Go modules and cannot be installed with `go install`; use the release binaries, Homebrew, or build from source.
 
 ----
 
@@ -204,7 +207,7 @@ usage: dbn-go-live -d <dataset> -s <schema> [opts] symbol1 symbol2 ...
 
 Simple invocation:
 ```
-$ dbn-go-live -d EQUS.MINI -s ohlcv-1h -o foo.dbn -v -t QQQ SPY 
+$ dbn-go-live -d EQUS.MINI -s ohlcv-1h -o foo.dbn -v QQQ SPY
 ```
 
 Connecting to a non-default gateway, such as a local test or replay server:
@@ -217,9 +220,9 @@ Simple Docker invocation:
 ```
 $ docker run -it --rm \
     -e DATABENTO_API_KEY \
-    -v ${pwd}/dbn \
-    ghcr.io/nimblemarkets/dbn-go:0.0.11 \
-    /usr/local/bin/dbn-go-live -d EQUS.MINI -s ohlcv-1h -o /dbn/foo.dbn -v -t QQQ SPY 
+    -v $(pwd):/dbn \
+    ghcr.io/nimblemarkets/dbn-go:0.11.0 \
+    /usr/local/bin/dbn-go-live -d EQUS.MINI -s ohlcv-1h -o /dbn/foo.dbn -v QQQ SPY
 ```
 
 ----

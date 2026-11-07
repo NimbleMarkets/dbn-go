@@ -73,4 +73,14 @@ var _ = Describe("DbnScanner short records", func() {
 			Expect(record).To(BeNil())
 		}).ToNot(Panic())
 	})
+
+	It("DecodeStatMsg and DecodeInstrumentDefMsg should return ErrNoMetadata on nil metadata", func() {
+		stat, err := dbn.DecodeStatMsg(nil, make([]byte, dbn.StatMsgV3_Size))
+		Expect(err).To(MatchError(dbn.ErrNoMetadata))
+		Expect(stat).To(BeNil())
+
+		def, err := dbn.DecodeInstrumentDefMsg(nil, make([]byte, dbn.InstrumentDefMsgV3_Size), dbn.InstrumentDefMsgV3_Size)
+		Expect(err).To(MatchError(dbn.ErrNoMetadata))
+		Expect(def).To(BeNil())
+	})
 })

@@ -34,6 +34,30 @@ type RequestErrorResp struct {
 
 //////////////////////////////////////////////////////////////////////////////
 
+// newHTTPClient returns an HTTP client whose transport gives up on a server
+// that does not send response headers within headerTimeout.
+func newHTTPClient(headerTimeout time.Duration) *http.Client {
+	var transport *http.Transport
+	if defaultTransport, ok := http.DefaultTransport.(*http.Transport); ok {
+		transport = defaultTransport.Clone()
+	} else {
+		transport = &http.Transport{}
+	}
+	transport.ResponseHeaderTimeout = headerTimeout
+	return &http.Client{Transport: transport}
+}
+
+// responseHeaderTimeout bounds how long a request waits for the server to
+// start responding. There is deliberately no overall Client.Timeout, so large
+// GetRange downloads are not cut off; dial and TLS handshake timeouts come
+// from http.DefaultTransport.
+const responseHeaderTimeout = 100 * time.Second
+
+// httpClient is shared by all Databento HTTP requests.
+var httpClient = newHTTPClient(responseHeaderTimeout)
+
+//////////////////////////////////////////////////////////////////////////////
+
 func databentoGetRequest(urlStr string, apiKey string) ([]byte, error) {
 	apiUrl, err := url.Parse(urlStr)
 	if err != nil {
@@ -47,8 +71,7 @@ func databentoGetRequest(urlStr string, apiKey string) ([]byte, error) {
 	auth := base64.StdEncoding.EncodeToString([]byte(apiKey + ":"))
 	req.Header.Add("Authorization", "Basic "+auth)
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -87,14 +110,13 @@ func databentoPostFormRequest(urlStr string, apiKey string, form url.Values, acc
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	if accept != "" {
-		req.Header.Set("Accept-Encoding", accept)
+		req.Header.Set("Accept", accept)
 	}
 
 	auth := base64.StdEncoding.EncodeToString([]byte(apiKey + ":"))
 	req.Header.Add("Authorization", "Basic "+auth)
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

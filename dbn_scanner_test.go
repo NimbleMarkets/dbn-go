@@ -2,6 +2,7 @@ package dbn_test
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"io"
 	"math"
@@ -306,6 +307,33 @@ var _ = Describe("DbnScanner", func() {
 			Expect(err).To(BeNil())
 			Expect(r.RawInstrumentID).To(Equal(uint64(2147483647)))
 			Expect(r.LegPrice).To(Equal(int64(math.MaxInt64)))
+		})
+	})
+
+	Context("malformed records", func() {
+		// streamWithRecordLen returns a valid DBN metadata prefix followed by a
+		// record whose length byte is recordLen (in 4-byte words), plus padding.
+		streamWithRecordLen := func(recordLen byte) io.Reader {
+			data, err := os.ReadFile("./tests/data/test_data.ohlcv-1s.v1.dbn")
+			Expect(err).To(BeNil())
+			metaLen := 8 + int(binary.LittleEndian.Uint32(data[4:8]))
+			var buf bytes.Buffer
+			buf.Write(data[:metaLen])
+			buf.WriteByte(recordLen)
+			buf.Write(make([]byte, 64))
+			return &buf
+		}
+
+		It("should reject a record length of 0 without panicking", func() {
+			scanner := dbn.NewDbnScanner(streamWithRecordLen(0))
+			Expect(func() { Expect(scanner.Next()).To(BeFalse()) }).ToNot(Panic())
+			Expect(scanner.Error()).To(MatchError(dbn.ErrMalformedRecord))
+		})
+
+		It("should reject a record length shorter than the record header", func() {
+			scanner := dbn.NewDbnScanner(streamWithRecordLen(1))
+			Expect(func() { Expect(scanner.Next()).To(BeFalse()) }).ToNot(Panic())
+			Expect(scanner.Error()).To(MatchError(dbn.ErrMalformedRecord))
 		})
 	})
 })

@@ -7,13 +7,13 @@ replace github.com/NimbleMarkets/dbn-go => ../..
 require (
 	github.com/NimbleMarkets/dbn-go v0.0.0
 	github.com/duckdb/duckdb-go/v2 v2.10506.0
-	github.com/mark3labs/mcp-go v1.3.0
-	github.com/spf13/pflag v1.0.10
+	github.com/mark3labs/mcp-go v1.5.0
+	github.com/spf13/pflag v1.1.0
 	golang.org/x/sync v0.22.0
 )
 
 require (
-	github.com/andybalholm/brotli v1.2.3 // indirect
+	github.com/andybalholm/brotli v1.2.8 // indirect
 	github.com/apache/arrow-go/v18 v18.8.0 // indirect
 	github.com/apache/thrift v0.24.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -32,7 +32,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
 	github.com/neomantra/ymdflag v0.2.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.29 // indirect
-	github.com/relvacode/iso8601 v1.8.2 // indirect
+	github.com/relvacode/iso8601 v1.8.3 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/valyala/fastjson v1.6.10 // indirect
