@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## Unreleased
+
+ * Fix Parquet output of Databento's `UNDEF_PRICE` and `UNDEF_TIMESTAMP` sentinels. Prices (`price`, `open`/`high`/`low`/`close`, `bid_px_NN`/`ask_px_NN`, imbalance prices, statistics `price`) are now written as NULL instead of `9223372036.854776`, and timestamps (`ts_event`, `ts_recv`, `ts_ref`, imbalance `auction_time`) as NULL instead of `-1ns` (`1969-12-31`). Imbalance `auction_time` is now a nanosecond timestamp column like the other `ts_*` fields rather than a bare unsigned integer. This matches Databento's Python `to_parquet` (NaN/NaT) and stops sentinels from poisoning SQL aggregates such as average spreads.
+ * Fix Parquet `symbol` resolution for records that carry `ts_recv` (`trades`, `mbp-*`, `cmbp-1`, `bbo-*`, `imbalance`, `statistics`, `status`) to look up the symbol by `ts_recv` rather than `ts_event`, matching upstream's index timestamp. Previously `bbo-1s`/`bbo-1m` intervals with no trade (undefined `ts_event`) were written with an empty `symbol`. OHLCV records continue to use `ts_event`.
+
 ## v0.11.0 (2026-11-07)
 
 **Compatibility notes:** `dbn-go-mcp-data` and `dbn-go-slurp-docs` are now separate Go modules (`cmd/dbn-go-mcp-data/go.mod`, `cmd/dbn-go-slurp-docs/go.mod`), so the root `github.com/NimbleMarkets/dbn-go` module no longer pulls in DuckDB C bindings, chromedp, or `github.com/76creates/stickers`. The `internal/mcp_data` package moved to `cmd/dbn-go-mcp-data/internal/mcp_data`. These two tools can no longer be installed with `go install`; use the release binaries, Homebrew, or build from source.
