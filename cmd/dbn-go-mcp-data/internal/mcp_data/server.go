@@ -5,6 +5,7 @@ package mcp_data
 import (
 	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/NimbleMarkets/dbn-go/internal/mcp_meta"
 	"golang.org/x/sync/singleflight"
@@ -29,6 +30,13 @@ type Server struct {
 	box      *ntduckbox.DB // Locked-down DuckDB in-memory instance via ntduckbox
 	mu       sync.Mutex
 	fetches  singleflight.Group
+
+	// queryGate admits one query_cache call at a time. ntduckbox serializes
+	// queries on a single connection and starts its QueryTimeout before the
+	// connection is acquired, so without admission control a cheap query
+	// queued behind a slow one fails with a confusing deadline error.
+	queryGate chan struct{}
+	queryWait time.Duration // How long to wait for the gate before reporting busy (0 = defaultQueryWait)
 }
 
 // NewServer creates a new Server with the given API key, and logger.

@@ -155,9 +155,35 @@ func (s *Server) InitCache() error {
 		return fmt.Errorf("failed to open ntduckbox: %w", err)
 	}
 	s.box = box
+	s.queryGate = make(chan struct{}, 1)
 
 	return s.refreshViews()
 }
+
+// defaultQueryWait bounds how long a query_cache call waits for an in-flight
+// query to finish before telling the caller to retry.
+const defaultQueryWait = 5 * time.Second
+
+// acquireQuery takes the query gate or returns a busy error after queryWait.
+// The caller must call releaseQuery on success.
+func (s *Server) acquireQuery(ctx context.Context) error {
+	wait := s.queryWait
+	if wait <= 0 {
+		wait = defaultQueryWait
+	}
+	timer := time.NewTimer(wait)
+	defer timer.Stop()
+	select {
+	case s.queryGate <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return fmt.Errorf("another query_cache call is still running (waited %s); retry shortly, or simplify the other query", wait)
+	}
+}
+
+func (s *Server) releaseQuery() { <-s.queryGate }
 
 // Close closes the ntduckbox DuckDB connection.
 func (s *Server) Close() error {
@@ -253,6 +279,11 @@ func (s *Server) queryDuckDBResult(ctx context.Context, userSQL string, opts que
 	if opts.Format != "" {
 		format = ntduckbox.Format(opts.Format)
 	}
+
+	if err := s.acquireQuery(ctx); err != nil {
+		return ntduckbox.Result{}, err
+	}
+	defer s.releaseQuery()
 
 	res, err := s.box.QueryWith(ctx, userSQL, ntduckbox.QueryOptions{
 		Format:   format,

@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/NimbleMarkets/dbn-go/internal/file"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -280,5 +281,33 @@ func TestRegisterDataTools_RegistersDescribeCacheAndDocumentsAliases(t *testing.
 		if !strings.Contains(desc, want) {
 			t.Errorf("query_cache description should mention %q:\n%s", want, desc)
 		}
+	}
+}
+
+// ntduckbox runs queries on one connection and its QueryTimeout starts before
+// the connection is acquired, so a cheap query queued behind a slow one can
+// burn its whole budget waiting and fail with "context deadline exceeded".
+// The host admits one query at a time and tells later callers to retry
+// quickly instead of letting them queue into a timeout.
+func TestQueryDuckDB_BusyRejectsQuicklyWhileAnotherQueryRuns(t *testing.T) {
+	s := testServerWithDB(t)
+	s.queryWait = 50 * time.Millisecond
+
+	s.queryGate <- struct{}{} // simulate an in-flight query holding the gate
+	start := time.Now()
+	_, err := s.queryDuckDBResult(context.Background(), "SELECT 1", queryDuckDBOptions{})
+	if err == nil {
+		t.Fatal("expected busy error while gate is held")
+	}
+	if !strings.Contains(err.Error(), "another query_cache call is still running") {
+		t.Errorf("busy error = %q", err)
+	}
+	if waited := time.Since(start); waited > time.Second {
+		t.Errorf("busy rejection took %v; should be about queryWait", waited)
+	}
+	<-s.queryGate
+
+	if _, err := s.queryDuckDBResult(context.Background(), "SELECT 1", queryDuckDBOptions{}); err != nil {
+		t.Fatalf("query after gate released failed: %v", err)
 	}
 }
