@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -23,161 +24,10 @@ import (
 // Only alphanumeric, dot, hyphen, and underscore are allowed.
 var safeName = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 
-var (
-	queryPrefixPattern = regexp.MustCompile(`(?is)^\s*(select|with)\b`)
-	// Block known external-read functions and non-query/DDL keywords.
-	disallowedQueryPattern = regexp.MustCompile(
-		`(?i)\b(read_[a-z0-9_]*|[a-z0-9_]*_scan|attach|detach|copy|install|load|pragma|call|create|alter|drop|insert|update|delete|merge|truncate|vacuum|checkpoint|set|reset|use|export|import)\b`,
-	)
-	// Block table functions that run SQL from a string literal (which hides it from
-	// the keyword check above) or that touch the filesystem.
-	disallowedFunctionPattern = regexp.MustCompile(`(?i)\b(query|query_table|glob|sniff_csv)\s*\(`)
-	// DuckDB allows FROM 'path/to/file.csv'; block quoted table sources.
-	disallowedQuotedFromPattern = regexp.MustCompile(`(?is)\b(from|join)\s*'`)
-)
-
 // sqlLiteral escapes a string for use as a SQL string literal,
 // preventing SQL injection via embedded single quotes.
 func sqlLiteral(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
-}
-
-// stripSQLComments removes SQL line/block comments while preserving quoted literals/identifiers.
-func stripSQLComments(sqlText string) string {
-	var out strings.Builder
-	inSingle := false
-	inDouble := false
-	inLineComment := false
-	inBlockComment := false
-
-	for i := 0; i < len(sqlText); i++ {
-		ch := sqlText[i]
-
-		if inLineComment {
-			if ch == '\n' {
-				inLineComment = false
-				out.WriteByte(ch)
-			}
-			continue
-		}
-		if inBlockComment {
-			if ch == '*' && i+1 < len(sqlText) && sqlText[i+1] == '/' {
-				inBlockComment = false
-				i++
-			}
-			continue
-		}
-		if inSingle {
-			out.WriteByte(ch)
-			if ch == '\'' {
-				if i+1 < len(sqlText) && sqlText[i+1] == '\'' {
-					i++
-					out.WriteByte(sqlText[i])
-				} else {
-					inSingle = false
-				}
-			}
-			continue
-		}
-		if inDouble {
-			out.WriteByte(ch)
-			if ch == '"' {
-				if i+1 < len(sqlText) && sqlText[i+1] == '"' {
-					i++
-					out.WriteByte(sqlText[i])
-				} else {
-					inDouble = false
-				}
-			}
-			continue
-		}
-
-		if ch == '-' && i+1 < len(sqlText) && sqlText[i+1] == '-' {
-			inLineComment = true
-			i++
-			continue
-		}
-		if ch == '/' && i+1 < len(sqlText) && sqlText[i+1] == '*' {
-			inBlockComment = true
-			i++
-			continue
-		}
-
-		if ch == '\'' {
-			inSingle = true
-		} else if ch == '"' {
-			inDouble = true
-		}
-		out.WriteByte(ch)
-	}
-
-	return out.String()
-}
-
-// stripSQLLiteralsAndComments removes SQL comments and quoted literals/identifiers.
-func stripSQLLiteralsAndComments(sqlText string) string {
-	commentless := stripSQLComments(sqlText)
-
-	var out strings.Builder
-	inSingle := false
-	inDouble := false
-	for i := 0; i < len(commentless); i++ {
-		ch := commentless[i]
-		if inSingle {
-			if ch == '\'' {
-				if i+1 < len(commentless) && commentless[i+1] == '\'' {
-					i++
-				} else {
-					inSingle = false
-				}
-			}
-			continue
-		}
-		if inDouble {
-			if ch == '"' {
-				if i+1 < len(commentless) && commentless[i+1] == '"' {
-					i++
-				} else {
-					inDouble = false
-				}
-			}
-			continue
-		}
-		if ch == '\'' {
-			inSingle = true
-			out.WriteByte(' ')
-			continue
-		}
-		if ch == '"' {
-			inDouble = true
-			out.WriteByte(' ')
-			continue
-		}
-		out.WriteByte(ch)
-	}
-	return out.String()
-}
-
-func validateQueryCacheSQL(userSQL string) error {
-	commentless := strings.TrimSpace(stripSQLComments(userSQL))
-	if commentless == "" {
-		return fmt.Errorf("sql must not be empty")
-	}
-	if strings.Contains(commentless, ";") {
-		return fmt.Errorf("multiple SQL statements are not allowed")
-	}
-	if disallowedQuotedFromPattern.MatchString(commentless) {
-		return fmt.Errorf("query_cache only allows cached view sources, not quoted file paths")
-	}
-
-	normalized := strings.TrimSpace(stripSQLLiteralsAndComments(userSQL))
-	if !queryPrefixPattern.MatchString(normalized) {
-		return fmt.Errorf("only SELECT/CTE queries are allowed")
-	}
-	if disallowedQueryPattern.MatchString(normalized) || disallowedFunctionPattern.MatchString(normalized) {
-		return fmt.Errorf("query contains disallowed SQL keywords/functions")
-	}
-	return nil
 }
 
 // schemaSupportsParquet returns true if the schema can be converted to parquet.
@@ -383,25 +233,46 @@ func (s *Server) queryDuckDBResult(ctx context.Context, userSQL string, opts que
 	if s.box == nil {
 		return ntduckbox.Result{}, fmt.Errorf("cache not initialized")
 	}
-	if err := validateQueryCacheSQL(userSQL); err != nil {
-		return ntduckbox.Result{}, err
-	}
-
-	maxRows := defaultQueryRows
-	if opts.MaxRows > 0 {
-		maxRows = min(opts.MaxRows, maxQueryRows)
-	}
 
 	format := ntduckbox.CSV
 	if opts.Format != "" {
 		format = ntduckbox.Format(opts.Format)
 	}
 
-	return s.box.QueryWith(ctx, userSQL, ntduckbox.QueryOptions{
+	res, err := s.box.QueryWith(ctx, userSQL, ntduckbox.QueryOptions{
 		Format:   format,
-		MaxRows:  maxRows,
+		MaxRows:  opts.effectiveMaxRows(),
 		Truncate: true,
 	})
+	if err != nil {
+		return ntduckbox.Result{}, classifyQueryError(err)
+	}
+	return res, nil
+}
+
+// effectiveMaxRows returns the row cap actually sent to ntduckbox.
+func (opts queryDuckDBOptions) effectiveMaxRows() int {
+	if opts.MaxRows > 0 {
+		return min(opts.MaxRows, maxQueryRows)
+	}
+	return defaultQueryRows
+}
+
+// classifyQueryError turns ntduckbox's sentinel errors into messages that tell
+// the LLM what to do next. The engine itself enforces the statement type
+// (single read-only SELECT-style statements), the file allowlist, and the
+// locked configuration, so no host-side SQL allowlist is needed.
+func classifyQueryError(err error) error {
+	switch {
+	case errors.Is(err, ntduckbox.ErrNotSelect):
+		return fmt.Errorf("only a single read-only SELECT-style statement is allowed (SELECT, WITH ... SELECT, FROM-first, VALUES, DESCRIBE, SUMMARIZE, SHOW): %w", err)
+	case errors.Is(err, ntduckbox.ErrPermission):
+		return fmt.Errorf("query_cache can only read the cached views; file, extension, and settings access is disabled: %w", err)
+	case errors.Is(err, ntduckbox.ErrBinder):
+		return fmt.Errorf("%w (use describe_cache or list_cache to see view names and columns)", err)
+	default:
+		return err
+	}
 }
 
 // CacheFileInfo describes a single cached parquet file and its manifest metadata.

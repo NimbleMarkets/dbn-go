@@ -6,11 +6,12 @@ replace github.com/NimbleMarkets/dbn-go => ../..
 
 require (
 	github.com/NimbleMarkets/dbn-go v0.0.0
+	github.com/apache/arrow-go/v18 v18.8.0
 	github.com/duckdb/duckdb-go/v2 v2.20000.0
 	github.com/mark3labs/mcp-go v1.5.0
 	github.com/spf13/pflag v1.1.0
 	golang.org/x/sync v0.24.0
-	nimbleterminal.dev/ntduckbox v0.2.2
+	nimbleterminal.dev/ntduckbox v0.3.0
 )
 
 require (
@@ -30,7 +31,6 @@ require (
 	github.com/Query-farm-haybarn/haybarn-go-bindings/lib/windows-amd64 v0.10506.0 // indirect
 	github.com/Query-farm-haybarn/haybarn-go/v2 v2.10506.0 // indirect
 	github.com/andybalholm/brotli v1.2.8 // indirect
-	github.com/apache/arrow-go/v18 v18.8.0 // indirect
 	github.com/apache/thrift v0.25.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/duckdb/duckdb-go-bindings v0.20000.0 // indirect

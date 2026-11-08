@@ -560,20 +560,6 @@ func TestFetchRangeOnce_DeduplicatesConcurrentCalls(t *testing.T) {
 	}
 }
 
-func TestValidateQueryCacheSQL_AllowsReadOnlySelects(t *testing.T) {
-	queries := []string{
-		`SELECT * FROM "XNAS.ITCH/trades" LIMIT 10`,
-		`WITH q AS (SELECT instrument_id FROM "XNAS.ITCH/trades") SELECT * FROM q`,
-		`-- comment
-SELECT * FROM "GLBX.MDP3/ohlcv-1d"`,
-	}
-	for _, q := range queries {
-		if err := validateQueryCacheSQL(q); err != nil {
-			t.Fatalf("validateQueryCacheSQL unexpectedly rejected %q: %v", q, err)
-		}
-	}
-}
-
 func testServerWithDB(t *testing.T) *Server {
 	t.Helper()
 	s := testServer(t)
@@ -609,7 +595,11 @@ func TestQueryDuckDB_CSV_Explicit(t *testing.T) {
 	}
 }
 
-func TestValidateQueryCacheSQL_BlocksExternalReadsAndDDL(t *testing.T) {
+// The engine (ntduckbox) enforces the statement type and file allowlist; the
+// host has no SQL regex of its own. Every one of these must still be rejected
+// on the query_cache path.
+func TestQueryDuckDB_BlocksExternalReadsAndDDL(t *testing.T) {
+	s := testServerWithDB(t)
 	blocked := []string{
 		`SELECT * FROM read_csv_auto('/etc/hosts')`,
 		`SELECT * FROM read_parquet('/tmp/data.parquet')`,
@@ -625,8 +615,8 @@ func TestValidateQueryCacheSQL_BlocksExternalReadsAndDDL(t *testing.T) {
 		`SELECT * FROM sniff_csv('/etc/hosts')`,
 	}
 	for _, q := range blocked {
-		if err := validateQueryCacheSQL(q); err == nil {
-			t.Fatalf("validateQueryCacheSQL should reject %q", q)
+		if _, err := s.queryDuckDBResult(context.Background(), q, queryDuckDBOptions{}); err == nil {
+			t.Fatalf("query_cache should reject %q", q)
 		}
 	}
 }
@@ -645,8 +635,8 @@ func TestInitCache_DuckDBBlocksFilesOutsideCacheDir(t *testing.T) {
 	s := testServerWithDB(t)
 	secretPath := writeSecretFile(t, "secret.csv")
 
-	// Run directly against DuckDB, skipping validateQueryCacheSQL, so this
-	// checks the engine-level lockdown on its own.
+	// Run directly against the ntduckbox DB so this checks the engine-level
+	// lockdown on its own, independent of the query_cache error mapping.
 	queries := []string{
 		fmt.Sprintf(`SELECT * FROM read_text(%s)`, sqlLiteral(secretPath)),
 		fmt.Sprintf(`SELECT * FROM query('SELECT content FROM read_text(%s)')`, strings.ReplaceAll(sqlLiteral(secretPath), "'", "''")),
@@ -710,12 +700,9 @@ func TestInitCache_DuckDBBlocksPathEscapes(t *testing.T) {
 					t.Skipf("symlink creation unavailable: %v", err)
 				}
 			}
-			// Quoting the function name bypasses the keyword filter. Assert
-			// that DuckDB still enforces the boundary through query_cache.
+			// A quoted function name would have bypassed a keyword filter.
+			// Assert that DuckDB enforces the boundary through query_cache.
 			query := fmt.Sprintf(`SELECT content FROM "read_text"(%s)`, sqlLiteral(tc.path))
-			if err := validateQueryCacheSQL(query); err != nil {
-				t.Fatalf("expected query to reach DuckDB: %v", err)
-			}
 			_, err := s.queryDuckDB(query, queryDuckDBOptions{})
 			assertDuckDBPermissionError(t, err)
 		})

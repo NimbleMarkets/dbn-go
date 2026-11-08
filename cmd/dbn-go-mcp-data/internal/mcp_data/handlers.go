@@ -16,6 +16,7 @@ import (
 	"github.com/NimbleMarkets/dbn-go/internal/file"
 	"github.com/NimbleMarkets/dbn-go/internal/mcp_meta"
 	"github.com/mark3labs/mcp-go/mcp"
+	"nimbleterminal.dev/ntduckbox"
 )
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -257,22 +258,29 @@ func (s *Server) queryCacheHandler(ctx context.Context, request mcp.CallToolRequ
 	format := request.GetString("format", "csv")
 	maxRows := request.GetInt("max_rows", 0)
 
-	res, err := s.queryDuckDBResult(ctx, sqlStr, queryDuckDBOptions{
-		Format:  format,
-		MaxRows: maxRows,
-	})
+	opts := queryDuckDBOptions{Format: format, MaxRows: maxRows}
+	res, err := s.queryDuckDBResult(ctx, sqlStr, opts)
 	if err != nil {
 		return mcp.NewToolResultErrorf("query failed: %s", err), nil
 	}
 
-	s.Logger.Info("query_cache", "sql", sqlStr, "format", format, "max_rows", maxRows, "rows", res.Rows, "truncated", res.Truncated)
+	s.Logger.Info("query_cache", "sql", sqlStr, "format", format, "max_rows", maxRows,
+		"rows", res.Rows, "bytes", res.Bytes, "truncated", res.Truncated, "elapsed", res.Elapsed)
 	toolResult := mcp.NewToolResultText(res.Text)
 	if res.Truncated {
-		toolResult.Content = append(toolResult.Content, mcp.NewTextContent(
-			fmt.Sprintf("Showing %d rows, more exist. Add a SQL LIMIT/WHERE clause or increase max_rows (up to %d).", res.Rows, maxQueryRows),
-		))
+		toolResult.Content = append(toolResult.Content, mcp.NewTextContent(truncationNotice(res, opts.effectiveMaxRows())))
 	}
 	return toolResult, nil
+}
+
+// truncationNotice explains which limit cut the result short so the LLM takes
+// the right corrective action: raising max_rows cannot help when the byte cap hit.
+func truncationNotice(res ntduckbox.Result, maxRows int) string {
+	if res.Rows < maxRows {
+		return fmt.Sprintf("Showing %d rows (%d bytes); more exist but the result hit the %d MB size limit. Add a WHERE/LIMIT clause or select fewer columns.",
+			res.Rows, res.Bytes, maxQueryChars/1_000_000)
+	}
+	return fmt.Sprintf("Showing %d rows, more exist. Add a SQL LIMIT/WHERE clause or increase max_rows (up to %d).", res.Rows, maxQueryRows)
 }
 
 func (s *Server) listCacheHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {

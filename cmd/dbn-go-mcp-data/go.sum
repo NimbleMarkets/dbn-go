@@ -124,5 +124,5 @@ google.golang.org/grpc v1.83.2 h1:EManeRomTObA0BU7I8vXgg/78uE5MJ9M8B39EX2WscU=
 google.golang.org/grpc v1.83.2/go.mod h1:YPI1hK3kDked6iHvgX3tR0y+nX/qpMFKhPgFsokw1S8=
 google.golang.org/protobuf v1.36.12 h1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=
 google.golang.org/protobuf v1.36.12/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
-nimbleterminal.dev/ntduckbox v0.2.2 h1:830d/c/kiBSgSCBQ+CvRItRz8mSkBt8m/EtnYj/Qf1o=
-nimbleterminal.dev/ntduckbox v0.2.2/go.mod h1:xJTQESiMqShrikEaQgLRy3/ByBxW7Mc3kUBM0s39R7k=
+nimbleterminal.dev/ntduckbox v0.3.0 h1:YIK5MRgsfC50CfVeZmeppN3WX57PtwKdZIKMRtDm0EQ=
+nimbleterminal.dev/ntduckbox v0.3.0/go.mod h1:xJTQESiMqShrikEaQgLRy3/ByBxW7Mc3kUBM0s39R7k=
