@@ -114,3 +114,71 @@ func TestQueryCacheHandler_SizeTruncationHint(t *testing.T) {
 		t.Errorf("size-truncation notice should mention the size limit and not max_rows: %q", notice)
 	}
 }
+
+// Alias views give each cached view a plain identifier (no quoting needed) and
+// cast nanosecond timestamps to TIMESTAMPTZ so date_trunc/extract/time_bucket
+// work without a cast. The raw view keeps full precision.
+func TestAliasViewName(t *testing.T) {
+	cases := map[string]string{
+		"XNAS.ITCH/ohlcv-1d": "xnas_itch_ohlcv_1d",
+		"EQUS.MINI/bbo-1m":   "equs_mini_bbo_1m",
+		"GLBX.MDP3/mbp-10":   "glbx_mdp3_mbp_10",
+	}
+	for in, want := range cases {
+		if got := aliasViewName(in); got != want {
+			t.Errorf("aliasViewName(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestRefreshViews_CreatesAliasViewWithTimestampCast(t *testing.T) {
+	s := testServerWithFixtureView(t)
+
+	raw, err := s.queryDuckDB(`SELECT typeof(ts_event) AS t FROM "XNAS.ITCH/ohlcv-1s" LIMIT 1`, queryDuckDBOptions{})
+	if err != nil {
+		t.Fatalf("raw view query failed: %v", err)
+	}
+	if raw != "t\nTIMESTAMPTZ_NS\n" {
+		t.Errorf("raw view ts_event type: got %q, want TIMESTAMPTZ_NS", raw)
+	}
+
+	alias, err := s.queryDuckDB(`SELECT typeof(ts_event) AS t, count(*) AS n FROM xnas_itch_ohlcv_1s GROUP BY 1`, queryDuckDBOptions{})
+	if err != nil {
+		t.Fatalf("alias view query failed: %v", err)
+	}
+	if alias != "t,n\nTIMESTAMP WITH TIME ZONE,2\n" {
+		t.Errorf("alias view: got %q, want TIMESTAMPTZ with 2 rows", alias)
+	}
+
+	// The whole point: date functions work on the alias without a cast.
+	if _, err := s.queryDuckDB(`SELECT date_trunc('day', ts_event), extract(hour FROM ts_event) FROM xnas_itch_ohlcv_1s`, queryDuckDBOptions{}); err != nil {
+		t.Errorf("date functions on alias view failed: %v", err)
+	}
+}
+
+func TestListCacheEntries_IncludesAliasView(t *testing.T) {
+	s := testServerWithFixtureView(t)
+	entries := s.listCacheEntries()
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(entries))
+	}
+	if entries[0].AliasView != "xnas_itch_ohlcv_1s" {
+		t.Errorf("AliasView = %q, want xnas_itch_ohlcv_1s", entries[0].AliasView)
+	}
+}
+
+func TestClearCache_DropsAliasView(t *testing.T) {
+	s := testServerWithFixtureView(t)
+	s.mu.Lock()
+	removed := s.clearCache("XNAS.ITCH", "ohlcv-1s")
+	s.mu.Unlock()
+	if removed != 1 {
+		t.Fatalf("clearCache removed %d files, want 1", removed)
+	}
+	if _, err := s.queryDuckDB(`SELECT count(*) FROM xnas_itch_ohlcv_1s`, queryDuckDBOptions{}); err == nil {
+		t.Error("alias view should be gone after clear_cache")
+	}
+	if _, err := s.queryDuckDB(`SELECT count(*) FROM "XNAS.ITCH/ohlcv-1s"`, queryDuckDBOptions{}); err == nil {
+		t.Error("raw view should be gone after clear_cache")
+	}
+}

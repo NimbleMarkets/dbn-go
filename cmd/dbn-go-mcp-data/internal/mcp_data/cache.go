@@ -196,9 +196,24 @@ func (s *Server) refreshViews() error {
 		}
 	}
 
-	if err := s.box.SetParquetViews(context.Background(), wantViews); err != nil {
+	// One alias view per raw view, replaced in the same transaction.
+	aliasViews := make(map[string]string, len(wantViews))
+	for viewName := range wantViews {
+		_, schema, _ := strings.Cut(viewName, "/")
+		alias := aliasViewName(viewName)
+		if _, clash := aliasViews[alias]; clash {
+			if s.Logger != nil {
+				s.Logger.Warn("alias view name collision; skipping alias", "view", viewName, "alias", alias)
+			}
+			continue
+		}
+		aliasViews[alias] = aliasViewSQL(viewName, schema)
+	}
+
+	err := s.box.SetAllViews(context.Background(), ntduckbox.ViewSet{Parquet: wantViews, SQL: aliasViews})
+	if err != nil {
 		if s.Logger != nil {
-			s.Logger.Warn("failed to refresh parquet views", "error", err)
+			s.Logger.Warn("failed to refresh cache views", "error", err)
 		}
 		return err
 	}
@@ -291,7 +306,8 @@ type CacheFileInfo struct {
 
 // CacheEntry describes a cached dataset/schema in the cache directory.
 type CacheEntry struct {
-	ViewName  string          `json:"view_name"`
+	ViewName  string          `json:"view_name"`  // Raw view, e.g. "XNAS.ITCH/trades" (double-quote it in SQL; nanosecond timestamps)
+	AliasView string          `json:"alias_view"` // Plain-identifier alias, e.g. xnas_itch_trades (TIMESTAMPTZ timestamps)
 	Dataset   string          `json:"dataset"`
 	Schema    string          `json:"schema"`
 	Files     []CacheFileInfo `json:"files"`
@@ -342,8 +358,10 @@ func (s *Server) listCacheEntries() []CacheEntry {
 				}
 				files = append(files, fi)
 			}
+			viewName := ds.Name() + "/" + sc.Name()
 			entries = append(entries, CacheEntry{
-				ViewName:  ds.Name() + "/" + sc.Name(),
+				ViewName:  viewName,
+				AliasView: aliasViewName(viewName),
 				Dataset:   ds.Name(),
 				Schema:    sc.Name(),
 				Files:     files,
