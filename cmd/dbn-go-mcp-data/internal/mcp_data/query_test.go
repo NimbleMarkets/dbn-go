@@ -4,13 +4,17 @@ package mcp_data
 
 import (
 	"context"
+	"encoding/json"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/NimbleMarkets/dbn-go/internal/file"
 	"github.com/mark3labs/mcp-go/mcp"
+	mcp_server "github.com/mark3labs/mcp-go/server"
 )
 
 // testServerWithFixtureView seeds the cache with the two-record ohlcv-1s
@@ -180,5 +184,101 @@ func TestClearCache_DropsAliasView(t *testing.T) {
 	}
 	if _, err := s.queryDuckDB(`SELECT count(*) FROM "XNAS.ITCH/ohlcv-1s"`, queryDuckDBOptions{}); err == nil {
 		t.Error("raw view should be gone after clear_cache")
+	}
+}
+
+// describe_cache lets the LLM learn view names and exact column types before
+// writing SQL, instead of guessing (bid_px vs bid_px_00) and reading binder errors.
+func TestDescribeCacheHandler_ListsAllViewsWithColumns(t *testing.T) {
+	s := testServerWithFixtureView(t)
+	req := mcp.CallToolRequest{}
+	req.Params.Name = "describe_cache"
+	req.Params.Arguments = map[string]any{}
+
+	res, err := s.describeCacheHandler(context.Background(), req)
+	if err != nil {
+		t.Fatalf("describeCacheHandler returned error: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("expected success, got tool error: %#v", res.Content[0])
+	}
+	text := res.Content[0].(mcp.TextContent).Text
+	// JSON keys follow the rest of the tool output: snake_case, lowercase.
+	if !strings.Contains(text, `{"name":"ts_event","type":"TIMESTAMP WITH TIME ZONE"}`) {
+		t.Errorf("describe_cache JSON should use lowercase name/type keys: %s", text)
+	}
+	var out []DescribedView
+	if err := json.Unmarshal([]byte(text), &out); err != nil {
+		t.Fatalf("describe_cache output is not JSON: %v", err)
+	}
+	if len(out) != 1 {
+		t.Fatalf("expected 1 described view, got %d", len(out))
+	}
+	v := out[0]
+	if v.ViewName != "XNAS.ITCH/ohlcv-1s" || v.AliasView != "xnas_itch_ohlcv_1s" {
+		t.Errorf("names: %#v", v)
+	}
+	cols := map[string]string{}
+	for _, c := range v.Columns {
+		cols[c.Name] = c.Type
+	}
+	// Default listing describes the alias view, whose timestamps are TIMESTAMPTZ.
+	if cols["ts_event"] != "TIMESTAMP WITH TIME ZONE" || cols["close"] != "DOUBLE" || cols["symbol"] != "VARCHAR" {
+		t.Errorf("columns: %v", cols)
+	}
+}
+
+func TestDescribeCacheHandler_DescribesOneViewByName(t *testing.T) {
+	s := testServerWithFixtureView(t)
+	req := mcp.CallToolRequest{}
+	req.Params.Name = "describe_cache"
+	req.Params.Arguments = map[string]any{"view": "XNAS.ITCH/ohlcv-1s"}
+
+	res, err := s.describeCacheHandler(context.Background(), req)
+	if err != nil || res.IsError {
+		t.Fatalf("describe raw view failed: err=%v res=%#v", err, res)
+	}
+	var out []DescribedView
+	if err := json.Unmarshal([]byte(res.Content[0].(mcp.TextContent).Text), &out); err != nil {
+		t.Fatalf("describe_cache output is not JSON: %v", err)
+	}
+	if len(out) != 1 || len(out[0].Columns) == 0 {
+		t.Fatalf("expected one view with columns, got %#v", out)
+	}
+	for _, c := range out[0].Columns {
+		if c.Name == "ts_event" && c.Type != "TIMESTAMPTZ_NS" {
+			t.Errorf("raw view ts_event type = %q, want TIMESTAMPTZ_NS", c.Type)
+		}
+	}
+}
+
+func TestDescribeCacheHandler_UnknownViewIsToolError(t *testing.T) {
+	s := testServerWithFixtureView(t)
+	req := mcp.CallToolRequest{}
+	req.Params.Name = "describe_cache"
+	req.Params.Arguments = map[string]any{"view": "nope"}
+
+	res, err := s.describeCacheHandler(context.Background(), req)
+	if err != nil {
+		t.Fatalf("handler returned Go error: %v", err)
+	}
+	if !res.IsError {
+		t.Fatalf("expected tool error for unknown view, got %#v", res)
+	}
+}
+
+func TestRegisterDataTools_RegistersDescribeCacheAndDocumentsAliases(t *testing.T) {
+	s := testServerWithDB(t)
+	mcpServer := mcp_server.NewMCPServer("test", "0.0.0")
+	s.RegisterDataTools(mcpServer)
+	tools := mcpServer.ListTools()
+	if _, ok := tools["describe_cache"]; !ok {
+		t.Fatalf("describe_cache not registered; have %v", slices.Sorted(maps.Keys(tools)))
+	}
+	desc := tools["query_cache"].Tool.Description
+	for _, want := range []string{"describe_cache", "alias", "TIMESTAMPTZ_NS", "SUMMARIZE"} {
+		if !strings.Contains(desc, want) {
+			t.Errorf("query_cache description should mention %q:\n%s", want, desc)
+		}
 	}
 }

@@ -22,7 +22,12 @@ func (s *Server) RegisterDataTools(mcpServer *mcp_server.MCPServer) {
 	// query_cache - SQL tool (no billing)
 	mcpServer.AddTool(
 		mcp.NewTool("query_cache",
-			mcp.WithDescription("Query cached market data using DuckDB SQL. Data previously fetched via fetch_range is stored locally and can be queried without additional billing. This does not incur any billing."),
+			mcp.WithDescription("Query cached market data using DuckDB SQL. Data previously fetched via fetch_range is stored locally and can be queried without additional billing. This does not incur any billing.\n\n"+
+				"Each cached dataset/schema has two views. Prefer the alias view (plain identifier, e.g. xnas_itch_trades): its timestamp columns are TIMESTAMPTZ, so date_trunc, extract, and time_bucket work directly. "+
+				"The raw view (\"XNAS.ITCH/trades\", must be double-quoted) keeps nanosecond TIMESTAMPTZ_NS timestamps, which most date functions reject without a ::TIMESTAMPTZ cast. "+
+				"Call describe_cache first to see view names and exact column names/types (e.g. bid_px_00, not bid_px). "+
+				"Prices are doubles; undefined prices and timestamps are NULL. "+
+				"Allowed: a single read-only SELECT-style statement (SELECT, WITH, FROM-first, VALUES, DESCRIBE, SUMMARIZE, SHOW TABLES). Not allowed: DDL/DML, PRAGMA/SET, EXPLAIN, PIVOT, multiple statements, and reading files."),
 			mcp.WithReadOnlyHintAnnotation(true),
 			mcp.WithDestructiveHintAnnotation(false),
 			mcp.WithIdempotentHintAnnotation(true),
@@ -39,6 +44,19 @@ func (s *Server) RegisterDataTools(mcpServer *mcp_server.MCPServer) {
 			),
 		),
 		s.queryCacheHandler,
+	)
+	// describe_cache - schema introspection (no billing)
+	mcpServer.AddTool(
+		mcp.NewTool("describe_cache",
+			mcp.WithDescription("Describes the columns (name and DuckDB type) of cached views. With no arguments, lists every cached view with its alias and the alias view's columns. Pass 'view' (either the raw name like \"XNAS.ITCH/trades\" or the alias like xnas_itch_trades) to describe exactly that view. Call this before query_cache to get column names right. This does not incur any billing."),
+			mcp.WithReadOnlyHintAnnotation(true),
+			mcp.WithDestructiveHintAnnotation(false),
+			mcp.WithIdempotentHintAnnotation(true),
+			mcp.WithString("view",
+				mcp.Description("Optional view to describe: raw name (e.g. XNAS.ITCH/trades) or alias (e.g. xnas_itch_trades). Omit to describe all cached views."),
+			),
+		),
+		s.describeCacheHandler,
 	)
 	// list_cache - cache tool (no billing)
 	mcpServer.AddTool(

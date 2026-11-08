@@ -283,6 +283,70 @@ func truncationNotice(res ntduckbox.Result, maxRows int) string {
 	return fmt.Sprintf("Showing %d rows, more exist. Add a SQL LIMIT/WHERE clause or increase max_rows (up to %d).", res.Rows, maxQueryRows)
 }
 
+// DescribedColumn is one column of a described view.
+type DescribedColumn struct {
+	Name string `json:"name"`
+	Type string `json:"type"` // DuckDB type, e.g. DOUBLE, UINTEGER, TIMESTAMPTZ_NS
+}
+
+// DescribedView is one entry of describe_cache output.
+type DescribedView struct {
+	ViewName  string            `json:"view_name"`            // Raw Parquet view, e.g. "XNAS.ITCH/trades"
+	AliasView string            `json:"alias_view,omitempty"` // Plain-identifier alias, e.g. xnas_itch_trades
+	Described string            `json:"described"`            // Which of the two the columns below belong to
+	Columns   []DescribedColumn `json:"columns"`
+}
+
+func describedColumns(cols []ntduckbox.Column) []DescribedColumn {
+	out := make([]DescribedColumn, len(cols))
+	for i, c := range cols {
+		out[i] = DescribedColumn{Name: c.Name, Type: c.Type}
+	}
+	return out
+}
+
+func (s *Server) describeCacheHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	if s.box == nil {
+		return mcp.NewToolResultError("cache not initialized"), nil
+	}
+	view := request.GetString("view", "")
+
+	var described []DescribedView
+	for _, entry := range s.listCacheEntries() {
+		target := entry.AliasView // the recommended view: plain name, TIMESTAMPTZ timestamps
+		switch view {
+		case "":
+		case entry.ViewName, entry.AliasView:
+			target = view
+		default:
+			continue
+		}
+		cols, err := s.box.Columns(ctx, target)
+		if err != nil {
+			return mcp.NewToolResultErrorf("describe %q failed: %s", target, classifyQueryError(err)), nil
+		}
+		described = append(described, DescribedView{
+			ViewName:  entry.ViewName,
+			AliasView: entry.AliasView,
+			Described: target,
+			Columns:   describedColumns(cols),
+		})
+	}
+	if view != "" && len(described) == 0 {
+		return mcp.NewToolResultErrorf("no cached view named %q; call list_cache or describe_cache without arguments to see the available views", view), nil
+	}
+	if described == nil {
+		described = []DescribedView{}
+	}
+
+	jbytes, err := json.Marshal(described)
+	if err != nil {
+		return mcp.NewToolResultErrorf("failed to marshal view descriptions: %s", err), nil
+	}
+	s.Logger.Info("describe_cache", "view", view, "views", len(described))
+	return mcp.NewToolResultText(string(jbytes)), nil
+}
+
 func (s *Server) listCacheHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	entries := s.listCacheEntries()
 
