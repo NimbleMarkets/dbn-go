@@ -277,7 +277,7 @@ func TestRegisterDataTools_RegistersDescribeCacheAndDocumentsAliases(t *testing.
 		t.Fatalf("describe_cache not registered; have %v", slices.Sorted(maps.Keys(tools)))
 	}
 	desc := tools["query_cache"].Tool.Description
-	for _, want := range []string{"describe_cache", "alias", "TIMESTAMPTZ_NS", "SUMMARIZE"} {
+	for _, want := range []string{"describe_cache", "alias", "TIMESTAMPTZ_NS", "SUMMARIZE", "UTC", "America/New_York"} {
 		if !strings.Contains(desc, want) {
 			t.Errorf("query_cache description should mention %q:\n%s", want, desc)
 		}

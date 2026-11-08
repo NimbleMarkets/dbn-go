@@ -26,6 +26,8 @@ func (s *Server) RegisterDataTools(mcpServer *mcp_server.MCPServer) {
 				"Each cached dataset/schema has two views. Prefer the alias view (plain identifier, e.g. xnas_itch_trades): its timestamp columns are TIMESTAMPTZ, so date_trunc, extract, and time_bucket work directly. "+
 				"The raw view (\"XNAS.ITCH/trades\", must be double-quoted) keeps nanosecond TIMESTAMPTZ_NS timestamps, which most date functions reject without a ::TIMESTAMPTZ cast. "+
 				"Call describe_cache first to see view names and exact column names/types (e.g. bid_px_00, not bid_px). "+
+				"SUMMARIZE works on alias views; on raw views it fails because nanosecond timestamps cannot be averaged. "+
+				"Timestamps are UTC. A US equities session (04:00-20:00 New York) spans 08:00-00:00 UTC, so filter or group by (ts_event AT TIME ZONE 'America/New_York')::DATE when the question is about a trading day. "+
 				"Prices are doubles; undefined prices and timestamps are NULL. "+
 				"Allowed: a single read-only SELECT-style statement (SELECT, WITH, FROM-first, VALUES, DESCRIBE, SUMMARIZE, SHOW TABLES). Not allowed: DDL/DML, PRAGMA/SET, EXPLAIN, PIVOT, multiple statements, and reading files."),
 			mcp.WithReadOnlyHintAnnotation(true),
