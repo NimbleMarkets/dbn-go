@@ -43,7 +43,12 @@ const (
 	MAX_STR_LENGTH = 24 * 1024
 
 	DIAL_TIMEOUT = 10 * time.Second
+	AUTH_TIMEOUT = 30 * time.Second // Default time allowed for the Authenticate handshake
 )
+
+// ErrControlMessageTooLong is returned when the gateway sends a control
+// message longer than MAX_STR_LENGTH bytes.
+var ErrControlMessageTooLong = errors.New("gateway control message too long")
 
 // ErrNotConnected is returned when using a LiveClient whose connection was closed by Stop.
 var ErrNotConnected = errors.New("live client is not connected")
@@ -79,6 +84,7 @@ type LiveConfig struct {
 	Encoding             dbn.Encoding // nil mean Encoding_Dbn
 	SendTsOut            bool
 	HeartbeatInterval    time.Duration // Heartbeat interval; 0 means use server default
+	AuthTimeout          time.Duration // Time allowed for the whole Authenticate handshake; 0 means AUTH_TIMEOUT
 	SlowReaderBehavior   dbn.SlowReaderBehavior
 	VersionUpgradePolicy dbn.VersionUpgradePolicy
 	Verbose              bool
@@ -350,6 +356,18 @@ func (c *LiveClient) Authenticate(apiKey string) (string, error) {
 		}
 	}
 
+	// Bound the whole handshake, so a gateway that stops responding cannot
+	// hang the caller. The deadline is lifted before the data stream starts.
+	authTimeout := c.config.AuthTimeout
+	if authTimeout <= 0 {
+		authTimeout = AUTH_TIMEOUT
+	}
+	conn := c.conn
+	if err := conn.SetDeadline(time.Now().Add(authTimeout)); err != nil {
+		return "", fmt.Errorf("failed to set handshake deadline: %w", err)
+	}
+	defer conn.SetDeadline(time.Time{})
+
 	// Read challege from socket and calcluate reply
 	challengeKey, err := c.decodeChallenge()
 	if err != nil {
@@ -370,7 +388,7 @@ func (c *LiveClient) Authenticate(apiKey string) (string, error) {
 	}
 	requestBytes := request.Encode()
 	if n, err := c.conn.Write(requestBytes); err != nil {
-		return "", fmt.Errorf("failed to send auth request: %v", err)
+		return "", fmt.Errorf("failed to send auth request: %w", err)
 	} else if n != len(requestBytes) {
 		return "", fmt.Errorf("failed to send auth request: wanted %d sent %d", len(requestBytes), n)
 	}
@@ -387,10 +405,22 @@ func (c *LiveClient) Authenticate(apiKey string) (string, error) {
 	return sessionID, nil
 }
 
+// readControlLine reads one newline-terminated control message from the
+// gateway. The line may be at most the reader's buffer size (MAX_STR_LENGTH);
+// a longer one returns ErrControlMessageTooLong rather than being buffered.
+// The returned slice is only valid until the next read.
+func (c *LiveClient) readControlLine() ([]byte, error) {
+	line, err := c.bufReader.ReadSlice('\n')
+	if errors.Is(err, bufio.ErrBufferFull) {
+		return nil, ErrControlMessageTooLong
+	}
+	return line, err
+}
+
 // https://databento.com/docs/api-reference-live/message-flows?historical=http&live=raw
 func (c *LiveClient) decodeChallenge() (string, error) {
 	// first line is version
-	line, err := c.bufReader.ReadBytes('\n')
+	line, err := c.readControlLine()
 	if err != nil {
 		return "", fmt.Errorf("failed to read Greeting: %w", err)
 	}
@@ -404,7 +434,7 @@ func (c *LiveClient) decodeChallenge() (string, error) {
 	}
 
 	// next is challenge request
-	line, err = c.bufReader.ReadBytes('\n')
+	line, err = c.readControlLine()
 	if err != nil {
 		return "", fmt.Errorf("failed to read Challenge: %w", err)
 	}
@@ -420,7 +450,7 @@ func (c *LiveClient) decodeChallenge() (string, error) {
 }
 
 func (c *LiveClient) decodeAuthResponse() (string, error) {
-	line, err := c.bufReader.ReadBytes('\n')
+	line, err := c.readControlLine()
 	if err != nil {
 		return "", fmt.Errorf("failed to read AuthResponse: %w", err)
 	}
@@ -434,7 +464,7 @@ func (c *LiveClient) decodeAuthResponse() (string, error) {
 	}
 
 	if resp.Success != "1" {
-		return "", fmt.Errorf("failed to authenticate: success: %q error: %s", resp.Success, resp.Error)
+		return "", fmt.Errorf("failed to authenticate: success: %q error: %q", resp.Success, resp.Error)
 	}
 
 	return resp.SessionID, nil
