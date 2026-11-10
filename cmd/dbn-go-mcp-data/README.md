@@ -16,6 +16,8 @@ usage: dbn-go-mcp-data -k <api_key> [opts]
   -l, --log-file string   Log file destination (or MCP_LOG_FILE envvar). Default is stderr
   -j, --log-json          Log in JSON (default is plaintext)
   -c, --max-cost float    Max cost, in dollars, for a query (<=0 is unlimited) (default 1)
+      --max-session-cost float   Max total cost, in dollars, of all queries while this server runs (<=0 is unlimited) (default 10)
+      --max-query-bytes int      Max billable (uncompressed) size, in bytes, for a query (<=0 is unlimited) (default 1073741824)
       --cache-dir string  Directory for cached data files (default "~/.dbn-go/cache/")
       --read-only         Disable fetch_range tool (no billing possible)
   -p, --hostport string   host:port to listen to SSE connections (default "127.0.0.1:8889")
@@ -143,6 +145,16 @@ dbn-go-mcp-data --sse --hostport 0.0.0.0:8889 --sse-token-file /path/to/sse_toke
 ```
 
 The token can also be set with the `DBN_GO_MCP_SSE_TOKEN` environment variable. SSE is plain HTTP; put it behind TLS if it leaves the machine.
+
+### Spending Limits
+
+`fetch_range` is checked against three limits before any data is downloaded:
+
+- `--max-cost` (default $1): the estimated cost of one query.
+- `--max-session-cost` (default $10): the total estimated cost of all queries since the server started. Restart the server to reset it.
+- `--max-query-bytes` (default 1 GiB): the billable (uncompressed) size of one query. This also bounds queries that cost nothing on a flat-rate plan.
+
+A query's estimated cost counts against the session total once it is admitted, even if the download then fails. Set a limit to `0` to disable it.
 
 ## See Also
 

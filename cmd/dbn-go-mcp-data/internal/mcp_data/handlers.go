@@ -164,9 +164,18 @@ func (s *Server) fetchRangeHandler(ctx context.Context, request mcp.CallToolRequ
 		if err != nil {
 			return "", fmt.Errorf("failed to get cost: %w", err)
 		}
-		if s.maxCost > 0 && cost > s.maxCost {
-			return "", fmt.Errorf("query exceeds budget: estimated cost $%.2f, budget $%.2f", cost, s.maxCost)
+		var billableSize int64
+		if s.budget.maxQueryBytes > 0 {
+			size, err := dbn_hist.GetBillableSize(s.GetApiKey(), metaParams)
+			if err != nil {
+				return "", fmt.Errorf("failed to get billable size: %w", err)
+			}
+			billableSize = int64(size)
 		}
+		if err := s.budget.reserve(cost, billableSize); err != nil {
+			return "", err
+		}
+		s.Logger.Info("fetch_range admitted", "cost", cost, "billable_size", billableSize, "session_cost", s.budget.spent())
 
 		jobParams := dbn_hist.SubmitJobParams{
 			Dataset:      p.Dataset,

@@ -28,9 +28,11 @@ import (
 const (
 	mcpServerVersion = "0.0.1"
 
-	defaultSSEHostPort = "127.0.0.1:8889"
-	defaultMaxCost     = 1.0 // $1.00
-	defaultCacheDir    = "~/.dbn-go/cache/"
+	defaultSSEHostPort          = "127.0.0.1:8889"
+	defaultMaxCost              = 1.0     // $1.00
+	defaultMaxSessionCost       = 10.0    // $10.00
+	defaultMaxQueryBytes  int64 = 1 << 30 // 1 GiB
+	defaultCacheDir             = "~/.dbn-go/cache/"
 
 	// serverInstructions is sent to LLM clients during MCP initialization.
 	serverInstructions = `dbn-go-mcp-data provides full access to Databento's historical market data APIs with a local DuckDB cache.
@@ -50,7 +52,7 @@ Additional discovery tools: list_publishers (venue/source info), list_unit_price
 
 Cache tools: list_cache (see cached data and view names), query_cache (SQL queries against cached data), clear_cache (remove cached data).
 
-The server enforces a per-query budget limit on fetch_range. For large queries, prefer compact schemas like ohlcv-1d or ohlcv-1h.`
+The server enforces a per-query budget, a per-query size limit, and a total budget for the session on fetch_range; when a limit is hit, tell the user rather than retrying. For large queries, prefer compact schemas like ohlcv-1d or ohlcv-1h.`
 )
 
 type Config struct {
@@ -68,7 +70,7 @@ type Config struct {
 
 	Verbose bool // Verbose logging
 
-	mcp_data.ServerConfig // MCP data config (MaxCost, CacheDir, ReadOnly)
+	mcp_data.ServerConfig // MCP data config (MaxCost, MaxSessionCost, MaxQueryBytes, CacheDir, ReadOnly)
 
 	// TODO:
 	//   allow/deny lists for schema/dataset
@@ -92,6 +94,8 @@ func main() {
 	pflag.BoolVarP(&config.LogJSON, "log-json", "j", false, "Log in JSON (default is plaintext)")
 	pflag.StringVarP(&config.SSEHostPort, "hostport", "p", "", "host:port to listen to SSE connections")
 	pflag.Float64VarP(&config.MaxCost, "max-cost", "c", defaultMaxCost, "Max cost, in dollars, for a query (<=0 is unlimited)")
+	pflag.Float64Var(&config.MaxSessionCost, "max-session-cost", defaultMaxSessionCost, "Max total cost, in dollars, of all queries while this server runs (<=0 is unlimited)")
+	pflag.Int64Var(&config.MaxQueryBytes, "max-query-bytes", defaultMaxQueryBytes, "Max billable (uncompressed) size, in bytes, for a query (<=0 is unlimited)")
 	pflag.StringVar(&config.CacheDir, "cache-dir", defaultCacheDir, "Directory for cached data files")
 	pflag.BoolVar(&config.ReadOnly, "read-only", false, "Disable fetch_range tool (no billing possible)")
 	pflag.StringSliceVar(&config.SSEAllowedOrigins, "sse-allow-origin", nil, "Browser origin allowed to use the SSE transport, e.g. http://localhost:6274 (repeatable; default none)")
@@ -197,10 +201,12 @@ func run() error {
 	)
 
 	srv := mcp_data.NewServer(mcp_data.ServerConfig{
-		ApiKey:   config.ApiKey,
-		MaxCost:  config.MaxCost,
-		CacheDir: config.CacheDir,
-		ReadOnly: config.ReadOnly,
+		ApiKey:         config.ApiKey,
+		MaxCost:        config.MaxCost,
+		MaxSessionCost: config.MaxSessionCost,
+		MaxQueryBytes:  config.MaxQueryBytes,
+		CacheDir:       config.CacheDir,
+		ReadOnly:       config.ReadOnly,
 	}, logger)
 
 	if err := srv.InitCache(); err != nil {
