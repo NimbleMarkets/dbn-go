@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/NimbleMarkets/dbn-go/cmd/dbn-go-mcp-data/internal/mcp_data"
+	"github.com/NimbleMarkets/dbn-go/internal/mcp_meta"
 	"github.com/NimbleMarkets/dbn-go/internal/version"
 	mcp_server "github.com/mark3labs/mcp-go/server"
 	"github.com/spf13/pflag"
@@ -60,8 +61,10 @@ type Config struct {
 	Name    string // Service Name
 	Version string // Service Version
 
-	UseSSE      bool   // Use SSE Transport instead of STDIO
-	SSEHostPort string // HostPort to use for SSE
+	UseSSE            bool     // Use SSE Transport instead of STDIO
+	SSEHostPort       string   // HostPort to use for SSE
+	SSEAllowedOrigins []string // Browser origins allowed to use SSE
+	SSETokenFile      string   // File holding the bearer token SSE clients must present
 
 	Verbose bool // Verbose logging
 
@@ -91,6 +94,8 @@ func main() {
 	pflag.Float64VarP(&config.MaxCost, "max-cost", "c", defaultMaxCost, "Max cost, in dollars, for a query (<=0 is unlimited)")
 	pflag.StringVar(&config.CacheDir, "cache-dir", defaultCacheDir, "Directory for cached data files")
 	pflag.BoolVar(&config.ReadOnly, "read-only", false, "Disable fetch_range tool (no billing possible)")
+	pflag.StringSliceVar(&config.SSEAllowedOrigins, "sse-allow-origin", nil, "Browser origin allowed to use the SSE transport, e.g. http://localhost:6274 (repeatable; default none)")
+	pflag.StringVar(&config.SSETokenFile, "sse-token-file", "", "File holding a bearer token SSE clients must present (or set 'DBN_GO_MCP_SSE_TOKEN' envvar)")
 	pflag.BoolVarP(&config.UseSSE, "sse", "", false, "Use SSE Transport (default is STDIO transport)")
 	pflag.BoolVarP(&config.Verbose, "verbose", "v", false, "Verbose logging")
 	pflag.BoolVarP(&showHelp, "help", "h", false, "Show help")
@@ -207,9 +212,21 @@ func run() error {
 	srv.RegisterDataTools(mcpServer)
 
 	if config.UseSSE {
-		sseServer := mcp_server.NewSSEServer(mcpServer)
-		logger.Info("MCP SSE server started", "hostPort", config.SSEHostPort)
-		if err := sseServer.Start(config.SSEHostPort); err != nil {
+		token, err := mcp_meta.LoadSSEToken(config.SSETokenFile)
+		if err != nil {
+			return err
+		}
+		if token == "" && !mcp_meta.IsLoopbackHostPort(config.SSEHostPort) {
+			logger.Warn("SSE is listening beyond localhost without a bearer token; anyone who can reach it can call every tool. Set --sse-token-file or "+mcp_meta.SSETokenEnvVar,
+				"hostPort", config.SSEHostPort)
+		}
+		logger.Info("MCP SSE server started", "hostPort", config.SSEHostPort,
+			"allowedOrigins", config.SSEAllowedOrigins, "tokenRequired", token != "")
+		err = mcp_meta.ServeSSE(mcpServer, config.SSEHostPort, mcp_meta.SSEConfig{
+			AllowedOrigins: config.SSEAllowedOrigins,
+			Token:          token,
+		})
+		if err != nil {
 			return fmt.Errorf("MCP SSE server error: %w", err)
 		}
 	} else {

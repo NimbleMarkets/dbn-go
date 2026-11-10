@@ -20,6 +20,8 @@ usage: dbn-go-mcp-data -k <api_key> [opts]
       --read-only         Disable fetch_range tool (no billing possible)
   -p, --hostport string   host:port to listen to SSE connections (default "127.0.0.1:8889")
       --sse               Use SSE Transport (default is STDIO transport)
+      --sse-allow-origin strings   Browser origin allowed to use the SSE transport, e.g. http://localhost:6274 (repeatable; default none)
+      --sse-token-file string      File holding a bearer token SSE clients must present (or set 'DBN_GO_MCP_SSE_TOKEN' envvar)
   -v, --verbose           Verbose logging
 ```
 
@@ -127,6 +129,20 @@ For networked deployments, run over HTTP with Server-Sent Events:
 dbn-go-mcp-data --sse                                  # localhost only (default)
 dbn-go-mcp-data --sse --hostport 0.0.0.0:8889          # listen on all interfaces
 ```
+
+The SSE endpoint refuses requests made by web pages, so a site you visit cannot drive the server. A browser-based client must be allowed by its origin:
+
+```bash
+dbn-go-mcp-data --sse --sse-allow-origin http://localhost:6274
+```
+
+When listening beyond localhost, require a bearer token. Clients send it as `Authorization: Bearer <token>`:
+
+```bash
+dbn-go-mcp-data --sse --hostport 0.0.0.0:8889 --sse-token-file /path/to/sse_token.txt
+```
+
+The token can also be set with the `DBN_GO_MCP_SSE_TOKEN` environment variable. SSE is plain HTTP; put it behind TLS if it leaves the machine.
 
 ## See Also
 
