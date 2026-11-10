@@ -20,9 +20,27 @@ import (
 	"nimbleterminal.dev/ntduckbox"
 )
 
-// safeName matches valid dataset names (e.g. XNAS.ITCH) and schema names (e.g. ohlcv-1d).
-// Only alphanumeric, dot, hyphen, and underscore are allowed.
-var safeName = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
+// safeNameChars matches the characters allowed in dataset names (e.g. XNAS.ITCH)
+// and schema names (e.g. ohlcv-1d): alphanumeric, dot, hyphen, and underscore.
+var safeNameChars = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
+
+// isSafeName reports whether name is a valid dataset or schema name that is
+// safe to use as a cache directory name. "." and ".." pass the character
+// check but are directory references, not names, so they are rejected.
+func isSafeName(name string) bool {
+	return name != "." && name != ".." && safeNameChars.MatchString(name)
+}
+
+// isCacheSchemaDir reports whether dir is exactly {cacheDir}/{dataset}/{schema}.
+// Cache files are only ever removed from such directories.
+func isCacheSchemaDir(dir string, cacheDir string) bool {
+	rel, err := filepath.Rel(cacheDir, dir)
+	if err != nil || !filepath.IsLocal(rel) {
+		return false
+	}
+	parts := strings.Split(rel, string(filepath.Separator))
+	return len(parts) == 2 && isSafeName(parts[0]) && isSafeName(parts[1])
+}
 
 // sqlLiteral escapes a string for use as a SQL string literal,
 // preventing SQL injection via embedded single quotes.
@@ -46,9 +64,16 @@ func normalizeDateForFilename(s string) string {
 // cacheParquetPath returns the parquet file path for a cache entry.
 // Format: {symbols}__{stype_in}__{stype_out}__{start}__{end}.parquet
 // If the filename exceeds 200 chars, symbols are truncated and a hash suffix is added.
+//
+// symbols, start and end are caller-supplied text, so they are encoded with
+// file.SafePathComponent: the result is always a single file name directly
+// under {cacheDir}/{dataset}/{schema}. dataset and schema must already be
+// validated names.
 func (s *Server) cacheParquetPath(dataset, schema, symbols, stypeIn, stypeOut, start, end string) string {
-	startNorm := normalizeDateForFilename(start)
-	endNorm := normalizeDateForFilename(end)
+	startNorm := file.SafePathComponent(normalizeDateForFilename(start))
+	endNorm := file.SafePathComponent(normalizeDateForFilename(end))
+	rawSymbols := symbols // hashed as given, so existing hashed names stay stable
+	symbols = file.SafePathComponent(symbols)
 
 	// Build filename: {symbols}__{stype_in}__{stype_out}__{start}__{end}
 	name := fmt.Sprintf("%s__%s__%s__%s__%s", symbols, stypeIn, stypeOut, startNorm, endNorm)
@@ -56,7 +81,7 @@ func (s *Server) cacheParquetPath(dataset, schema, symbols, stypeIn, stypeOut, s
 	const maxLen = 200
 	if len(name)+len(".parquet") > maxLen {
 		// Truncate symbols and append hash
-		h := sha256.Sum256([]byte(symbols + "|" + stypeIn + "|" + stypeOut + "|" + start + "|" + end))
+		h := sha256.Sum256([]byte(rawSymbols + "|" + stypeIn + "|" + stypeOut + "|" + start + "|" + end))
 		hash8 := fmt.Sprintf("%x", h[:4])
 		suffix := fmt.Sprintf("__%s__%s__%s__%s__%s", stypeIn, stypeOut, startNorm, endNorm, hash8)
 		// Count how many symbols we can fit
@@ -205,12 +230,12 @@ func (s *Server) refreshViews() error {
 	wantViews := map[string]string{} // view name -> glob path
 	datasets, _ := os.ReadDir(s.cacheDir)
 	for _, ds := range datasets {
-		if !ds.IsDir() || !safeName.MatchString(ds.Name()) {
+		if !ds.IsDir() || !isSafeName(ds.Name()) {
 			continue
 		}
 		schemas, _ := os.ReadDir(filepath.Join(s.cacheDir, ds.Name()))
 		for _, sc := range schemas {
-			if !sc.IsDir() || !safeName.MatchString(sc.Name()) {
+			if !sc.IsDir() || !isSafeName(sc.Name()) {
 				continue
 			}
 			parquetGlob := filepath.Join(s.cacheDir, ds.Name(), sc.Name(), "*.parquet")
@@ -251,7 +276,7 @@ func (s *Server) refreshViewForSchema(dataset, schema string) {
 	if s.box == nil {
 		return
 	}
-	if !safeName.MatchString(dataset) || !safeName.MatchString(schema) {
+	if !isSafeName(dataset) || !isSafeName(schema) {
 		return
 	}
 	_ = s.refreshViews()
@@ -351,12 +376,12 @@ func (s *Server) listCacheEntries() []CacheEntry {
 
 	datasets, _ := os.ReadDir(s.cacheDir)
 	for _, ds := range datasets {
-		if !ds.IsDir() || !safeName.MatchString(ds.Name()) {
+		if !ds.IsDir() || !isSafeName(ds.Name()) {
 			continue
 		}
 		schemas, _ := os.ReadDir(filepath.Join(s.cacheDir, ds.Name()))
 		for _, sc := range schemas {
-			if !sc.IsDir() || !safeName.MatchString(sc.Name()) {
+			if !sc.IsDir() || !isSafeName(sc.Name()) {
 				continue
 			}
 			parquetGlob := filepath.Join(s.cacheDir, ds.Name(), sc.Name(), "*.parquet")
@@ -410,6 +435,9 @@ func (s *Server) listCacheEntries() []CacheEntry {
 // clearCache removes cached parquet files matching the optional dataset and schema filters.
 // Caller must hold s.mu.
 func (s *Server) clearCache(dataset, schema string) int {
+	if (dataset != "" && !isSafeName(dataset)) || (schema != "" && !isSafeName(schema)) {
+		return 0
+	}
 	removed := 0
 
 	if dataset != "" && schema != "" {
@@ -452,7 +480,11 @@ func (s *Server) clearCache(dataset, schema string) int {
 
 // removeCacheFiles removes all .parquet and .json sidecar files in a directory
 // and cleans up empty parent directories, stopping at (and never removing) boundDir.
+// It does nothing unless dir is a {dataset}/{schema} directory directly under boundDir.
 func removeCacheFiles(dir string, boundDir string) int {
+	if !isCacheSchemaDir(dir, boundDir) {
+		return 0
+	}
 	matches, _ := filepath.Glob(filepath.Join(dir, "*.parquet"))
 	for _, m := range matches {
 		os.Remove(m)
@@ -465,7 +497,7 @@ func removeCacheFiles(dir string, boundDir string) int {
 	}
 	// Remove empty directories walking up, but never past boundDir
 	cleanBound := filepath.Clean(boundDir)
-	for d := dir; d != cleanBound && strings.HasPrefix(d, cleanBound); d = filepath.Dir(d) {
+	for d := filepath.Clean(dir); d != cleanBound && strings.HasPrefix(d, cleanBound+string(filepath.Separator)); d = filepath.Dir(d) {
 		entries, err := os.ReadDir(d)
 		if err != nil || len(entries) > 0 {
 			break

@@ -363,10 +363,10 @@ func (s *Server) clearCacheHandler(ctx context.Context, request mcp.CallToolRequ
 	dataset, _ := request.RequireString("dataset")
 	schema, _ := request.RequireString("schema")
 
-	if dataset != "" && !safeName.MatchString(dataset) {
+	if dataset != "" && !isSafeName(dataset) {
 		return mcp.NewToolResultError("invalid dataset name"), nil
 	}
-	if schema != "" && !safeName.MatchString(schema) {
+	if schema != "" && !isSafeName(schema) {
 		return mcp.NewToolResultError("invalid schema name"), nil
 	}
 

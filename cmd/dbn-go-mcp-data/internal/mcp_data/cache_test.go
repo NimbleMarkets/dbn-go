@@ -1010,3 +1010,124 @@ func TestQueryCacheHandler_RelaysTruncated(t *testing.T) {
 		t.Errorf("unexpected truncation notice: %#v", res.Content[1])
 	}
 }
+
+// clearCacheFixture builds home/{important.json, .dbn-go/{state.json, logs/app.json, cache/...}}
+// and returns a server whose cache dir is home/.dbn-go/cache, plus the files
+// that clear_cache must never remove and the one cached parquet file.
+func clearCacheFixture(t *testing.T) (s *Server, protected []string, cached string) {
+	t.Helper()
+	home := t.TempDir()
+	s = testServer(t)
+	s.cacheDir = filepath.Join(home, ".dbn-go", "cache")
+
+	cached = filepath.Join(s.cacheDir, "XNAS.ITCH", "trades", "AAPL__raw_symbol__instrument_id__20240101__20240131.parquet")
+	protected = []string{
+		filepath.Join(home, "important.json"),
+		filepath.Join(home, "data.parquet"),
+		filepath.Join(home, ".dbn-go", "state.json"),
+		filepath.Join(home, ".dbn-go", "logs", "app.json"),
+		filepath.Join(s.cacheDir, "notes.json"),
+		filepath.Join(s.cacheDir, "XNAS.ITCH", "dataset-notes.json"),
+	}
+	for _, p := range append([]string{cached}, protected...) {
+		if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte("{}"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return s, protected, cached
+}
+
+func TestClearCache_NeverRemovesFilesOutsideDatasetSchemaDirs(t *testing.T) {
+	for _, tc := range []struct{ dataset, schema string }{
+		{"..", ".."},
+		{"..", ""},
+		{"", ".."},
+		{".", "."},
+		{".", ""},
+		{"", "."},
+		{".", ".."},
+		{"..", "."},
+		{"XNAS.ITCH", ".."},
+		{"XNAS.ITCH", "."},
+		{"../..", "x"},
+		{"XNAS.ITCH", "../.."},
+	} {
+		t.Run(fmt.Sprintf("%q_%q", tc.dataset, tc.schema), func(t *testing.T) {
+			s, protected, cached := clearCacheFixture(t)
+			if removed := s.clearCache(tc.dataset, tc.schema); removed != 0 {
+				t.Errorf("clearCache removed %d files, want 0", removed)
+			}
+			for _, p := range append(protected, cached) {
+				if _, err := os.Stat(p); err != nil {
+					t.Errorf("clearCache(%q, %q) removed %s", tc.dataset, tc.schema, p)
+				}
+			}
+		})
+	}
+}
+
+func TestClearCacheHandler_RejectsDotNames(t *testing.T) {
+	for _, args := range []map[string]any{
+		{"dataset": "..", "schema": ".."},
+		{"dataset": ".."},
+		{"schema": ".."},
+		{"dataset": "."},
+		{"schema": "."},
+	} {
+		s, protected, cached := clearCacheFixture(t)
+		req := mcp.CallToolRequest{}
+		req.Params.Name = "clear_cache"
+		req.Params.Arguments = args
+		res, err := s.clearCacheHandler(context.Background(), req)
+		if err != nil {
+			t.Fatalf("clearCacheHandler(%v) returned error: %v", args, err)
+		}
+		if !res.IsError {
+			t.Errorf("clearCacheHandler(%v) succeeded, want a tool error", args)
+		}
+		for _, p := range append(protected, cached) {
+			if _, err := os.Stat(p); err != nil {
+				t.Errorf("clearCacheHandler(%v) removed %s", args, p)
+			}
+		}
+	}
+}
+
+func TestCacheParquetPath_SymbolsCannotEscapeSchemaDir(t *testing.T) {
+	s := testServer(t)
+	wantDir := filepath.Join(s.cacheDir, "XNAS.ITCH", "trades")
+	seen := map[string]string{}
+	for _, symbols := range []string{
+		"../../../../x,AAPL",
+		"..",
+		"BRK/B",
+		`BRK\B`,
+		"BRK%2FB", // must not collide with the encoding of BRK/B
+		"/etc/x",
+		strings.Repeat("../", 80) + "x",
+	} {
+		path := s.cacheParquetPath("XNAS.ITCH", "trades", symbols, "raw_symbol", "instrument_id", "2024-01-02", "2024-01-03")
+		if got := filepath.Dir(path); got != wantDir {
+			t.Errorf("symbols %q: file placed in %q, want %q", symbols, got, wantDir)
+		}
+		if strings.ContainsAny(filepath.Base(path), `/\`) {
+			t.Errorf("symbols %q: filename %q contains a path separator", symbols, filepath.Base(path))
+		}
+		if prev, dup := seen[path]; dup {
+			t.Errorf("symbols %q and %q share cache path %q", symbols, prev, path)
+		}
+		seen[path] = symbols
+	}
+}
+
+func TestCacheParquetPath_DatesCannotEscapeSchemaDir(t *testing.T) {
+	s := testServer(t)
+	wantDir := filepath.Join(s.cacheDir, "XNAS.ITCH", "trades")
+	path := s.cacheParquetPath("XNAS.ITCH", "trades", "AAPL", "raw_symbol", "instrument_id", "2024/../../x", "../../y")
+	if got := filepath.Dir(path); got != wantDir {
+		t.Errorf("file placed in %q, want %q", got, wantDir)
+	}
+}
