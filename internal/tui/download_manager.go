@@ -3,15 +3,21 @@
 package tui
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -66,6 +72,11 @@ type DownloadManager struct {
 	// config
 	databentoApiKey    string
 	maxActiveDownloads int
+
+	// Overridable for tests; nil or zero means the production default.
+	httpClient *http.Client           // HTTP client for downloads
+	urlAllowed func(u *url.URL) error // Decides whether the API key may be sent to u
+	retryMax   *int                   // Max retries per download
 
 	// concurrency
 	progressCh chan DownloadProgressMsg // results are sent here
@@ -314,9 +325,31 @@ func (dm *DownloadManager) checkQueue() bool {
 
 // performDownload downloads the specified file and reports progress on the channel
 // Adapted from: https://github.com/joncrlsn/go-examples/blob/master/http-download-with-progress.go#L15
+//
+// The URL, file name, size and hash all come from the batch file listing, so
+// none of them is trusted: the API key is only sent to a Databento HTTPS URL,
+// the file name must be a plain name in the download directory, and the file
+// is only kept if its size and SHA-256 hash match the listing.
 func (dm *DownloadManager) performDownload(item DownloadItem) error {
-	// Create the request
+	// Check everything from the listing before touching the disk or network
 	apiUrl, err := url.Parse(item.Desc.Url)
+	if err != nil {
+		return fmt.Errorf("invalid download URL: %w", err)
+	}
+	urlAllowed := dm.urlAllowed
+	if urlAllowed == nil {
+		urlAllowed = databentoDownloadURLAllowed
+	}
+	if err := urlAllowed(apiUrl); err != nil {
+		return fmt.Errorf("refusing download URL: %w", err)
+	}
+	if err := checkDownloadFilename(item.Desc.Filename); err != nil {
+		return err
+	}
+	if item.DestFile != item.Desc.Filename {
+		return fmt.Errorf("unexpected destination %q for file %q", item.DestFile, item.Desc.Filename)
+	}
+	wantHash, err := parseSHA256Hash(item.Desc.FileHash)
 	if err != nil {
 		return err
 	}
@@ -343,15 +376,42 @@ func (dm *DownloadManager) performDownload(item DownloadItem) error {
 
 	// Create the file, but give it a tmp file extension, this means we won't overwrite a
 	// file until it's downloaded, but we'll remove the tmp extension once downloaded.
-	tmpFile, err := os.Create(item.DestFile + ".tmp")
+	tmpPath := item.DestFile + ".tmp"
+	tmpFile, err := os.Create(tmpPath)
 	if err != nil {
 		return err
 	}
-	defer tmpFile.Close()
+	keepTmp := false
+	defer func() {
+		tmpFile.Close()
+		if !keepTmp {
+			os.Remove(tmpPath)
+		}
+	}()
 
 	// Get the data
+	httpClient := &http.Client{}
+	if dm.httpClient != nil {
+		*httpClient = *dm.httpClient
+	}
+	httpClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if len(via) >= 10 {
+			return errors.New("stopped after 10 redirects")
+		}
+		if req.URL.Scheme != "https" {
+			return fmt.Errorf("refusing redirect to non-https URL %q", req.URL.Redacted())
+		}
+		if urlAllowed(req.URL) != nil {
+			req.Header.Del("Authorization") // the key stays with Databento
+		}
+		return nil
+	}
 	retryClient := retryablehttp.NewClient()
+	retryClient.HTTPClient = httpClient
 	retryClient.RetryMax = 10
+	if dm.retryMax != nil {
+		retryClient.RetryMax = *dm.retryMax
+	}
 	retryClient.Logger = log.New(io.Discard, "", log.LstdFlags)
 	resp, err := retryClient.Do(req)
 	if err != nil {
@@ -373,18 +433,88 @@ func (dm *DownloadManager) performDownload(item DownloadItem) error {
 		CurrentSize: 0,
 		ProgressCh:  dm.progressCh,
 	}
-	_, err = io.Copy(tmpFile, io.TeeReader(resp.Body, progressWriter))
+	// Never write more than the listing declared (one extra byte detects an overrun)
+	var body io.Reader = resp.Body
+	wantSize := item.Desc.Size
+	if wantSize > 0 && wantSize < math.MaxInt64 {
+		body = io.LimitReader(body, int64(wantSize)+1)
+	}
+	hasher := sha256.New()
+	written, err := io.Copy(io.MultiWriter(tmpFile, hasher), io.TeeReader(body, progressWriter))
 	if err != nil {
 		return err
 	}
-
-	// Close the file without defer so it can happen before Rename()
-	tmpFile.Close()
-	if err = os.Rename(item.DestFile+".tmp", item.DestFile); err != nil {
-		return err
+	if wantSize > 0 && uint64(written) != wantSize {
+		if uint64(written) > wantSize {
+			return fmt.Errorf("download is larger than the %d bytes listed", wantSize)
+		}
+		return fmt.Errorf("download is %d bytes, but %d were listed", written, wantSize)
+	}
+	if wantHash != nil && !bytes.Equal(hasher.Sum(nil), wantHash) {
+		return fmt.Errorf("download does not match the listed SHA-256 hash")
 	}
 
+	// Close the file without defer so it can happen before Rename()
+	if err := tmpFile.Close(); err != nil {
+		return err
+	}
+	if err = os.Rename(tmpPath, item.DestFile); err != nil {
+		return err
+	}
+	keepTmp = true
+
 	return nil
+}
+
+// databentoDownloadURLAllowed reports whether the API key may be sent to u:
+// only over HTTPS, on the default port, to databento.com or a subdomain.
+func databentoDownloadURLAllowed(u *url.URL) error {
+	if u.Scheme != "https" {
+		return fmt.Errorf("%q is not an https URL", u.Redacted())
+	}
+	if u.User != nil {
+		return errors.New("URL must not contain credentials")
+	}
+	if port := u.Port(); port != "" && port != "443" {
+		return fmt.Errorf("unexpected port %q", port)
+	}
+	host := strings.ToLower(u.Hostname())
+	if host != "databento.com" && !strings.HasSuffix(host, ".databento.com") {
+		return fmt.Errorf("%q is not a Databento host", host)
+	}
+	return nil
+}
+
+// checkDownloadFilename returns an error unless name is a plain file name:
+// no directory part, drive or stream separator, or control characters.
+func checkDownloadFilename(name string) error {
+	invalid := name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\:`)
+	for _, r := range name {
+		if r < 0x20 || r == 0x7f {
+			invalid = true
+		}
+	}
+	if invalid {
+		return fmt.Errorf("refusing unsafe file name %q", name)
+	}
+	return nil
+}
+
+// parseSHA256Hash decodes a listing hash of the form "sha256:<hex>".
+// An empty hash returns nil, meaning there is nothing to verify.
+func parseSHA256Hash(hash string) ([]byte, error) {
+	if hash == "" {
+		return nil, nil
+	}
+	hexDigest, ok := strings.CutPrefix(hash, "sha256:")
+	if !ok {
+		return nil, fmt.Errorf("unsupported file hash %q", hash)
+	}
+	digest, err := hex.DecodeString(hexDigest)
+	if err != nil || len(digest) != sha256.Size {
+		return nil, fmt.Errorf("malformed file hash %q", hash)
+	}
+	return digest, nil
 }
 
 ///////////////////////////////////////////////////////////////////////////////
