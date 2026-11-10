@@ -19,6 +19,7 @@ var (
 	ErrInvalidMetadataCount      = fmt.Errorf("invalid metadata count")
 	ErrInvalidSymbolMappingRange = fmt.Errorf("invalid symbol mapping range")
 	ErrInvalidSymbolMappingDate  = fmt.Errorf("invalid symbol mapping date")
+	ErrMetadataTooLarge          = fmt.Errorf("metadata length exceeds MaxMetadataLength")
 )
 
 func unexpectedBytesError(got int, want int) error {
