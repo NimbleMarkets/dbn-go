@@ -200,6 +200,31 @@ func (m *SubscriptionRequestMsg) Encode() []byte {
 	return b
 }
 
+// An unsubscription request is sent to the gateway upon request from the client.
+// Use the symbol ALL_SYMBOLS to remove every symbol subscribed with the schema.
+type UnsubscriptionRequestMsg struct {
+	Schema  string    // key: schema
+	StypeIn dbn.SType // key: stype_in
+	Symbols []string  // key: symbols (comma separated)
+}
+
+// Encode converts UnsubscriptionRequestMsg to its line protocol representation.
+func (m *UnsubscriptionRequestMsg) Encode() []byte {
+	b := fmt.Appendf(nil, "unsubscribe|schema=%s|stype_in=%s", m.Schema, m.StypeIn.String())
+
+	b = append(b, "|symbols="...)
+	isFirst := true
+	for _, symbol := range m.Symbols {
+		if !isFirst {
+			b = append(b, ',')
+		}
+		b = append(b, symbol...)
+		isFirst = false
+	}
+	b = append(b, '\n')
+	return b
+}
+
 // A session start message is sent to the gateway upon request from the client.
 type SessionStartMsg struct {
 	StartSession string // key: start_session
