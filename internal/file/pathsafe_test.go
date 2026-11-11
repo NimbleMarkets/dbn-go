@@ -24,6 +24,18 @@ func TestSafePathComponent(t *testing.T) {
 		{"a\x00b", "a%00b"},
 		{"a\nb", "a%0Ab"},
 		{"UD:1V", "UD%3A1V"},
+		// Windows strips trailing dots and spaces from a name, which would turn
+		// these into "", "." or ".." (or alias another name), so the trailing
+		// run is encoded.
+		{"...", "%2E%2E%2E"},
+		{".. ", "%2E%2E%20"},
+		{". .", "%2E%20%2E"},
+		{" ", "%20"},
+		{"ABC.", "ABC%2E"},
+		{"ABC ", "ABC%20"},
+		{"ABC. .", "ABC%2E%20%2E"},
+		{" ABC", " ABC"},
+		{".hidden", ".hidden"},
 		{`a*?"<>|b`, "a%2A%3F%22%3C%3E%7Cb"},
 	} {
 		if got := SafePathComponent(tc.in); got != tc.want {

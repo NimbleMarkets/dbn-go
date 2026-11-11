@@ -198,7 +198,8 @@ func TestPerformDownload_RedirectDoesNotLeakKey(t *testing.T) {
 	toOther := newRecordingServer(t, true, func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, other.URL+"/cdn/file", http.StatusFound)
 	})
-	if err := download(testDownloadManager(toOther), DownloadDesc{Url: toOther.URL + "/file", Filename: "a.dbn.zst"}); err != nil {
+	if err := download(testDownloadManager(toOther), DownloadDesc{Url: toOther.URL + "/file", Filename: "a.dbn.zst",
+		FileHash: sha256Hash(body), Size: uint64(len(body))}); err != nil {
 		t.Fatalf("download via https redirect: %v", err)
 	}
 	requests := other.received()
@@ -212,7 +213,8 @@ func TestPerformDownload_RedirectDoesNotLeakKey(t *testing.T) {
 	toPlain := newRecordingServer(t, true, func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, plain.URL+"/file", http.StatusFound)
 	})
-	if err := download(testDownloadManager(toPlain), DownloadDesc{Url: toPlain.URL + "/file", Filename: "b.dbn.zst"}); err == nil {
+	if err := download(testDownloadManager(toPlain), DownloadDesc{Url: toPlain.URL + "/file", Filename: "b.dbn.zst",
+		FileHash: sha256Hash(body), Size: uint64(len(body))}); err == nil {
 		t.Error("download via redirect to plain http succeeded, want an error")
 	}
 	if n := len(plain.received()); n != 0 {
@@ -228,7 +230,8 @@ func TestPerformDownload_RejectsFilenameOutsideDownloadDir(t *testing.T) {
 	root := chdirToSubdir(t)
 	abs := filepath.Join(root, "abs.dbn.zst")
 
-	for _, name := range []string{"../escape.dbn.zst", abs, "sub/file.dbn.zst", `sub\file.dbn.zst`, "..", ".", "", "C:file.dbn.zst", "a\x00b", "a\nb"} {
+	for _, name := range []string{"../escape.dbn.zst", abs, "sub/file.dbn.zst", `sub\file.dbn.zst`, "..", ".", "", "C:file.dbn.zst", "a\x00b", "a\nb",
+		"...", ".. ", "file.dbn.zst.", "file.dbn.zst ", " "} {
 		err := download(testDownloadManager(server), DownloadDesc{
 			Url: server.URL + "/file", Filename: name, FileHash: sha256Hash(body), Size: 1,
 		})
@@ -254,6 +257,11 @@ func TestPerformDownload_RejectsWrongContent(t *testing.T) {
 		{"larger_than_declared", DownloadDesc{FileHash: sha256Hash(body), Size: uint64(len(body)) - 1}},
 		{"smaller_than_declared", DownloadDesc{FileHash: sha256Hash(body), Size: uint64(len(body)) + 1}},
 		{"unsupported_hash", DownloadDesc{FileHash: "md5:d41d8cd98f00b204e9800998ecf8427e", Size: uint64(len(body))}},
+		{"missing_hash", DownloadDesc{Size: uint64(len(body))}},
+		{"zero_size_listed", DownloadDesc{FileHash: sha256Hash(body), Size: 0}},
+		{"zero_size_and_missing_hash", DownloadDesc{}},
+		{"size_beyond_int64", DownloadDesc{FileHash: sha256Hash(body), Size: 1 << 63}},
+		{"size_max_uint64", DownloadDesc{FileHash: sha256Hash(body), Size: 1<<64 - 1}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			server := newRecordingServer(t, true, serveBody(body))
@@ -275,10 +283,44 @@ func TestPerformDownload_RemovesTempFileOnHTTPError(t *testing.T) {
 		http.Error(w, "nope", http.StatusForbidden)
 	})
 	root := chdirToSubdir(t)
-	if err := download(testDownloadManager(server), DownloadDesc{Url: server.URL + "/file", Filename: "data.dbn.zst"}); err == nil {
+	if err := download(testDownloadManager(server), DownloadDesc{Url: server.URL + "/file", Filename: "data.dbn.zst",
+		FileHash: sha256Hash("x"), Size: 1}); err == nil {
 		t.Error("download succeeded, want an error")
 	}
 	if files := filesUnder(t, root); len(files) != 0 {
 		t.Errorf("files left behind: %v", files)
+	}
+}
+
+// A body served from a redirect target is held to the listed size and hash
+// like any other.
+func TestPerformDownload_VerifiesRedirectedBody(t *testing.T) {
+	const listed = "the listed contents"
+	other := newRecordingServer(t, true, serveBody("something else entirely, and longer than what was listed"))
+	redirector := newRecordingServer(t, true, func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, other.URL+"/cdn/file", http.StatusFound)
+	})
+	root := chdirToSubdir(t)
+	err := download(testDownloadManager(redirector), DownloadDesc{Url: redirector.URL + "/file", Filename: "a.dbn.zst",
+		FileHash: sha256Hash(listed), Size: uint64(len(listed))})
+	if err == nil {
+		t.Error("download succeeded, want an error")
+	}
+	if files := filesUnder(t, root); len(files) != 0 {
+		t.Errorf("files left behind: %v", files)
+	}
+}
+
+// An empty file is still a valid download when the listing says so.
+func TestPerformDownload_AcceptsListedEmptyFile(t *testing.T) {
+	server := newRecordingServer(t, true, serveBody(""))
+	chdirToSubdir(t)
+	err := download(testDownloadManager(server), DownloadDesc{Url: server.URL + "/file", Filename: "empty.json",
+		FileHash: sha256Hash(""), Size: 0})
+	if err != nil {
+		t.Fatalf("performDownload: %v", err)
+	}
+	if info, err := os.Stat("empty.json"); err != nil || info.Size() != 0 {
+		t.Errorf("empty.json: %v, %v; want an empty file", info, err)
 	}
 }

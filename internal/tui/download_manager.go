@@ -353,6 +353,10 @@ func (dm *DownloadManager) performDownload(item DownloadItem) error {
 	if err != nil {
 		return err
 	}
+	wantSize := item.Desc.Size
+	if wantSize >= math.MaxInt64 {
+		return fmt.Errorf("refusing download with listed size %d", wantSize)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -433,24 +437,21 @@ func (dm *DownloadManager) performDownload(item DownloadItem) error {
 		CurrentSize: 0,
 		ProgressCh:  dm.progressCh,
 	}
-	// Never write more than the listing declared (one extra byte detects an overrun)
-	var body io.Reader = resp.Body
-	wantSize := item.Desc.Size
-	if wantSize > 0 && wantSize < math.MaxInt64 {
-		body = io.LimitReader(body, int64(wantSize)+1)
-	}
+	// Never write more than the listing declared (one extra byte detects an
+	// overrun). This holds for every listed size, including zero.
+	body := io.LimitReader(resp.Body, int64(wantSize)+1)
 	hasher := sha256.New()
 	written, err := io.Copy(io.MultiWriter(tmpFile, hasher), io.TeeReader(body, progressWriter))
 	if err != nil {
 		return err
 	}
-	if wantSize > 0 && uint64(written) != wantSize {
+	if uint64(written) != wantSize {
 		if uint64(written) > wantSize {
 			return fmt.Errorf("download is larger than the %d bytes listed", wantSize)
 		}
 		return fmt.Errorf("download is %d bytes, but %d were listed", written, wantSize)
 	}
-	if wantHash != nil && !bytes.Equal(hasher.Sum(nil), wantHash) {
+	if !bytes.Equal(hasher.Sum(nil), wantHash) {
 		return fmt.Errorf("download does not match the listed SHA-256 hash")
 	}
 
@@ -486,9 +487,11 @@ func databentoDownloadURLAllowed(u *url.URL) error {
 }
 
 // checkDownloadFilename returns an error unless name is a plain file name:
-// no directory part, drive or stream separator, or control characters.
+// no directory part, drive or stream separator, or control characters, and
+// no trailing dot or space. Windows drops trailing dots and spaces, so "..."
+// or ".. " would name a parent directory there; "." and ".." end in a dot too.
 func checkDownloadFilename(name string) error {
-	invalid := name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\:`)
+	invalid := name == "" || strings.ContainsAny(name, `/\:`) || strings.TrimRight(name, ". ") != name
 	for _, r := range name {
 		if r < 0x20 || r == 0x7f {
 			invalid = true
@@ -501,10 +504,11 @@ func checkDownloadFilename(name string) error {
 }
 
 // parseSHA256Hash decodes a listing hash of the form "sha256:<hex>".
-// An empty hash returns nil, meaning there is nothing to verify.
+// A hash is required: without one the content cannot be verified, and it may
+// have been served by a host other than the one the listing named.
 func parseSHA256Hash(hash string) ([]byte, error) {
 	if hash == "" {
-		return nil, nil
+		return nil, errors.New("refusing download with no listed hash")
 	}
 	hexDigest, ok := strings.CutPrefix(hash, "sha256:")
 	if !ok {

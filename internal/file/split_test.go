@@ -126,6 +126,11 @@ func TestSplitFileKeepsOutputInsideDestDir(t *testing.T) {
 		{"symbol_dotdot", "TEST.DATA", "../../../ESC"},
 		{"symbol_is_dotdot", "TEST.DATA", ".."},
 		{"symbol_with_slash", "TEST.DATA", "BRK/B"},
+		{"symbol_three_dots", "TEST.DATA", "..."},
+		{"symbol_dotdot_space", "TEST.DATA", ".. "},
+		{"symbol_trailing_dot", "TEST.DATA", "ABC."},
+		{"dataset_three_dots", "...", "TEST"},
+		{"dataset_dotdot_space", ".. ", "TEST"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			source := writeSplitSource(t, tc.dataset, []string{tc.symbol}, 1)
@@ -160,6 +165,13 @@ func TestSplitFileKeepsOutputInsideDestDir(t *testing.T) {
 			}
 			if depth := strings.Count(files[0], string(filepath.Separator)); depth != 5 {
 				t.Errorf("output %q is %d levels deep, want 5", files[0], depth)
+			}
+			// Windows drops trailing dots and spaces from each name, so a
+			// directory named "..." or ".. " would resolve to a parent there.
+			for _, part := range strings.Split(filepath.Dir(files[0]), string(filepath.Separator)) {
+				if strings.HasSuffix(part, ".") || strings.HasSuffix(part, " ") {
+					t.Errorf("output directory name %q in %q ends with a dot or space", part, files[0])
+				}
 			}
 		})
 	}
