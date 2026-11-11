@@ -200,12 +200,28 @@ func (m *SubscriptionRequestMsg) Encode() []byte {
 	return b
 }
 
+// MaxSymbolsPerControlMessage is the most symbols LiveClient puts in one
+// control message; longer lists are split across messages. It matches the
+// chunk size used by Databento's Rust and C++ clients.
+const MaxSymbolsPerControlMessage = 500
+
 // An unsubscription request is sent to the gateway upon request from the client.
-// Use the symbol ALL_SYMBOLS to remove every symbol subscribed with the schema.
+// It removes Symbols from the session's subscriptions for Schema.
+//
+// The symbols don't need to match an earlier subscription: any subset of the
+// subscribed symbols can be removed, and the symbol ALL_SYMBOLS removes every
+// symbol subscribed with the schema. Other schemas are unaffected.
+//
+// StypeIn must be SType_RawSymbol, SType_Parent, or SType_InstrumentId, and
+// compatible with how the symbols were subscribed: symbols subscribed by raw
+// symbol, instrument ID, or continuous contract are removed by raw symbol or
+// instrument ID, and symbols subscribed by parent only by parent.
+// https://databento.com/docs/api-live/client/unsubscribe
 type UnsubscriptionRequestMsg struct {
 	Schema  string    // key: schema
 	StypeIn dbn.SType // key: stype_in
 	Symbols []string  // key: symbols (comma separated)
+	Partial bool      // inverse of key is_last; encoded as "is_last=0" only when true
 }
 
 // Encode converts UnsubscriptionRequestMsg to its line protocol representation.
@@ -220,6 +236,9 @@ func (m *UnsubscriptionRequestMsg) Encode() []byte {
 		}
 		b = append(b, symbol...)
 		isFirst = false
+	}
+	if m.Partial {
+		b = append(b, "|is_last=0"...)
 	}
 	b = append(b, '\n')
 	return b

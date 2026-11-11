@@ -277,8 +277,15 @@ func (c *LiveClient) Subscribe(sub SubscriptionRequestMsg) error {
 }
 
 // Unsubscribe removes a set of symbols with a given schema and stype from the session's subscriptions.
-// Returns an error if any. A nil error only means the request was sent;
-// the gateway acknowledges it with a SystemMsg with code SystemCode_UnsubscribeAck.
+// It can be called before or after Start. See UnsubscriptionRequestMsg for
+// which symbols and stypes can be removed.
+//
+// Returns an error if any. A nil error only means the request was sent.
+// The gateway acknowledges it with a SystemMsg with code SystemCode_UnsubscribeAck.
+// Symbols that are not subscribed, or cannot be removed with the given stype,
+// stay subscribed and are reported in an ErrorMsg; the session continues.
+//
+// More than MaxSymbolsPerControlMessage symbols are sent as several messages.
 func (c *LiveClient) Unsubscribe(unsub UnsubscriptionRequestMsg) error {
 	if c.conn == nil {
 		return ErrNotConnected
@@ -294,11 +301,20 @@ func (c *LiveClient) Unsubscribe(unsub UnsubscriptionRequestMsg) error {
 			return err
 		}
 	}
-	requestBytes := unsub.Encode()
-	if n, err := c.conn.Write(requestBytes); err != nil {
-		return fmt.Errorf("failed to send unsubscribe request: %v", err)
-	} else if n != len(requestBytes) {
-		return fmt.Errorf("failed to send unsubscribe request: wanted %d sent %d", len(requestBytes), n)
+	// Send the symbols in chunks, marking all but the last as partial (is_last=0)
+	for symbols := unsub.Symbols; len(symbols) > 0; {
+		chunk := unsub // copy; the caller's request is left as is
+		chunk.Symbols = symbols[:min(len(symbols), MaxSymbolsPerControlMessage)]
+		symbols = symbols[len(chunk.Symbols):]
+		if len(symbols) > 0 {
+			chunk.Partial = true
+		}
+		requestBytes := chunk.Encode()
+		if n, err := c.conn.Write(requestBytes); err != nil {
+			return fmt.Errorf("failed to send unsubscribe request: %w", err)
+		} else if n != len(requestBytes) {
+			return fmt.Errorf("failed to send unsubscribe request: wanted %d sent %d", len(requestBytes), n)
+		}
 	}
 	if c.config.Verbose {
 		c.logger.Info("[LiveClient.Unsubscribe]",
