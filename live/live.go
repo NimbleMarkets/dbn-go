@@ -242,6 +242,8 @@ func (c *LiveClient) GetJsonScanner() *dbn.JsonScanner {
 // A single client instance supports multiple
 // subscriptions. Use Unsubscribe to remove symbols. Subscriptions end
 // when the client disconnects with Stop or the LiveClient instance is garbage collected.
+//
+// More than MaxSymbolsPerControlMessage symbols are sent as several messages.
 func (c *LiveClient) Subscribe(sub SubscriptionRequestMsg) error {
 	if c.conn == nil {
 		return ErrNotConnected
@@ -257,11 +259,13 @@ func (c *LiveClient) Subscribe(sub SubscriptionRequestMsg) error {
 			return err
 		}
 	}
-	requestBytes := sub.Encode()
-	if n, err := c.conn.Write(requestBytes); err != nil {
-		return fmt.Errorf("failed to send subscribe request: %v", err)
-	} else if n != len(requestBytes) {
-		return fmt.Errorf("failed to send subscribe request: wanted %d sent %d", len(requestBytes), n)
+	err := c.sendChunkedSymbols("subscribe", sub.Symbols, func(symbols []string, partial bool) []byte {
+		chunk := sub // copy; the caller's request is left as is
+		chunk.Symbols, chunk.Partial = symbols, partial || sub.Partial
+		return chunk.Encode()
+	})
+	if err != nil {
+		return err
 	}
 	if c.config.Verbose {
 		symbols := strings.Join(sub.Symbols, ",")
@@ -301,20 +305,13 @@ func (c *LiveClient) Unsubscribe(unsub UnsubscriptionRequestMsg) error {
 			return err
 		}
 	}
-	// Send the symbols in chunks, marking all but the last as partial (is_last=0)
-	for symbols := unsub.Symbols; len(symbols) > 0; {
+	err := c.sendChunkedSymbols("unsubscribe", unsub.Symbols, func(symbols []string, partial bool) []byte {
 		chunk := unsub // copy; the caller's request is left as is
-		chunk.Symbols = symbols[:min(len(symbols), MaxSymbolsPerControlMessage)]
-		symbols = symbols[len(chunk.Symbols):]
-		if len(symbols) > 0 {
-			chunk.Partial = true
-		}
-		requestBytes := chunk.Encode()
-		if n, err := c.conn.Write(requestBytes); err != nil {
-			return fmt.Errorf("failed to send unsubscribe request: %w", err)
-		} else if n != len(requestBytes) {
-			return fmt.Errorf("failed to send unsubscribe request: wanted %d sent %d", len(requestBytes), n)
-		}
+		chunk.Symbols, chunk.Partial = symbols, partial || unsub.Partial
+		return chunk.Encode()
+	})
+	if err != nil {
+		return err
 	}
 	if c.config.Verbose {
 		c.logger.Info("[LiveClient.Unsubscribe]",
@@ -323,6 +320,23 @@ func (c *LiveClient) Unsubscribe(unsub UnsubscriptionRequestMsg) error {
 		)
 	}
 
+	return nil
+}
+
+// sendChunkedSymbols sends a subscribe or unsubscribe request as one control
+// message per MaxSymbolsPerControlMessage symbols. encode builds the message
+// for one chunk; partial is true for every chunk but the last (is_last=0).
+func (c *LiveClient) sendChunkedSymbols(what string, symbols []string, encode func(symbols []string, partial bool) []byte) error {
+	for len(symbols) > 0 {
+		chunk := symbols[:min(len(symbols), MaxSymbolsPerControlMessage)]
+		symbols = symbols[len(chunk):]
+		requestBytes := encode(chunk, len(symbols) > 0)
+		if n, err := c.conn.Write(requestBytes); err != nil {
+			return fmt.Errorf("failed to send %s request: %w", what, err)
+		} else if n != len(requestBytes) {
+			return fmt.Errorf("failed to send %s request: wanted %d sent %d", what, len(requestBytes), n)
+		}
+	}
 	return nil
 }
 

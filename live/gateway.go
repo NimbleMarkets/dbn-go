@@ -174,6 +174,7 @@ type SubscriptionRequestMsg struct {
 	Symbols  []string  // key: symbols (comma separated)
 	Start    time.Time // key: time (nanoseconds since epoch)
 	Snapshot bool      // key: snapshot (int)
+	Partial  bool      // inverse of key is_last; encoded as "is_last=0" only when true
 }
 
 // Encode converts SubscriptionRequestMsg to its line protocol representation.
@@ -185,6 +186,9 @@ func (m *SubscriptionRequestMsg) Encode() []byte {
 	}
 	if m.Snapshot {
 		b = append(b, "|snapshot=1"...)
+	}
+	if m.Partial {
+		b = append(b, "|is_last=0"...)
 	}
 
 	b = append(b, "|symbols="...)
