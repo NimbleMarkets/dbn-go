@@ -234,7 +234,7 @@ func (c *LiveClient) GetJsonScanner() *dbn.JsonScanner {
 // Subscribe adds a new subscription for a set of symbols with a given schema and stype.
 // Returns an error if any.
 // A single client instance supports multiple
-// subscriptions. Note there is no unsubscribe method. Subscriptions end
+// subscriptions. Use Unsubscribe to remove symbols. Subscriptions end
 // when the client disconnects with Stop or the LiveClient instance is garbage collected.
 func (c *LiveClient) Subscribe(sub SubscriptionRequestMsg) error {
 	if c.conn == nil {
@@ -265,6 +265,40 @@ func (c *LiveClient) Subscribe(sub SubscriptionRequestMsg) error {
 				"stype_in", sub.StypeIn.String(), "symbols", symbols,
 			)
 		}
+	}
+
+	return nil
+}
+
+// Unsubscribe removes a set of symbols with a given schema and stype from the session's subscriptions.
+// Returns an error if any. A nil error only means the request was sent;
+// the gateway acknowledges it with a SystemMsg with code SystemCode_UnsubscribeAck.
+func (c *LiveClient) Unsubscribe(unsub UnsubscriptionRequestMsg) error {
+	if c.conn == nil {
+		return ErrNotConnected
+	}
+	if len(unsub.Symbols) == 0 {
+		return errors.New("unsubscribe request must contain at least one symbol")
+	}
+	if err := validateControlValue("Schema", unsub.Schema); err != nil {
+		return err
+	}
+	for _, symbol := range unsub.Symbols {
+		if err := validateControlValue("symbol", symbol); err != nil {
+			return err
+		}
+	}
+	requestBytes := unsub.Encode()
+	if n, err := c.conn.Write(requestBytes); err != nil {
+		return fmt.Errorf("failed to send unsubscribe request: %v", err)
+	} else if n != len(requestBytes) {
+		return fmt.Errorf("failed to send unsubscribe request: wanted %d sent %d", len(requestBytes), n)
+	}
+	if c.config.Verbose {
+		c.logger.Info("[LiveClient.Unsubscribe]",
+			"schema", unsub.Schema, "stype_in", unsub.StypeIn.String(),
+			"symbols", strings.Join(unsub.Symbols, ","),
+		)
 	}
 
 	return nil
