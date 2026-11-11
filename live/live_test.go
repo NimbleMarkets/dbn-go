@@ -170,6 +170,18 @@ var _ = Describe("DbnLive", func() {
 		})
 	})
 
+	Context("UnsubscriptionRequestMsg.Encode", func() {
+		It("should encode the unsubscribe line", func() {
+			msg := UnsubscriptionRequestMsg{Schema: "trades", StypeIn: dbn.SType_Parent, Symbols: []string{"NQ.FUT", "ES.FUT"}}
+			Expect(string(msg.Encode())).To(Equal("unsubscribe|schema=trades|stype_in=parent|symbols=NQ.FUT,ES.FUT\n"))
+		})
+
+		It("should pass ALL_SYMBOLS through", func() {
+			msg := UnsubscriptionRequestMsg{Schema: "mbp-1", StypeIn: dbn.SType_RawSymbol, Symbols: []string{"ALL_SYMBOLS"}}
+			Expect(string(msg.Encode())).To(Equal("unsubscribe|schema=mbp-1|stype_in=raw_symbol|symbols=ALL_SYMBOLS\n"))
+		})
+	})
+
 	Context("control messages", func() {
 		It("should not panic on empty input", func() {
 			Expect(func() {
@@ -500,6 +512,33 @@ var _ = Describe("DbnLive", func() {
 			Entry("pipe in schema", SubscriptionRequestMsg{Schema: "trades|snapshot=1", Symbols: []string{"AAPL"}}),
 			Entry("newline in schema", SubscriptionRequestMsg{Schema: "trades\n", Symbols: []string{"AAPL"}}),
 			Entry("carriage return in schema", SubscriptionRequestMsg{Schema: "trades\r", Symbols: []string{"AAPL"}}),
+		)
+
+		It("should write the encoded unsubscribe request", func() {
+			conn := &scriptedConn{}
+			client := newClient(conn)
+			unsub := UnsubscriptionRequestMsg{Schema: "trades", StypeIn: dbn.SType_RawSymbol, Symbols: []string{"AAPL", "MSFT"}}
+			Expect(client.Unsubscribe(unsub)).To(Succeed())
+			Expect(conn.writes.String()).To(Equal("unsubscribe|schema=trades|stype_in=raw_symbol|symbols=AAPL,MSFT\n"))
+		})
+
+		It("should return ErrNotConnected from Unsubscribe after Stop", func() {
+			client := newClient(&scriptedConn{})
+			Expect(client.Stop()).To(Succeed())
+			Expect(client.Unsubscribe(UnsubscriptionRequestMsg{Schema: "trades", Symbols: []string{"AAPL"}})).To(MatchError(ErrNotConnected))
+		})
+
+		DescribeTable("should reject invalid unsubscription fields without writing",
+			func(unsub UnsubscriptionRequestMsg) {
+				conn := &scriptedConn{}
+				client := newClient(conn)
+				Expect(client.Unsubscribe(unsub)).ToNot(Succeed())
+				Expect(conn.writes.Len()).To(Equal(0))
+			},
+			Entry("no symbols", UnsubscriptionRequestMsg{Schema: "trades"}),
+			Entry("pipe in symbol", UnsubscriptionRequestMsg{Schema: "trades", Symbols: []string{"AAPL|schema=mbo"}}),
+			Entry("newline in symbol", UnsubscriptionRequestMsg{Schema: "trades", Symbols: []string{"AAPL\nstart_session=0"}}),
+			Entry("pipe in schema", UnsubscriptionRequestMsg{Schema: "trades|stype_in=parent", Symbols: []string{"AAPL"}}),
 		)
 
 		DescribeTable("should reject control characters in auth fields without writing",
