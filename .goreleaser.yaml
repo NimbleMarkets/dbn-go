@@ -54,6 +54,15 @@ builds:
     ldflags:
       - -s -w -X github.com/NimbleMarkets/dbn-go/internal/version.Version=v{{.Version}}
 
+  - id: "dbn-go-live-replay"
+    main: ./cmd/dbn-go-live-replay
+    binary: bin/dbn-go-live-replay
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X github.com/NimbleMarkets/dbn-go/internal/version.Version=v{{.Version}}
+
   - id: "dbn-go-mcp-meta"
     main: ./cmd/dbn-go-mcp-meta
     binary: bin/dbn-go-mcp-meta
@@ -145,6 +154,7 @@ archives:
       - dbn-go-file
       - dbn-go-hist
       - dbn-go-live
+      - dbn-go-live-replay
       - dbn-go-mcp-meta
       - dbn-go-slurp-docs
       - dbn-go-tui
@@ -198,6 +208,7 @@ notarize:
         - dbn-go-file
         - dbn-go-hist
         - dbn-go-live
+        - dbn-go-live-replay
         - dbn-go-mcp-meta
         - dbn-go-slurp-docs
         - dbn-go-tui
@@ -231,6 +242,7 @@ brews:
       bin.install "./bin/dbn-go-file"
       bin.install "./bin/dbn-go-hist"
       bin.install "./bin/dbn-go-live"
+      bin.install "./bin/dbn-go-live-replay"
       bin.install "./bin/dbn-go-mcp-meta"
       bin.install "./bin/dbn-go-slurp-docs"
       bin.install "./bin/dbn-go-tui"

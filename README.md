@@ -218,6 +218,7 @@ We include [some tools](./cmd/README.md) to make our lives easier. [Installation
  * [`dbn-go-file`](./cmd/README.md#dbn-go-file): a CLI to process DBN files
  * [`dbn-go-hist`](./cmd/README.md#dbn-go-hist): a CLI to use the Historical API
  * [`dbn-go-live`](./cmd/README.md#dbn-go-live): a simple Live API feed handler
+ * [`dbn-go-live-replay`](./cmd/README.md#dbn-go-live-replay): a local Live gateway that replays DBN files for testing
  * [`dbn-go-mcp-meta`](./cmd/README.md#dbn-go-mcp-meta): Metadata-only MCP server (no billing risk)
  * [`dbn-go-mcp-data`](./cmd/README.md#dbn-go-mcp-data): Database-Backed Data Ingestion MCP server
  * [`dbn-go-slurp-docs`](./cmd/README.md#dbn-go-slurp-docs): a tool to scrape Databento docs for offline use

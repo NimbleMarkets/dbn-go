@@ -230,7 +230,7 @@ func (s SType) String() string {
 
 // STypeFromString converts a string to an SType.
 // Returns an error if the string is unknown.
-// Possible string values: instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, cms
+// Possible string values include: instrument_id, id, instr, raw_symbol, raw, smart, continuous, parent, nasdaq, nasdaq_symbol, cms, cms_symbol
 func STypeFromString(str string) (SType, error) {
 	str = strings.ToLower(str)
 	switch str {
@@ -244,9 +244,9 @@ func STypeFromString(str string) (SType, error) {
 		return SType_Continuous, nil
 	case "parent":
 		return SType_Parent, nil
-	case "nasdaq":
+	case "nasdaq", "nasdaq_symbol":
 		return SType_NasdaqSymbol, nil
-	case "cms":
+	case "cms", "cms_symbol":
 		return SType_CmsSymbol, nil
 	case "isin":
 		return SType_Isin, nil
