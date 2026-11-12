@@ -99,7 +99,7 @@ func NewDownloadsPage(config Config) DownloadsPageModel {
 type DownloadsPageKeyMap struct {
 	CursorUp   key.Binding
 	CursorDown key.Binding
-	// Cancel key.Binding
+	Cancel     key.Binding
 }
 
 // DefaultDownloadsPageKeyMap returns a default set of key bindings for DownloadsPageModel
@@ -113,10 +113,10 @@ func DefaultDownloadsPageKeyMap() DownloadsPageKeyMap {
 			key.WithKeys("down"),
 			key.WithHelp("down", "cursor down"),
 		),
-		// Cancel: key.NewBinding(
-		// 	key.WithKeys("x"),
-		// 	key.WithHelp("x", "cancel"),
-		// ),
+		Cancel: key.NewBinding(
+			key.WithKeys("x"),
+			key.WithHelp("x", "cancel"),
+		),
 	}
 }
 
@@ -126,6 +126,7 @@ func (m *DownloadsPageKeyMap) FullHelp() [][]key.Binding {
 	kb := [][]key.Binding{{
 		m.CursorUp,
 		m.CursorDown,
+		m.Cancel,
 	}}
 	return kb
 }
@@ -136,6 +137,7 @@ func (m DownloadsPageKeyMap) ShortHelp() []key.Binding {
 	kb := []key.Binding{
 		m.CursorUp,
 		m.CursorDown,
+		m.Cancel,
 	}
 	return kb
 }
@@ -158,6 +160,10 @@ func (m DownloadsPageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		if key.Matches(msg, m.keyMap.Cancel) {
+			m.cancelSelectedDownload()
+			return m, nil
+		}
 		// pass KeyMsg on to the focused table
 		var cmd tea.Cmd
 		m.downloadsTable, cmd = m.downloadsTable.Update(msg)
@@ -218,6 +224,16 @@ func renderProgressBar(width int, progress float64) string {
 		strings.Repeat("█", barLen),
 		strings.Repeat(".", fullLen-barLen),
 		progress*100)
+}
+
+// cancelSelectedDownload cancels the download in the selected row, if any.
+// Its row is updated when the DownloadManager reports it cancelled.
+func (m *DownloadsPageModel) cancelSelectedDownload() {
+	row := m.downloadsTable.SelectedRow()
+	if len(row) <= columnDownloadsFileIndex {
+		return
+	}
+	m.downloadManager.CancelDownloadByName(row[columnDownloadsJobIndex], row[columnDownloadsFileIndex])
 }
 
 ///////////////////////////////////////////////////////////////////////////////
