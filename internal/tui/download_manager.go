@@ -28,11 +28,12 @@ import (
 type DownloadState string
 
 const (
-	DownloadNone     DownloadState = ""
-	DownloadQueued   DownloadState = "queued"
-	DownloadActive   DownloadState = "active"
-	DownloadComplete DownloadState = "complete"
-	DownloadFailed   DownloadState = "failed"
+	DownloadNone      DownloadState = ""
+	DownloadQueued    DownloadState = "queued"
+	DownloadActive    DownloadState = "active"
+	DownloadComplete  DownloadState = "complete"
+	DownloadFailed    DownloadState = "failed"
+	DownloadCancelled DownloadState = "cancelled"
 )
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -144,42 +145,34 @@ func (dm *DownloadManager) QueueDownload(jobID string, file dbn_hist.BatchFileDe
 	return added
 }
 
+// CancelDownload cancels the download of the specified job and file.
+// Returns true if it was queued or active, false otherwise.
 func (dm *DownloadManager) CancelDownload(jobID string, file dbn_hist.BatchFileDesc) bool {
-	// extract https url
-	httpsUrl := file.Urls["https"]
-	if httpsUrl == "" {
-		return false // we only support https
-	}
+	return dm.CancelDownloadByName(jobID, file.Filename)
+}
 
-	desc := DownloadDesc{
-		JobID:    jobID,
-		Url:      httpsUrl,
-		Filename: file.Filename,
-		FileHash: file.Hash,
-		Size:     file.Size,
-	}
-
+// CancelDownloadByName cancels the download of the named file of a job.
+// A queued download is marked cancelled and never starts. An active download
+// has its context cancelled; it reports DownloadCancelled once it stops.
+// Returns true if the download was queued or active, false otherwise.
+func (dm *DownloadManager) CancelDownloadByName(jobID string, filename string) bool {
 	dm.queueMtx.Lock()
 	defer dm.queueMtx.Unlock()
 
-	// Try to find and cancel active download
-	for i, download := range dm.activeDownloads {
-		if download.Desc == desc {
-			if download.ContextCancel != nil {
-				download.ContextCancel()
-			}
-			// Move from active to past with failed state
-			download.State = DownloadFailed
-			dm.activeDownloads = slices.Delete(dm.activeDownloads, i, i+1)
-			dm.pastDownloads = append(dm.pastDownloads, download)
+	for _, download := range dm.activeDownloads {
+		if download.Desc.JobID == jobID && download.Desc.Filename == filename {
+			// The download goroutine moves it to pastDownloads once it stops
+			download.ContextCancel()
 			return true
 		}
 	}
 
-	// Try to remove from queue if still queued
 	for i, download := range dm.queuedDownloads {
-		if download.Desc == desc {
+		if download.Desc.JobID == jobID && download.Desc.Filename == filename {
+			download.State = DownloadCancelled
 			dm.queuedDownloads = slices.Delete(dm.queuedDownloads, i, i+1)
+			dm.pastDownloads = append(dm.pastDownloads, download)
+			dm.sendProgress(&DownloadProgressMsg{Desc: download.Desc, State: DownloadCancelled})
 			return true
 		}
 	}
@@ -299,21 +292,26 @@ func (dm *DownloadManager) checkQueue() bool {
 		return false
 	}
 
-	// pop item from queue and put into active state
+	// pop item from queue and put into active state; it is cancellable from here on
 	var item DownloadItem
 	item, dm.queuedDownloads = dm.queuedDownloads[0], dm.queuedDownloads[1:]
+	ctx, cancel := context.WithCancel(context.Background())
 	item.State = DownloadActive
+	item.ContextCancel = cancel
 	dm.activeDownloads = append(dm.activeDownloads, item)
 	dm.queueMtx.Unlock()
 
 	go func() {
+		defer cancel()
 		progressMsg := DownloadProgressMsg{Desc: item.Desc}
-		if err := dm.performDownload(item); err != nil {
-			progressMsg.State = DownloadFailed
-			progressMsg.Error = err
-		} else {
+		if err := dm.performDownload(ctx, item); err == nil {
 			progressMsg.State = DownloadComplete
 			progressMsg.CurrentSize = item.Desc.Size
+		} else if ctx.Err() != nil {
+			progressMsg.State = DownloadCancelled // performDownload removed any partial file
+		} else {
+			progressMsg.State = DownloadFailed
+			progressMsg.Error = err
 		}
 		dm.sendProgress(&progressMsg)
 		dm.completeDownload(item.Desc, progressMsg.State)
@@ -330,7 +328,7 @@ func (dm *DownloadManager) checkQueue() bool {
 // none of them is trusted: the API key is only sent to a Databento HTTPS URL,
 // the file name must be a plain name in the download directory, and the file
 // is only kept if its size and SHA-256 hash match the listing.
-func (dm *DownloadManager) performDownload(item DownloadItem) error {
+func (dm *DownloadManager) performDownload(ctx context.Context, item DownloadItem) error {
 	// Check everything from the listing before touching the disk or network
 	apiUrl, err := url.Parse(item.Desc.Url)
 	if err != nil {
@@ -358,18 +356,6 @@ func (dm *DownloadManager) performDownload(item DownloadItem) error {
 		return fmt.Errorf("refusing download with listed size %d", wantSize)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Store the cancel function in the item so it can be cancelled later
-	dm.queueMtx.Lock()
-	for i := range dm.activeDownloads {
-		if dm.activeDownloads[i].Desc == item.Desc {
-			dm.activeDownloads[i].ContextCancel = cancel
-			break
-		}
-	}
-	dm.queueMtx.Unlock()
 	req, err := retryablehttp.NewRequestWithContext(ctx, "GET", apiUrl.String(), nil)
 	if err != nil {
 		return err
