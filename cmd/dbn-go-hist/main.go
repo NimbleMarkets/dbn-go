@@ -53,6 +53,9 @@ var (
 	jobID       string
 	stateFilter string
 
+	downloadOutputDir string
+	downloadFilename  string
+
 	startTimeArg string
 	endTimeArg   string
 
@@ -270,6 +273,10 @@ func main() {
 	listFilesCmd.Flags().StringVarP(&jobID, "job", "", "", "Job ID to list files for")
 	listFilesCmd.Flags().BoolVarP(&emitJSON, "json", "j", false, "Emit JSON instead of simple summary")
 	listFilesCmd.MarkFlagRequired("job")
+
+	rootCmd.AddCommand(downloadJobCmd)
+	downloadJobCmd.Flags().StringVarP(&downloadOutputDir, "output-dir", "o", ".", "Directory to download into; files are written to <output-dir>/<job_id>/")
+	downloadJobCmd.Flags().StringVarP(&downloadFilename, "filename", "f", "", "Download only this file of the job")
 
 	rootCmd.AddCommand(submitJobCmd)
 	submitJobCmd.Flags().StringVarP(&dataset, "dataset", "d", "", "Dataset to request")
@@ -566,6 +573,35 @@ var listFilesCmd = &cobra.Command{
 			requireNoError(err)
 			fmt.Fprintf(os.Stdout, "%s\n", jstr)
 		}
+	},
+}
+
+var downloadJobCmd = &cobra.Command{
+	Use:     "download-job <job_id>",
+	Aliases: []string{"download", "dl"},
+	Short:   "Downloads the files of a Databento Hist batch job",
+	Long: `Downloads the files of a Databento Hist batch job into <output-dir>/<job_id>/.
+
+All of the job's files are downloaded, or only the one named by --filename.
+Each file's size and SHA-256 hash are checked against the job's file listing,
+and a file is only written to its final path once it has been verified.
+Files already present with the listed size and hash are not downloaded again.
+The path of each file is printed on its own line.`,
+	Example: `  dbn-go-hist download-job GLBX-20240101-ABCDEF1234
+  dbn-go-hist download-job GLBX-20240101-ABCDEF1234 -o ./data -f metadata.json`,
+	Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		apiKey := requireDatabentoApiKey()
+
+		paths, err := dbn_hist.DownloadJob(apiKey, dbn_hist.DownloadJobParams{
+			JobID:              args[0],
+			OutputDir:          downloadOutputDir,
+			FilenameToDownload: downloadFilename,
+		})
+		for _, path := range paths {
+			fmt.Fprintf(os.Stdout, "%s\n", path)
+		}
+		requireNoError(err)
 	},
 }
 
