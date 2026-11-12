@@ -3,6 +3,7 @@
 package tui
 
 import (
+	"context"
 	"crypto/sha256"
 	"crypto/tls"
 	"encoding/hex"
@@ -14,6 +15,9 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
+
+	dbn_hist "github.com/NimbleMarkets/dbn-go/hist"
 )
 
 const testDownloadKey = "db-testkeytestkeytestkeytestkey00"
@@ -112,7 +116,7 @@ func filesUnder(t *testing.T, root string) []string {
 }
 
 func download(dm *DownloadManager, desc DownloadDesc) error {
-	return dm.performDownload(DownloadItem{Desc: desc, DestFile: desc.Filename})
+	return dm.performDownload(context.Background(), DownloadItem{Desc: desc, DestFile: desc.Filename})
 }
 
 func TestPerformDownload_WritesVerifiedFile(t *testing.T) {
@@ -322,5 +326,153 @@ func TestPerformDownload_AcceptsListedEmptyFile(t *testing.T) {
 	}
 	if info, err := os.Stat("empty.json"); err != nil || info.Size() != 0 {
 		t.Errorf("empty.json: %v, %v; want an empty file", info, err)
+	}
+}
+
+// blockingBody serves body, then holds the response open until the client
+// goes away, so a download stays active until it is cancelled.
+func blockingBody(body string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(body))
+		w.(http.Flusher).Flush()
+		<-r.Context().Done()
+	}
+}
+
+// cancelTestManager returns a manager with one download slot whose queue is
+// driven by calling checkQueue directly.
+func cancelTestManager(server *recordingServer) *DownloadManager {
+	dm := testDownloadManager(server)
+	dm.maxActiveDownloads = 1
+	return dm
+}
+
+func batchFile(server *recordingServer, filename string, size uint64) dbn_hist.BatchFileDesc {
+	return dbn_hist.BatchFileDesc{
+		Filename: filename,
+		Size:     size,
+		Hash:     sha256Hash(strings.Repeat("x", int(size))),
+		Urls:     map[string]string{"https": server.URL + "/v0/batch/download/job/" + filename},
+	}
+}
+
+// waitForProgress reads progress messages until one satisfies match.
+func waitForProgress(t *testing.T, dm *DownloadManager, match func(DownloadProgressMsg) bool) DownloadProgressMsg {
+	t.Helper()
+	timeout := time.After(10 * time.Second)
+	for {
+		select {
+		case msg := <-dm.ProgressChannel():
+			if match(msg) {
+				return msg
+			}
+		case <-timeout:
+			t.Fatal("timed out waiting for a download progress message")
+			return DownloadProgressMsg{}
+		}
+	}
+}
+
+func isTerminal(msg DownloadProgressMsg) bool {
+	return msg.State != DownloadQueued && msg.State != DownloadActive
+}
+
+func TestCancelDownload_StopsActiveDownload(t *testing.T) {
+	server := newRecordingServer(t, true, blockingBody("partial"))
+	root := chdirToSubdir(t)
+	dm := cancelTestManager(server)
+	file := batchFile(server, "data.dbn.zst", 1000)
+
+	if !dm.QueueDownload("JOB", file) || !dm.checkQueue() {
+		t.Fatal("download was not started")
+	}
+	// Wait until part of the body has been written to disk.
+	waitForProgress(t, dm, func(msg DownloadProgressMsg) bool {
+		return msg.State == DownloadActive && msg.CurrentSize > 0
+	})
+
+	if !dm.CancelDownload("JOB", file) {
+		t.Fatal("CancelDownload returned false for an active download")
+	}
+	msg := waitForProgress(t, dm, isTerminal)
+	if msg.State != DownloadCancelled || msg.Error != nil {
+		t.Errorf("final state = %q, error %v; want %q and no error", msg.State, msg.Error, DownloadCancelled)
+	}
+	if queued, active, past := dm.Counts(); queued != 0 || active != 0 || past != 1 {
+		t.Errorf("Counts() = %d, %d, %d; want 0, 0, 1", queued, active, past)
+	}
+	// Downloads cannot be resumed, so the partial file is removed like a failed one.
+	if files := filesUnder(t, root); len(files) != 0 {
+		t.Errorf("files left behind: %v", files)
+	}
+}
+
+// A download cancelled the moment it is activated, before any of it has been
+// received, must still stop.
+func TestCancelDownload_StopsJustActivatedDownload(t *testing.T) {
+	server := newRecordingServer(t, true, blockingBody("partial"))
+	root := chdirToSubdir(t)
+	dm := cancelTestManager(server)
+	file := batchFile(server, "data.dbn.zst", 1000)
+
+	if !dm.QueueDownload("JOB", file) || !dm.checkQueue() {
+		t.Fatal("download was not started")
+	}
+	if !dm.CancelDownload("JOB", file) {
+		t.Fatal("CancelDownload returned false for an active download")
+	}
+	msg := waitForProgress(t, dm, isTerminal)
+	if msg.State != DownloadCancelled || msg.Error != nil {
+		t.Errorf("final state = %q, error %v; want %q and no error", msg.State, msg.Error, DownloadCancelled)
+	}
+	if files := filesUnder(t, root); len(files) != 0 {
+		t.Errorf("files left behind: %v", files)
+	}
+}
+
+func TestCancelDownload_QueuedDownloadNeverStarts(t *testing.T) {
+	server := newRecordingServer(t, true, serveBody("x"))
+	root := chdirToSubdir(t)
+	dm := cancelTestManager(server)
+	file := batchFile(server, "data.dbn.zst", 1)
+
+	if !dm.QueueDownload("JOB", file) {
+		t.Fatal("download was not queued")
+	}
+	if !dm.CancelDownload("JOB", file) {
+		t.Fatal("CancelDownload returned false for a queued download")
+	}
+	msg := waitForProgress(t, dm, isTerminal)
+	if msg.State != DownloadCancelled || msg.Error != nil || msg.Desc.Filename != file.Filename {
+		t.Errorf("progress = %q %q, error %v; want %q for %q", msg.Desc.Filename, msg.State, msg.Error, DownloadCancelled, file.Filename)
+	}
+	if queued, active, past := dm.Counts(); queued != 0 || active != 0 || past != 1 {
+		t.Errorf("Counts() = %d, %d, %d; want 0, 0, 1", queued, active, past)
+	}
+	if dm.checkQueue() {
+		t.Error("a cancelled download was started")
+	}
+	if n := len(server.received()); n != 0 {
+		t.Errorf("server got %d requests for a cancelled download, want 0", n)
+	}
+	if files := filesUnder(t, root); len(files) != 0 {
+		t.Errorf("files created: %v", files)
+	}
+}
+
+func TestCancelDownload_UnknownFile(t *testing.T) {
+	server := newRecordingServer(t, true, serveBody("x"))
+	dm := cancelTestManager(server)
+	if !dm.QueueDownload("JOB", batchFile(server, "queued.dbn.zst", 1)) {
+		t.Fatal("download was not queued")
+	}
+	if dm.CancelDownload("JOB", batchFile(server, "other.dbn.zst", 1)) {
+		t.Error("CancelDownload of a file that was never queued returned true")
+	}
+	if dm.CancelDownloadByName("OTHERJOB", "queued.dbn.zst") {
+		t.Error("CancelDownloadByName of another job's file returned true")
+	}
+	if queued, _, _ := dm.Counts(); queued != 1 {
+		t.Errorf("queued downloads = %d, want 1", queued)
 	}
 }
