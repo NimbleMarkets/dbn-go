@@ -26,6 +26,9 @@ dbn-go-hist cost -d GLBX.MDP3 -s ohlcv-1d -t 2024-01-01 -e 2024-01-31 SPY
 
 # Download data
 dbn-go-hist get-range -d GLBX.MDP3 -s ohlcv-1d -t 2024-01-01 -e 2024-01-31 -o data.dbn SPY
+
+# Download the files of a completed batch job into ./data/<job_id>/
+dbn-go-hist download-job -o ./data GLBX-20240101-ABCDEF1234
 ```
 
 ## Command Reference

@@ -132,6 +132,7 @@ Available Commands:
   dataset-condition Queries Databento Hist for condition of a dataset
   dataset-range     Queries Databento Hist for date range of a dataset
   datasets          Queries Databento Hist for datasets and prints them
+  download-job      Downloads the files of a Databento Hist batch job
   fields            Queries Databento Hist for fields of a schema/encoding and prints them
   files             Lists files for the given Databento Hist JobID
   get-range         Download a range of data from the Hist API
