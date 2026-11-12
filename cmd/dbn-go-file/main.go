@@ -57,6 +57,9 @@ func main() {
 	docsMarkdownCmd.Flags().BoolVar(&docsHugo, "hugo", false, "Generate Hugo-compatible markdown with YAML front matter")
 	rootCmd.AddCommand(docsCmd)
 
+	rootCmd.AddCommand(versionCmd)
+	rootCmd.SetVersionTemplate(version.String(rootCmd.Name()) + "\n")
+
 	err := rootCmd.Execute()
 	requireNoErrorWithoutPrint(err)
 }
@@ -68,6 +71,15 @@ var rootCmd = &cobra.Command{
 	Short:   "dbn-go-file processes Databento DBN files",
 	Long:    "dbn-go-file processes Databento DBN files",
 	Version: version.Get(),
+}
+
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Prints version, revision, and build information",
+	Args:  cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Fprintln(os.Stdout, version.String(rootCmd.Name()))
+	},
 }
 
 ///////////////////////////////////////////////////////////////////////////////
