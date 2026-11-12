@@ -3,10 +3,10 @@
 package mcp_data
 
 import (
+	"context"
 	"crypto/sha256"
-	"database/sql"
-	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -17,168 +17,35 @@ import (
 
 	"github.com/NimbleMarkets/dbn-go"
 	"github.com/NimbleMarkets/dbn-go/internal/file"
-	_ "github.com/duckdb/duckdb-go/v2"
+	"nimbleterminal.dev/ntduckbox"
 )
 
-// safeName matches valid dataset names (e.g. XNAS.ITCH) and schema names (e.g. ohlcv-1d).
-// Only alphanumeric, dot, hyphen, and underscore are allowed.
-var safeName = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
+// safeNameChars matches the characters allowed in dataset names (e.g. XNAS.ITCH)
+// and schema names (e.g. ohlcv-1d): alphanumeric, dot, hyphen, and underscore.
+var safeNameChars = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 
-var (
-	queryPrefixPattern = regexp.MustCompile(`(?is)^\s*(select|with)\b`)
-	// Block known external-read functions and non-query/DDL keywords.
-	disallowedQueryPattern = regexp.MustCompile(
-		`(?i)\b(read_[a-z0-9_]*|[a-z0-9_]*_scan|attach|detach|copy|install|load|pragma|call|create|alter|drop|insert|update|delete|merge|truncate|vacuum|checkpoint|set|reset|use|export|import)\b`,
-	)
-	// Block table functions that run SQL from a string literal (which hides it from
-	// the keyword check above) or that touch the filesystem.
-	disallowedFunctionPattern = regexp.MustCompile(`(?i)\b(query|query_table|glob|sniff_csv)\s*\(`)
-	// DuckDB allows FROM 'path/to/file.csv'; block quoted table sources.
-	disallowedQuotedFromPattern = regexp.MustCompile(`(?is)\b(from|join)\s*'`)
-)
+// isSafeName reports whether name is a valid dataset or schema name that is
+// safe to use as a cache directory name. "." and ".." pass the character
+// check but are directory references, not names, so they are rejected.
+func isSafeName(name string) bool {
+	return name != "." && name != ".." && safeNameChars.MatchString(name)
+}
+
+// isCacheSchemaDir reports whether dir is exactly {cacheDir}/{dataset}/{schema}.
+// Cache files are only ever removed from such directories.
+func isCacheSchemaDir(dir string, cacheDir string) bool {
+	rel, err := filepath.Rel(cacheDir, dir)
+	if err != nil || !filepath.IsLocal(rel) {
+		return false
+	}
+	parts := strings.Split(rel, string(filepath.Separator))
+	return len(parts) == 2 && isSafeName(parts[0]) && isSafeName(parts[1])
+}
 
 // sqlLiteral escapes a string for use as a SQL string literal,
 // preventing SQL injection via embedded single quotes.
 func sqlLiteral(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
-}
-
-// stripSQLComments removes SQL line/block comments while preserving quoted literals/identifiers.
-func stripSQLComments(sqlText string) string {
-	var out strings.Builder
-	inSingle := false
-	inDouble := false
-	inLineComment := false
-	inBlockComment := false
-
-	for i := 0; i < len(sqlText); i++ {
-		ch := sqlText[i]
-
-		if inLineComment {
-			if ch == '\n' {
-				inLineComment = false
-				out.WriteByte(ch)
-			}
-			continue
-		}
-		if inBlockComment {
-			if ch == '*' && i+1 < len(sqlText) && sqlText[i+1] == '/' {
-				inBlockComment = false
-				i++
-			}
-			continue
-		}
-		if inSingle {
-			out.WriteByte(ch)
-			if ch == '\'' {
-				if i+1 < len(sqlText) && sqlText[i+1] == '\'' {
-					i++
-					out.WriteByte(sqlText[i])
-				} else {
-					inSingle = false
-				}
-			}
-			continue
-		}
-		if inDouble {
-			out.WriteByte(ch)
-			if ch == '"' {
-				if i+1 < len(sqlText) && sqlText[i+1] == '"' {
-					i++
-					out.WriteByte(sqlText[i])
-				} else {
-					inDouble = false
-				}
-			}
-			continue
-		}
-
-		if ch == '-' && i+1 < len(sqlText) && sqlText[i+1] == '-' {
-			inLineComment = true
-			i++
-			continue
-		}
-		if ch == '/' && i+1 < len(sqlText) && sqlText[i+1] == '*' {
-			inBlockComment = true
-			i++
-			continue
-		}
-
-		if ch == '\'' {
-			inSingle = true
-		} else if ch == '"' {
-			inDouble = true
-		}
-		out.WriteByte(ch)
-	}
-
-	return out.String()
-}
-
-// stripSQLLiteralsAndComments removes SQL comments and quoted literals/identifiers.
-func stripSQLLiteralsAndComments(sqlText string) string {
-	commentless := stripSQLComments(sqlText)
-
-	var out strings.Builder
-	inSingle := false
-	inDouble := false
-	for i := 0; i < len(commentless); i++ {
-		ch := commentless[i]
-		if inSingle {
-			if ch == '\'' {
-				if i+1 < len(commentless) && commentless[i+1] == '\'' {
-					i++
-				} else {
-					inSingle = false
-				}
-			}
-			continue
-		}
-		if inDouble {
-			if ch == '"' {
-				if i+1 < len(commentless) && commentless[i+1] == '"' {
-					i++
-				} else {
-					inDouble = false
-				}
-			}
-			continue
-		}
-		if ch == '\'' {
-			inSingle = true
-			out.WriteByte(' ')
-			continue
-		}
-		if ch == '"' {
-			inDouble = true
-			out.WriteByte(' ')
-			continue
-		}
-		out.WriteByte(ch)
-	}
-	return out.String()
-}
-
-func validateQueryCacheSQL(userSQL string) error {
-	commentless := strings.TrimSpace(stripSQLComments(userSQL))
-	if commentless == "" {
-		return fmt.Errorf("sql must not be empty")
-	}
-	if strings.Contains(commentless, ";") {
-		return fmt.Errorf("multiple SQL statements are not allowed")
-	}
-	if disallowedQuotedFromPattern.MatchString(commentless) {
-		return fmt.Errorf("query_cache only allows cached view sources, not quoted file paths")
-	}
-
-	normalized := strings.TrimSpace(stripSQLLiteralsAndComments(userSQL))
-	if !queryPrefixPattern.MatchString(normalized) {
-		return fmt.Errorf("only SELECT/CTE queries are allowed")
-	}
-	if disallowedQueryPattern.MatchString(normalized) || disallowedFunctionPattern.MatchString(normalized) {
-		return fmt.Errorf("query contains disallowed SQL keywords/functions")
-	}
-	return nil
 }
 
 // schemaSupportsParquet returns true if the schema can be converted to parquet.
@@ -197,9 +64,16 @@ func normalizeDateForFilename(s string) string {
 // cacheParquetPath returns the parquet file path for a cache entry.
 // Format: {symbols}__{stype_in}__{stype_out}__{start}__{end}.parquet
 // If the filename exceeds 200 chars, symbols are truncated and a hash suffix is added.
+//
+// symbols, start and end are caller-supplied text, so they are encoded with
+// file.SafePathComponent: the result is always a single file name directly
+// under {cacheDir}/{dataset}/{schema}. dataset and schema must already be
+// validated names.
 func (s *Server) cacheParquetPath(dataset, schema, symbols, stypeIn, stypeOut, start, end string) string {
-	startNorm := normalizeDateForFilename(start)
-	endNorm := normalizeDateForFilename(end)
+	startNorm := file.SafePathComponent(normalizeDateForFilename(start))
+	endNorm := file.SafePathComponent(normalizeDateForFilename(end))
+	rawSymbols := symbols // hashed as given, so existing hashed names stay stable
+	symbols = file.SafePathComponent(symbols)
 
 	// Build filename: {symbols}__{stype_in}__{stype_out}__{start}__{end}
 	name := fmt.Sprintf("%s__%s__%s__%s__%s", symbols, stypeIn, stypeOut, startNorm, endNorm)
@@ -207,7 +81,7 @@ func (s *Server) cacheParquetPath(dataset, schema, symbols, stypeIn, stypeOut, s
 	const maxLen = 200
 	if len(name)+len(".parquet") > maxLen {
 		// Truncate symbols and append hash
-		h := sha256.Sum256([]byte(symbols + "|" + stypeIn + "|" + stypeOut + "|" + start + "|" + end))
+		h := sha256.Sum256([]byte(rawSymbols + "|" + stypeIn + "|" + stypeOut + "|" + start + "|" + end))
 		hash8 := fmt.Sprintf("%x", h[:4])
 		suffix := fmt.Sprintf("__%s__%s__%s__%s__%s", stypeIn, stypeOut, startNorm, endNorm, hash8)
 		// Count how many symbols we can fit
@@ -275,74 +149,93 @@ func readManifest(parquetPath string) *CacheManifest {
 	return &m
 }
 
-// InitCache opens an in-memory DuckDB database and creates views for any existing cached parquet files.
+const (
+	defaultQueryRows = 10_000
+	maxQueryRows     = 100_000
+	maxQueryChars    = 10_000_000
+)
+
+// InitCache opens an in-memory ntduckbox.DB and registers views for any existing cached parquet files.
 func (s *Server) InitCache() error {
 	if err := os.MkdirAll(s.cacheDir, 0755); err != nil {
 		return fmt.Errorf("failed to create cache dir: %w", err)
 	}
-	// DuckDB's allowed_directories is a path-prefix match, so use an absolute
-	// path for both the allowlist and the views built from s.cacheDir.
 	absCacheDir, err := filepath.Abs(s.cacheDir)
 	if err != nil {
 		return fmt.Errorf("failed to resolve cache dir: %w", err)
 	}
+	if evalDir, err := filepath.EvalSymlinks(absCacheDir); err == nil {
+		absCacheDir = evalDir
+	}
 	s.cacheDir = absCacheDir
 
-	db, err := sql.Open("duckdb", "")
+	box, err := ntduckbox.Open(ntduckbox.Options{
+		Path:         ":memory:",
+		AllowedDirs:  []string{s.cacheDir},
+		MaxRows:      maxQueryRows,
+		MaxChars:     maxQueryChars,
+		QueryTimeout: 30 * time.Second,
+	})
 	if err != nil {
-		return fmt.Errorf("failed to open DuckDB: %w", err)
+		return fmt.Errorf("failed to open ntduckbox: %w", err)
 	}
-	// Security hardening: disable extensions and all filesystem access outside
-	// the cache directory. User SQL can reach file-reading table functions in
-	// ways a keyword filter cannot see (e.g. query('...read_text(...)...')),
-	// so DuckDB itself must refuse those reads. allowed_directories must be set
-	// before enable_external_access is disabled, or the cache views break.
-	// lock_configuration prevents user SQL from re-enabling any of these.
-	allowedDir := absCacheDir + string(filepath.Separator) // trailing separator: don't match sibling dirs
-	for _, stmt := range []string{
-		"SET autoinstall_known_extensions = false",
-		"SET autoload_known_extensions = false",
-		"SET allow_community_extensions = false",
-		"SET disabled_filesystems = 'HTTPFileSystem'",
-		fmt.Sprintf("SET allowed_directories = [%s]", sqlLiteral(allowedDir)),
-		"SET enable_external_access = false",
-		"SET lock_configuration = true",
-	} {
-		if _, err := db.Exec(stmt); err != nil {
-			db.Close()
-			return fmt.Errorf("failed to configure DuckDB (%s): %w", stmt, err)
-		}
-	}
-	s.db = db
+	s.box = box
+	s.queryGate = make(chan struct{}, 1)
 
 	return s.refreshViews()
 }
 
-// Close closes the DuckDB connection.
+// defaultQueryWait bounds how long a query_cache call waits for an in-flight
+// query to finish before telling the caller to retry.
+const defaultQueryWait = 5 * time.Second
+
+// acquireQuery takes the query gate or returns a busy error after queryWait.
+// The caller must call releaseQuery on success.
+func (s *Server) acquireQuery(ctx context.Context) error {
+	wait := s.queryWait
+	if wait <= 0 {
+		wait = defaultQueryWait
+	}
+	timer := time.NewTimer(wait)
+	defer timer.Stop()
+	select {
+	case s.queryGate <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return fmt.Errorf("another query_cache call is still running (waited %s); retry shortly, or simplify the other query", wait)
+	}
+}
+
+func (s *Server) releaseQuery() { <-s.queryGate }
+
+// Close closes the ntduckbox DuckDB connection.
 func (s *Server) Close() error {
-	if s.db != nil {
-		return s.db.Close()
+	if s.box != nil {
+		err := s.box.Close()
+		s.box = nil
+		return err
 	}
 	return nil
 }
 
 // refreshViews scans CacheDir for {dataset}/{schema}/*.parquet directories
-// and creates or drops DuckDB views accordingly.
+// and updates the managed views in ntduckbox.DB.
 func (s *Server) refreshViews() error {
-	if s.db == nil {
+	if s.box == nil {
 		return nil
 	}
 
-	// Collect which views should exist
 	wantViews := map[string]string{} // view name -> glob path
 	datasets, _ := os.ReadDir(s.cacheDir)
 	for _, ds := range datasets {
-		if !ds.IsDir() || !safeName.MatchString(ds.Name()) {
+		if !ds.IsDir() || !isSafeName(ds.Name()) {
 			continue
 		}
 		schemas, _ := os.ReadDir(filepath.Join(s.cacheDir, ds.Name()))
 		for _, sc := range schemas {
-			if !sc.IsDir() || !safeName.MatchString(sc.Name()) {
+			if !sc.IsDir() || !isSafeName(sc.Name()) {
 				continue
 			}
 			parquetGlob := filepath.Join(s.cacheDir, ds.Name(), sc.Name(), "*.parquet")
@@ -354,245 +247,103 @@ func (s *Server) refreshViews() error {
 		}
 	}
 
-	// Create or replace views for existing parquet files
-	for viewName, globPath := range wantViews {
-		stmt := fmt.Sprintf(`CREATE OR REPLACE VIEW "%s" AS SELECT * FROM read_parquet(%s)`, viewName, sqlLiteral(globPath))
-		if _, err := s.db.Exec(stmt); err != nil {
-			s.Logger.Warn("failed to create view", "view", viewName, "error", err)
+	// One alias view per raw view, replaced in the same transaction.
+	aliasViews := make(map[string]string, len(wantViews))
+	for viewName := range wantViews {
+		_, schema, _ := strings.Cut(viewName, "/")
+		alias := aliasViewName(viewName)
+		if _, clash := aliasViews[alias]; clash {
+			if s.Logger != nil {
+				s.Logger.Warn("alias view name collision; skipping alias", "view", viewName, "alias", alias)
+			}
+			continue
 		}
+		aliasViews[alias] = aliasViewSQL(viewName, schema)
 	}
 
-	// Drop views that no longer have backing files
-	rows, err := s.db.Query("SELECT table_name FROM information_schema.tables WHERE table_type = 'VIEW'")
+	err := s.box.SetAllViews(context.Background(), ntduckbox.ViewSet{Parquet: wantViews, SQL: aliasViews})
 	if err != nil {
-		return nil // non-fatal
-	}
-	defer rows.Close()
-
-	var existingViews []string
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err == nil {
-			existingViews = append(existingViews, name)
+		if s.Logger != nil {
+			s.Logger.Warn("failed to refresh cache views", "error", err)
 		}
+		return err
 	}
-	for _, v := range existingViews {
-		if _, ok := wantViews[v]; !ok {
-			s.db.Exec(fmt.Sprintf(`DROP VIEW IF EXISTS "%s"`, v))
-		}
-	}
-
 	return nil
 }
 
-// refreshViewForSchema creates or refreshes a single DuckDB view for the given dataset/schema.
+// refreshViewForSchema refreshes the DuckDB view catalog for the given dataset/schema.
 func (s *Server) refreshViewForSchema(dataset, schema string) {
-	if s.db == nil {
+	if s.box == nil {
 		return
 	}
-	if !safeName.MatchString(dataset) || !safeName.MatchString(schema) {
+	if !isSafeName(dataset) || !isSafeName(schema) {
 		return
 	}
-
-	viewName := dataset + "/" + schema
-	parquetGlob := filepath.Join(s.cacheDir, dataset, schema, "*.parquet")
-	matches, _ := filepath.Glob(parquetGlob)
-
-	if len(matches) > 0 {
-		stmt := fmt.Sprintf(`CREATE OR REPLACE VIEW "%s" AS SELECT * FROM read_parquet(%s)`, viewName, sqlLiteral(parquetGlob))
-		if _, err := s.db.Exec(stmt); err != nil {
-			s.Logger.Warn("failed to create view", "view", viewName, "error", err)
-		}
-		return
-	}
-
-	// No files, drop view if it exists
-	s.db.Exec(fmt.Sprintf(`DROP VIEW IF EXISTS "%s"`, viewName))
+	_ = s.refreshViews()
 }
 
 // queryDuckDBOptions controls query execution and output formatting.
 type queryDuckDBOptions struct {
-	Format  string // "csv" (default), "json_rows", "json_columnar"
-	MaxRows int    // 0 = use default limit (10000)
+	Format  string // "csv" (default), "markdown", "json_rows", "json_columnar"
+	MaxRows int    // 0 = use default limit (10000); clamped to maxQueryRows (100000)
 }
 
-// queryDuckDB executes a SQL query against DuckDB and returns results in the requested format.
+// queryDuckDB executes a SQL query via ntduckbox and returns the rendered text.
 func (s *Server) queryDuckDB(userSQL string, opts queryDuckDBOptions) (string, error) {
-	if s.db == nil {
-		return "", fmt.Errorf("cache not initialized")
-	}
-	if err := validateQueryCacheSQL(userSQL); err != nil {
-		return "", err
+	res, err := s.queryDuckDBResult(context.Background(), userSQL, opts)
+	return res.Text, err
+}
+
+// queryDuckDBResult executes a SQL query via ntduckbox and returns the full Result (including Rows and Truncated).
+func (s *Server) queryDuckDBResult(ctx context.Context, userSQL string, opts queryDuckDBOptions) (ntduckbox.Result, error) {
+	if s.box == nil {
+		return ntduckbox.Result{}, fmt.Errorf("cache not initialized")
 	}
 
-	limit := 10000
+	format := ntduckbox.CSV
+	if opts.Format != "" {
+		format = ntduckbox.Format(opts.Format)
+	}
+
+	if err := s.acquireQuery(ctx); err != nil {
+		return ntduckbox.Result{}, err
+	}
+	defer s.releaseQuery()
+
+	res, err := s.box.QueryWith(ctx, userSQL, ntduckbox.QueryOptions{
+		Format:   format,
+		MaxRows:  opts.effectiveMaxRows(),
+		Truncate: true,
+	})
+	if err != nil {
+		return ntduckbox.Result{}, classifyQueryError(err)
+	}
+	return res, nil
+}
+
+// effectiveMaxRows returns the row cap actually sent to ntduckbox.
+func (opts queryDuckDBOptions) effectiveMaxRows() int {
 	if opts.MaxRows > 0 {
-		limit = opts.MaxRows
+		return min(opts.MaxRows, maxQueryRows)
 	}
-	wrappedSQL := fmt.Sprintf("SELECT * FROM (%s) LIMIT %d", userSQL, limit)
+	return defaultQueryRows
+}
 
-	rows, err := s.db.Query(wrappedSQL)
-	if err != nil {
-		return "", err
-	}
-	defer rows.Close()
-
-	columns, err := rows.Columns()
-	if err != nil {
-		return "", err
-	}
-
-	format := opts.Format
-	if format == "" {
-		format = "csv"
-	}
-
-	switch format {
-	case "csv":
-		return formatCSV(columns, rows)
-	case "json_rows":
-		return formatJSONRows(columns, rows)
-	case "json_columnar":
-		return formatJSONColumnar(columns, rows)
+// classifyQueryError turns ntduckbox's sentinel errors into messages that tell
+// the LLM what to do next. The engine itself enforces the statement type
+// (single read-only SELECT-style statements), the file allowlist, and the
+// locked configuration, so no host-side SQL allowlist is needed.
+func classifyQueryError(err error) error {
+	switch {
+	case errors.Is(err, ntduckbox.ErrNotSelect):
+		return fmt.Errorf("only a single read-only SELECT-style statement is allowed (SELECT, WITH ... SELECT, FROM-first, VALUES, DESCRIBE, SUMMARIZE, SHOW): %w", err)
+	case errors.Is(err, ntduckbox.ErrPermission):
+		return fmt.Errorf("query_cache can only read the cached views; file, extension, and settings access is disabled: %w", err)
+	case errors.Is(err, ntduckbox.ErrBinder):
+		return fmt.Errorf("%w (use describe_cache or list_cache to see view names and columns)", err)
 	default:
-		return "", fmt.Errorf("unsupported format: %s", format)
+		return err
 	}
-}
-
-// scanRowValues scans a single row into a []any slice.
-func scanRowValues(rows *sql.Rows, numCols int) ([]any, error) {
-	values := make([]any, numCols)
-	valuePtrs := make([]any, numCols)
-	for i := range values {
-		valuePtrs[i] = &values[i]
-	}
-	if err := rows.Scan(valuePtrs...); err != nil {
-		return nil, err
-	}
-	return values, nil
-}
-
-// formatValue converts a scanned database value to a JSON-appropriate type.
-// Numbers stay as numbers, nil becomes nil, everything else becomes a string.
-func formatValue(val any) any {
-	if val == nil {
-		return nil
-	}
-	switch v := val.(type) {
-	case int64:
-		return v
-	case float64:
-		return v
-	case int32:
-		return int64(v)
-	case float32:
-		return float64(v)
-	case bool:
-		return v
-	case []byte:
-		return string(v)
-	default:
-		return fmt.Sprintf("%v", v)
-	}
-}
-
-// formatCSV writes query results as CSV with a header row.
-func formatCSV(columns []string, rows *sql.Rows) (string, error) {
-	var buf strings.Builder
-	w := csv.NewWriter(&buf)
-
-	w.Write(columns)
-	numCols := len(columns)
-	for rows.Next() {
-		values, err := scanRowValues(rows, numCols)
-		if err != nil {
-			return "", err
-		}
-		record := make([]string, numCols)
-		for i, val := range values {
-			if val == nil {
-				record[i] = ""
-			} else if b, ok := val.([]byte); ok {
-				record[i] = string(b)
-			} else {
-				record[i] = fmt.Sprintf("%v", val)
-			}
-		}
-		w.Write(record)
-	}
-
-	w.Flush()
-	if err := w.Error(); err != nil {
-		return "", err
-	}
-	return buf.String(), nil
-}
-
-// formatJSONRows writes query results as a JSON array of row objects.
-func formatJSONRows(columns []string, rows *sql.Rows) (string, error) {
-	numCols := len(columns)
-	var result []map[string]any
-
-	for rows.Next() {
-		values, err := scanRowValues(rows, numCols)
-		if err != nil {
-			return "", err
-		}
-		row := make(map[string]any, numCols)
-		for i, col := range columns {
-			row[col] = formatValue(values[i])
-		}
-		result = append(result, row)
-	}
-
-	if result == nil {
-		result = []map[string]any{}
-	}
-
-	data, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
-}
-
-// formatJSONColumnar writes query results as a JSON object mapping column names to value arrays.
-func formatJSONColumnar(columns []string, rows *sql.Rows) (string, error) {
-	numCols := len(columns)
-	colData := make([][]any, numCols)
-	for i := range colData {
-		colData[i] = []any{}
-	}
-
-	for rows.Next() {
-		values, err := scanRowValues(rows, numCols)
-		if err != nil {
-			return "", err
-		}
-		for i, val := range values {
-			colData[i] = append(colData[i], formatValue(val))
-		}
-	}
-
-	// Build JSON manually to maintain column order (Go maps don't guarantee order).
-	var buf strings.Builder
-	buf.WriteByte('{')
-	for i, col := range columns {
-		if i > 0 {
-			buf.WriteByte(',')
-		}
-		colKey, _ := json.Marshal(col)
-		colVals, err := json.Marshal(colData[i])
-		if err != nil {
-			return "", err
-		}
-		buf.Write(colKey)
-		buf.WriteByte(':')
-		buf.Write(colVals)
-	}
-	buf.WriteByte('}')
-
-	return buf.String(), nil
 }
 
 // CacheFileInfo describes a single cached parquet file and its manifest metadata.
@@ -611,7 +362,8 @@ type CacheFileInfo struct {
 
 // CacheEntry describes a cached dataset/schema in the cache directory.
 type CacheEntry struct {
-	ViewName  string          `json:"view_name"`
+	ViewName  string          `json:"view_name"`  // Raw view, e.g. "XNAS.ITCH/trades" (double-quote it in SQL; nanosecond timestamps)
+	AliasView string          `json:"alias_view"` // Plain-identifier alias, e.g. xnas_itch_trades (TIMESTAMPTZ timestamps)
 	Dataset   string          `json:"dataset"`
 	Schema    string          `json:"schema"`
 	Files     []CacheFileInfo `json:"files"`
@@ -624,12 +376,12 @@ func (s *Server) listCacheEntries() []CacheEntry {
 
 	datasets, _ := os.ReadDir(s.cacheDir)
 	for _, ds := range datasets {
-		if !ds.IsDir() || !safeName.MatchString(ds.Name()) {
+		if !ds.IsDir() || !isSafeName(ds.Name()) {
 			continue
 		}
 		schemas, _ := os.ReadDir(filepath.Join(s.cacheDir, ds.Name()))
 		for _, sc := range schemas {
-			if !sc.IsDir() || !safeName.MatchString(sc.Name()) {
+			if !sc.IsDir() || !isSafeName(sc.Name()) {
 				continue
 			}
 			parquetGlob := filepath.Join(s.cacheDir, ds.Name(), sc.Name(), "*.parquet")
@@ -662,8 +414,10 @@ func (s *Server) listCacheEntries() []CacheEntry {
 				}
 				files = append(files, fi)
 			}
+			viewName := ds.Name() + "/" + sc.Name()
 			entries = append(entries, CacheEntry{
-				ViewName:  ds.Name() + "/" + sc.Name(),
+				ViewName:  viewName,
+				AliasView: aliasViewName(viewName),
 				Dataset:   ds.Name(),
 				Schema:    sc.Name(),
 				Files:     files,
@@ -681,6 +435,9 @@ func (s *Server) listCacheEntries() []CacheEntry {
 // clearCache removes cached parquet files matching the optional dataset and schema filters.
 // Caller must hold s.mu.
 func (s *Server) clearCache(dataset, schema string) int {
+	if (dataset != "" && !isSafeName(dataset)) || (schema != "" && !isSafeName(schema)) {
+		return 0
+	}
 	removed := 0
 
 	if dataset != "" && schema != "" {
@@ -723,7 +480,11 @@ func (s *Server) clearCache(dataset, schema string) int {
 
 // removeCacheFiles removes all .parquet and .json sidecar files in a directory
 // and cleans up empty parent directories, stopping at (and never removing) boundDir.
+// It does nothing unless dir is a {dataset}/{schema} directory directly under boundDir.
 func removeCacheFiles(dir string, boundDir string) int {
+	if !isCacheSchemaDir(dir, boundDir) {
+		return 0
+	}
 	matches, _ := filepath.Glob(filepath.Join(dir, "*.parquet"))
 	for _, m := range matches {
 		os.Remove(m)
@@ -736,7 +497,7 @@ func removeCacheFiles(dir string, boundDir string) int {
 	}
 	// Remove empty directories walking up, but never past boundDir
 	cleanBound := filepath.Clean(boundDir)
-	for d := dir; d != cleanBound && strings.HasPrefix(d, cleanBound); d = filepath.Dir(d) {
+	for d := filepath.Clean(dir); d != cleanBound && strings.HasPrefix(d, cleanBound+string(filepath.Separator)); d = filepath.Dir(d) {
 		entries, err := os.ReadDir(d)
 		if err != nil || len(entries) > 0 {
 			break

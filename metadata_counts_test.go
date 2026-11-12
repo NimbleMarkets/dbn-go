@@ -93,8 +93,8 @@ func TestReadMetadataValidMappingsStillDecode(t *testing.T) {
 
 func TestReadMetadataTruncatedOverstatedLength(t *testing.T) {
 	b := encodeTestMetadata(t, []dbn.SymbolMapping{})
-	// Claim a huge metadata length but provide far fewer bytes
-	binary.LittleEndian.PutUint32(b[4:8], math.MaxUint32)
+	// Claim a huge metadata length (within MaxMetadataLength) but provide far fewer bytes
+	binary.LittleEndian.PutUint32(b[4:8], dbn.MaxMetadataLength)
 	_, err := dbn.ReadMetadata(bytes.NewReader(b))
 	if !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Errorf("got err %v, want io.ErrUnexpectedEOF", err)

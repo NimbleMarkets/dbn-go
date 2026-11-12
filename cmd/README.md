@@ -82,6 +82,8 @@ parquet cat tests/data/test_data.ohlcv-1s.dbn.parquet > go.parquet.txt
 diff py.parquet.txt go.parquet.txt
 ```
 
+Databento's "undefined" sentinels are written as Parquet NULLs rather than as numbers: `UNDEF_PRICE` prices (for example `bid_px_00` on a one-sided book, or `price` in a `bbo-1m` interval with no trade) and `UNDEF_TIMESTAMP` timestamps (`ts_event`, `ts_recv`, `ts_ref`). The `symbol` column is resolved at the record's `ts_recv` when the schema has one, and at `ts_event` for OHLCV bars.
+
 Parquet is a common columnar data persistance format.  For example, DuckDB [natively supports](https://duckdb.org/docs/data/parquet/overview.html) Parquet files:
 
 ```sh

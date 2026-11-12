@@ -16,6 +16,7 @@ import (
 	"github.com/NimbleMarkets/dbn-go/internal/file"
 	"github.com/NimbleMarkets/dbn-go/internal/mcp_meta"
 	"github.com/mark3labs/mcp-go/mcp"
+	"nimbleterminal.dev/ntduckbox"
 )
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -56,9 +57,14 @@ func (s *Server) fetchRangeOnce(cacheKey string, fn func() (string, error)) (str
 
 func (s *Server) countParquetRecords(parquetPath string) int64 {
 	var recordCount int64
-	if s.db != nil {
-		row := s.db.QueryRow(fmt.Sprintf(`SELECT count(*) FROM read_parquet(%s)`, sqlLiteral(parquetPath)))
-		_ = row.Scan(&recordCount)
+	if s.box != nil {
+		out, err := s.box.Query(context.Background(), fmt.Sprintf(`SELECT count(*) AS n FROM read_parquet(%s)`, sqlLiteral(parquetPath)))
+		if err == nil {
+			lines := strings.Split(strings.TrimSpace(out), "\n")
+			if len(lines) >= 2 {
+				_, _ = fmt.Sscanf(strings.TrimSpace(lines[1]), "%d", &recordCount)
+			}
+		}
 	}
 	return recordCount
 }
@@ -158,9 +164,18 @@ func (s *Server) fetchRangeHandler(ctx context.Context, request mcp.CallToolRequ
 		if err != nil {
 			return "", fmt.Errorf("failed to get cost: %w", err)
 		}
-		if s.maxCost > 0 && cost > s.maxCost {
-			return "", fmt.Errorf("query exceeds budget: estimated cost $%.2f, budget $%.2f", cost, s.maxCost)
+		var billableSize int64
+		if s.budget.maxQueryBytes > 0 {
+			size, err := dbn_hist.GetBillableSize(s.GetApiKey(), metaParams)
+			if err != nil {
+				return "", fmt.Errorf("failed to get billable size: %w", err)
+			}
+			billableSize = int64(size)
 		}
+		if err := s.budget.reserve(cost, billableSize); err != nil {
+			return "", err
+		}
+		s.Logger.Info("fetch_range admitted", "cost", cost, "billable_size", billableSize, "session_cost", s.budget.spent())
 
 		jobParams := dbn_hist.SubmitJobParams{
 			Dataset:      p.Dataset,
@@ -252,16 +267,93 @@ func (s *Server) queryCacheHandler(ctx context.Context, request mcp.CallToolRequ
 	format := request.GetString("format", "csv")
 	maxRows := request.GetInt("max_rows", 0)
 
-	result, err := s.queryDuckDB(sqlStr, queryDuckDBOptions{
-		Format:  format,
-		MaxRows: maxRows,
-	})
+	opts := queryDuckDBOptions{Format: format, MaxRows: maxRows}
+	res, err := s.queryDuckDBResult(ctx, sqlStr, opts)
 	if err != nil {
 		return mcp.NewToolResultErrorf("query failed: %s", err), nil
 	}
 
-	s.Logger.Info("query_cache", "sql", sqlStr, "format", format, "max_rows", maxRows)
-	return mcp.NewToolResultText(result), nil
+	s.Logger.Info("query_cache", "sql", sqlStr, "format", format, "max_rows", maxRows,
+		"rows", res.Rows, "bytes", res.Bytes, "truncated", res.Truncated, "elapsed", res.Elapsed)
+	toolResult := mcp.NewToolResultText(res.Text)
+	if res.Truncated {
+		toolResult.Content = append(toolResult.Content, mcp.NewTextContent(truncationNotice(res, opts.effectiveMaxRows())))
+	}
+	return toolResult, nil
+}
+
+// truncationNotice explains which limit cut the result short so the LLM takes
+// the right corrective action: raising max_rows cannot help when the byte cap hit.
+func truncationNotice(res ntduckbox.Result, maxRows int) string {
+	if res.Rows < maxRows {
+		return fmt.Sprintf("Showing %d rows (%d bytes); more exist but the result hit the %d MB size limit. Add a WHERE/LIMIT clause or select fewer columns.",
+			res.Rows, res.Bytes, maxQueryChars/1_000_000)
+	}
+	return fmt.Sprintf("Showing %d rows, more exist. Add a SQL LIMIT/WHERE clause or increase max_rows (up to %d).", res.Rows, maxQueryRows)
+}
+
+// DescribedColumn is one column of a described view.
+type DescribedColumn struct {
+	Name string `json:"name"`
+	Type string `json:"type"` // DuckDB type, e.g. DOUBLE, UINTEGER, TIMESTAMPTZ_NS
+}
+
+// DescribedView is one entry of describe_cache output.
+type DescribedView struct {
+	ViewName  string            `json:"view_name"`            // Raw Parquet view, e.g. "XNAS.ITCH/trades"
+	AliasView string            `json:"alias_view,omitempty"` // Plain-identifier alias, e.g. xnas_itch_trades
+	Described string            `json:"described"`            // Which of the two the columns below belong to
+	Columns   []DescribedColumn `json:"columns"`
+}
+
+func describedColumns(cols []ntduckbox.Column) []DescribedColumn {
+	out := make([]DescribedColumn, len(cols))
+	for i, c := range cols {
+		out[i] = DescribedColumn{Name: c.Name, Type: c.Type}
+	}
+	return out
+}
+
+func (s *Server) describeCacheHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	if s.box == nil {
+		return mcp.NewToolResultError("cache not initialized"), nil
+	}
+	view := request.GetString("view", "")
+
+	var described []DescribedView
+	for _, entry := range s.listCacheEntries() {
+		target := entry.AliasView // the recommended view: plain name, TIMESTAMPTZ timestamps
+		switch view {
+		case "":
+		case entry.ViewName, entry.AliasView:
+			target = view
+		default:
+			continue
+		}
+		cols, err := s.box.Columns(ctx, target)
+		if err != nil {
+			return mcp.NewToolResultErrorf("describe %q failed: %s", target, classifyQueryError(err)), nil
+		}
+		described = append(described, DescribedView{
+			ViewName:  entry.ViewName,
+			AliasView: entry.AliasView,
+			Described: target,
+			Columns:   describedColumns(cols),
+		})
+	}
+	if view != "" && len(described) == 0 {
+		return mcp.NewToolResultErrorf("no cached view named %q; call list_cache or describe_cache without arguments to see the available views", view), nil
+	}
+	if described == nil {
+		described = []DescribedView{}
+	}
+
+	jbytes, err := json.Marshal(described)
+	if err != nil {
+		return mcp.NewToolResultErrorf("failed to marshal view descriptions: %s", err), nil
+	}
+	s.Logger.Info("describe_cache", "view", view, "views", len(described))
+	return mcp.NewToolResultText(string(jbytes)), nil
 }
 
 func (s *Server) listCacheHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -280,10 +372,10 @@ func (s *Server) clearCacheHandler(ctx context.Context, request mcp.CallToolRequ
 	dataset, _ := request.RequireString("dataset")
 	schema, _ := request.RequireString("schema")
 
-	if dataset != "" && !safeName.MatchString(dataset) {
+	if dataset != "" && !isSafeName(dataset) {
 		return mcp.NewToolResultError("invalid dataset name"), nil
 	}
-	if schema != "" && !safeName.MatchString(schema) {
+	if schema != "" && !isSafeName(schema) {
 		return mcp.NewToolResultError("invalid schema name"), nil
 	}
 

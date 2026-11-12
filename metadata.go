@@ -324,7 +324,21 @@ type MetadataHeaderV3 = MetadataHeaderV2
 
 ///////////////////////////////////////////////////////////////////////////////
 
+// DefaultMaxMetadataLength is the initial value of MaxMetadataLength: 1 GiB.
+const DefaultMaxMetadataLength uint32 = 1 << 30
+
+// MaxMetadataLength is the largest metadata header, in bytes, that ReadMetadata
+// accepts. The length is declared in the first 8 bytes of a DBN stream and
+// ReadMetadata buffers that many bytes, so without a limit a few kilobytes of
+// compressed or network input can demand up to 4 GiB of memory.
+//
+// Lower it when reading untrusted input; metadata is normally kilobytes, and
+// reaches hundreds of megabytes only for requests covering very large symbol
+// sets. Zero disables the limit. Set it before reading, not concurrently.
+var MaxMetadataLength = DefaultMaxMetadataLength
+
 // ReadMetadata reads the Metadata from a DBN stream over an io.Reader.
+// It returns ErrMetadataTooLarge if the declared length exceeds MaxMetadataLength.
 func ReadMetadata(r io.Reader) (*Metadata, error) {
 	// Read the version and length
 	var mp MetadataPrefix
@@ -334,6 +348,9 @@ func ReadMetadata(r io.Reader) (*Metadata, error) {
 	// Verify DBN header and extract version
 	if (mp.VersionRaw[0] != 'D') || (mp.VersionRaw[1] != 'B') || (mp.VersionRaw[2] != 'N') {
 		return nil, ErrInvalidDBNFile
+	}
+	if limit := MaxMetadataLength; limit != 0 && mp.Length > limit {
+		return nil, fmt.Errorf("%w: declared %d bytes, limit %d", ErrMetadataTooLarge, mp.Length, limit)
 	}
 
 	// Preallocate ordinary headers in one allocation, but cap the initial

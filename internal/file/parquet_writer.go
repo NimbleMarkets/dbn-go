@@ -245,6 +245,57 @@ func writeFloat64Column(rgw pqfile.BufferedRowGroupWriter, idx int, value float6
 	return nil
 }
 
+// writePriceColumn writes a fixed-point price as a float64, or NULL when it is
+// the UNDEF_PRICE sentinel. Writing the sentinel as a finite value
+// (i64::MAX / 1e9) would poison aggregates such as spreads and averages.
+func writePriceColumn(rgw pqfile.BufferedRowGroupWriter, idx int, fixed int64) error {
+	if fixed == dbn.UNDEF_PRICE {
+		return writeNullFloat64Column(rgw, idx)
+	}
+	return writeFloat64Column(rgw, idx, dbn.Fixed9ToFloat64(fixed))
+}
+
+// writeTimestampColumn writes a UNIX-nanosecond timestamp, or NULL when it is
+// the UNDEF_TIMESTAMP sentinel (which would otherwise read back as -1ns).
+func writeTimestampColumn(rgw pqfile.BufferedRowGroupWriter, idx int, ts uint64) error {
+	if ts == dbn.UNDEF_TIMESTAMP {
+		return writeNullInt64Column(rgw, idx)
+	}
+	return writeInt64Column(rgw, idx, int64(ts))
+}
+
+// writeNullInt64Column writes a single NULL to an Optional int64 column.
+func writeNullInt64Column(rgw pqfile.BufferedRowGroupWriter, idx int) error {
+	cw, err := rgw.Column(idx)
+	if err != nil {
+		return fmt.Errorf("failed to get column %d: %w", idx, err)
+	}
+	writer, ok := cw.(*pqfile.Int64ColumnChunkWriter)
+	if !ok {
+		return fmt.Errorf("column %d has unexpected writer type %T", idx, cw)
+	}
+	if _, err := writer.WriteBatch(nil, []int16{0}, nil); err != nil {
+		return fmt.Errorf("failed writing null int64 column %d: %w", idx, err)
+	}
+	return nil
+}
+
+// writeNullFloat64Column writes a single NULL to an Optional float64 column.
+func writeNullFloat64Column(rgw pqfile.BufferedRowGroupWriter, idx int) error {
+	cw, err := rgw.Column(idx)
+	if err != nil {
+		return fmt.Errorf("failed to get column %d: %w", idx, err)
+	}
+	writer, ok := cw.(*pqfile.Float64ColumnChunkWriter)
+	if !ok {
+		return fmt.Errorf("column %d has unexpected writer type %T", idx, cw)
+	}
+	if _, err := writer.WriteBatch(nil, []int16{0}, nil); err != nil {
+		return fmt.Errorf("failed writing null float64 column %d: %w", idx, err)
+	}
+	return nil
+}
+
 func writeByteArrayColumn(rgw pqfile.BufferedRowGroupWriter, idx int, value parquet.ByteArray) error {
 	cw, err := rgw.Column(idx)
 	if err != nil {
@@ -299,16 +350,16 @@ func ParquetWriteRow_OhlcvMsg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Ohl
 	if err := writeInt32Column(rgw, 2, int32(record.Header.InstrumentID)); err != nil {
 		return err
 	}
-	if err := writeFloat64Column(rgw, 3, dbn.Fixed9ToFloat64(record.Open)); err != nil {
+	if err := writePriceColumn(rgw, 3, record.Open); err != nil {
 		return err
 	}
-	if err := writeFloat64Column(rgw, 4, dbn.Fixed9ToFloat64(record.High)); err != nil {
+	if err := writePriceColumn(rgw, 4, record.High); err != nil {
 		return err
 	}
-	if err := writeFloat64Column(rgw, 5, dbn.Fixed9ToFloat64(record.Low)); err != nil {
+	if err := writePriceColumn(rgw, 5, record.Low); err != nil {
 		return err
 	}
-	if err := writeFloat64Column(rgw, 6, dbn.Fixed9ToFloat64(record.Close)); err != nil {
+	if err := writePriceColumn(rgw, 6, record.Close); err != nil {
 		return err
 	}
 	if err := writeInt64Column(rgw, 7, int64(record.Volume)); err != nil {
@@ -318,7 +369,7 @@ func ParquetWriteRow_OhlcvMsg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Ohl
 	if err := writeByteArrayColumn(rgw, 8, parquet.ByteArray(dbnSymbol)); err != nil {
 		return err
 	}
-	if err := writeInt64Column(rgw, 9, int64(record.Header.TsEvent)); err != nil {
+	if err := writeTimestampColumn(rgw, 9, record.Header.TsEvent); err != nil {
 		return err
 	}
 	return nil
@@ -362,7 +413,7 @@ func ParquetGroupNode_Mbp0Msg() *pqschema.GroupNode {
 }
 
 func ParquetWriteRow_Mbp0Msg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Mbp0Msg, dbnSymbolMap *dbn.TsSymbolMap) error {
-	if err := writeInt64Column(rgw, 0, int64(record.Header.TsEvent)); err != nil {
+	if err := writeTimestampColumn(rgw, 0, record.Header.TsEvent); err != nil {
 		return err
 	}
 	if err := writeInt32Column(rgw, 1, int32(record.Header.RType)); err != nil {
@@ -383,7 +434,7 @@ func ParquetWriteRow_Mbp0Msg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Mbp0
 	if err := writeInt32Column(rgw, 6, int32(record.Depth)); err != nil {
 		return err
 	}
-	if err := writeFloat64Column(rgw, 7, dbn.Fixed9ToFloat64(record.Price)); err != nil {
+	if err := writePriceColumn(rgw, 7, record.Price); err != nil {
 		return err
 	}
 	if err := writeInt32Column(rgw, 8, int32(record.Size)); err != nil {
@@ -398,11 +449,11 @@ func ParquetWriteRow_Mbp0Msg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Mbp0
 	if err := writeInt32Column(rgw, 11, int32(record.Sequence)); err != nil {
 		return err
 	}
-	dbnSymbol := dbnSymbolMap.GetForTs(record.Header.TsEvent, record.Header.InstrumentID)
+	dbnSymbol := dbnSymbolMap.GetForTs(record.TsRecv, record.Header.InstrumentID)
 	if err := writeByteArrayColumn(rgw, 12, parquet.ByteArray(dbnSymbol)); err != nil {
 		return err
 	}
-	if err := writeInt64Column(rgw, 13, int64(record.TsRecv)); err != nil {
+	if err := writeTimestampColumn(rgw, 13, record.TsRecv); err != nil {
 		return err
 	}
 	return nil
@@ -458,7 +509,7 @@ func ParquetGroupNode_Mbp1Msg() *pqschema.GroupNode {
 }
 
 func ParquetWriteRow_Mbp1Msg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Mbp1Msg, dbnSymbolMap *dbn.TsSymbolMap) error {
-	if err := writeInt64Column(rgw, 0, int64(record.Header.TsEvent)); err != nil {
+	if err := writeTimestampColumn(rgw, 0, record.Header.TsEvent); err != nil {
 		return err
 	}
 	if err := writeInt32Column(rgw, 1, int32(record.Header.RType)); err != nil {
@@ -479,7 +530,7 @@ func ParquetWriteRow_Mbp1Msg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Mbp1
 	if err := writeInt32Column(rgw, 6, int32(record.Depth)); err != nil {
 		return err
 	}
-	if err := writeFloat64Column(rgw, 7, dbn.Fixed9ToFloat64(record.Price)); err != nil {
+	if err := writePriceColumn(rgw, 7, record.Price); err != nil {
 		return err
 	}
 	if err := writeInt32Column(rgw, 8, int32(record.Size)); err != nil {
@@ -494,10 +545,10 @@ func ParquetWriteRow_Mbp1Msg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Mbp1
 	if err := writeInt32Column(rgw, 11, int32(record.Sequence)); err != nil {
 		return err
 	}
-	if err := writeFloat64Column(rgw, 12, dbn.Fixed9ToFloat64(record.Level.BidPx)); err != nil {
+	if err := writePriceColumn(rgw, 12, record.Level.BidPx); err != nil {
 		return err
 	}
-	if err := writeFloat64Column(rgw, 13, dbn.Fixed9ToFloat64(record.Level.AskPx)); err != nil {
+	if err := writePriceColumn(rgw, 13, record.Level.AskPx); err != nil {
 		return err
 	}
 	if err := writeInt32Column(rgw, 14, int32(record.Level.BidSz)); err != nil {
@@ -512,11 +563,11 @@ func ParquetWriteRow_Mbp1Msg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Mbp1
 	if err := writeInt32Column(rgw, 17, int32(record.Level.AskCt)); err != nil {
 		return err
 	}
-	dbnSymbol := dbnSymbolMap.GetForTs(record.Header.TsEvent, record.Header.InstrumentID)
+	dbnSymbol := dbnSymbolMap.GetForTs(record.TsRecv, record.Header.InstrumentID)
 	if err := writeByteArrayColumn(rgw, 18, parquet.ByteArray(dbnSymbol)); err != nil {
 		return err
 	}
-	if err := writeInt64Column(rgw, 19, int64(record.TsRecv)); err != nil {
+	if err := writeTimestampColumn(rgw, 19, record.TsRecv); err != nil {
 		return err
 	}
 	return nil
@@ -531,7 +582,7 @@ func ParquetWriteRow_Mbp1Msg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Mbp1
 //	optional int32 field_id=-1 publisher_id (Int(bitWidth=16, isSigned=false));
 //	optional int32 field_id=-1 instrument_id (Int(bitWidth=32, isSigned=false));
 //	optional double field_id=-1 ref_price;
-//	optional int64 field_id=-1 auction_time (Int(bitWidth=64, isSigned=false));
+//	optional int64 field_id=-1 auction_time (Timestamp(isAdjustedToUTC=true, timeUnit=nanoseconds, is_from_converted_type=false, force_set_converted_type=false));
 //	optional double field_id=-1 cont_book_clr_price;
 //	optional double field_id=-1 auct_interest_clr_price;
 //	optional double field_id=-1 ssr_filling_price;
@@ -558,7 +609,7 @@ func ParquetGroupNode_ImbalanceMsg() *pqschema.GroupNode {
 		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("publisher_id", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(16, false), parquet.Types.Int32, 0, -1)),
 		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("instrument_id", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(32, false), parquet.Types.Int32, 0, -1)),
 		pqschema.NewFloat64Node("ref_price", parquet.Repetitions.Optional, -1),
-		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("auction_time", parquet.Repetitions.Optional, pqschema.NewIntLogicalType(64, false), parquet.Types.Int64, 0, -1)),
+		pqschema.MustPrimitive(pqschema.NewPrimitiveNodeLogical("auction_time", parquet.Repetitions.Optional, pqschema.NewTimestampLogicalType(true, pqschema.TimeUnitNanos), parquet.Types.Int64, 0, -1)),
 		pqschema.NewFloat64Node("cont_book_clr_price", parquet.Repetitions.Optional, -1),
 		pqschema.NewFloat64Node("auct_interest_clr_price", parquet.Repetitions.Optional, -1),
 		pqschema.NewFloat64Node("ssr_filling_price", parquet.Repetitions.Optional, -1),
@@ -582,7 +633,7 @@ func ParquetGroupNode_ImbalanceMsg() *pqschema.GroupNode {
 }
 
 func ParquetWriteRow_ImbalanceMsg(rgw pqfile.BufferedRowGroupWriter, record *dbn.ImbalanceMsg, dbnSymbolMap *dbn.TsSymbolMap) error {
-	if err := writeInt64Column(rgw, 0, int64(record.Header.TsEvent)); err != nil {
+	if err := writeTimestampColumn(rgw, 0, record.Header.TsEvent); err != nil {
 		return err
 	}
 	if err := writeInt32Column(rgw, 1, int32(record.Header.RType)); err != nil {
@@ -594,28 +645,28 @@ func ParquetWriteRow_ImbalanceMsg(rgw pqfile.BufferedRowGroupWriter, record *dbn
 	if err := writeInt32Column(rgw, 3, int32(record.Header.InstrumentID)); err != nil {
 		return err
 	}
-	if err := writeFloat64Column(rgw, 4, dbn.Fixed9ToFloat64(record.RefPrice)); err != nil {
+	if err := writePriceColumn(rgw, 4, record.RefPrice); err != nil {
 		return err
 	}
-	if err := writeInt64Column(rgw, 5, int64(record.AuctionTime)); err != nil {
+	if err := writeTimestampColumn(rgw, 5, record.AuctionTime); err != nil {
 		return err
 	}
-	if err := writeFloat64Column(rgw, 6, dbn.Fixed9ToFloat64(record.ContBookClrPrice)); err != nil {
+	if err := writePriceColumn(rgw, 6, record.ContBookClrPrice); err != nil {
 		return err
 	}
-	if err := writeFloat64Column(rgw, 7, dbn.Fixed9ToFloat64(record.AuctInterestClrPrice)); err != nil {
+	if err := writePriceColumn(rgw, 7, record.AuctInterestClrPrice); err != nil {
 		return err
 	}
-	if err := writeFloat64Column(rgw, 8, dbn.Fixed9ToFloat64(record.SsrFillingPrice)); err != nil {
+	if err := writePriceColumn(rgw, 8, record.SsrFillingPrice); err != nil {
 		return err
 	}
-	if err := writeFloat64Column(rgw, 9, dbn.Fixed9ToFloat64(record.IndMatchPrice)); err != nil {
+	if err := writePriceColumn(rgw, 9, record.IndMatchPrice); err != nil {
 		return err
 	}
-	if err := writeFloat64Column(rgw, 10, dbn.Fixed9ToFloat64(record.UpperCollar)); err != nil {
+	if err := writePriceColumn(rgw, 10, record.UpperCollar); err != nil {
 		return err
 	}
-	if err := writeFloat64Column(rgw, 11, dbn.Fixed9ToFloat64(record.LowerCollar)); err != nil {
+	if err := writePriceColumn(rgw, 11, record.LowerCollar); err != nil {
 		return err
 	}
 	if err := writeInt32Column(rgw, 12, int32(record.PairedQty)); err != nil {
@@ -651,11 +702,11 @@ func ParquetWriteRow_ImbalanceMsg(rgw pqfile.BufferedRowGroupWriter, record *dbn
 	if err := writeByteArrayColumn(rgw, 22, parquet.ByteArray{record.SignificantImbalance}); err != nil {
 		return err
 	}
-	dbnSymbol := dbnSymbolMap.GetForTs(record.Header.TsEvent, record.Header.InstrumentID)
+	dbnSymbol := dbnSymbolMap.GetForTs(record.TsRecv, record.Header.InstrumentID)
 	if err := writeByteArrayColumn(rgw, 23, parquet.ByteArray(dbnSymbol)); err != nil {
 		return err
 	}
-	if err := writeInt64Column(rgw, 24, int64(record.TsRecv)); err != nil {
+	if err := writeTimestampColumn(rgw, 24, record.TsRecv); err != nil {
 		return err
 	}
 	return nil
@@ -701,7 +752,7 @@ func ParquetGroupNode_StatMsg() *pqschema.GroupNode {
 }
 
 func ParquetWriteRow_StatMsg(rgw pqfile.BufferedRowGroupWriter, record *dbn.StatMsg, dbnSymbolMap *dbn.TsSymbolMap) error {
-	if err := writeInt64Column(rgw, 0, int64(record.Header.TsEvent)); err != nil {
+	if err := writeTimestampColumn(rgw, 0, record.Header.TsEvent); err != nil {
 		return err
 	}
 	if err := writeInt32Column(rgw, 1, int32(record.Header.RType)); err != nil {
@@ -713,7 +764,7 @@ func ParquetWriteRow_StatMsg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Stat
 	if err := writeInt32Column(rgw, 3, int32(record.Header.InstrumentID)); err != nil {
 		return err
 	}
-	if err := writeFloat64Column(rgw, 4, dbn.Fixed9ToFloat64(record.Price)); err != nil {
+	if err := writePriceColumn(rgw, 4, record.Price); err != nil {
 		return err
 	}
 	if err := writeInt64Column(rgw, 5, record.Quantity); err != nil {
@@ -734,17 +785,17 @@ func ParquetWriteRow_StatMsg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Stat
 	if err := writeInt32Column(rgw, 10, int32(record.StatFlags)); err != nil {
 		return err
 	}
-	dbnSymbol := dbnSymbolMap.GetForTs(record.Header.TsEvent, record.Header.InstrumentID)
+	dbnSymbol := dbnSymbolMap.GetForTs(record.TsRecv, record.Header.InstrumentID)
 	if err := writeByteArrayColumn(rgw, 11, parquet.ByteArray(dbnSymbol)); err != nil {
 		return err
 	}
 	if err := writeInt32Column(rgw, 12, int32(record.TsInDelta)); err != nil {
 		return err
 	}
-	if err := writeInt64Column(rgw, 13, int64(record.TsRecv)); err != nil {
+	if err := writeTimestampColumn(rgw, 13, record.TsRecv); err != nil {
 		return err
 	}
-	if err := writeInt64Column(rgw, 14, int64(record.TsRef)); err != nil {
+	if err := writeTimestampColumn(rgw, 14, record.TsRef); err != nil {
 		return err
 	}
 	return nil
@@ -794,7 +845,7 @@ func ParquetGroupNode_BboMsg() *pqschema.GroupNode {
 }
 
 func ParquetWriteRow_BboMsg(rgw pqfile.BufferedRowGroupWriter, record *dbn.BboMsg, dbnSymbolMap *dbn.TsSymbolMap) error {
-	if err := writeInt64Column(rgw, 0, int64(record.Header.TsEvent)); err != nil {
+	if err := writeTimestampColumn(rgw, 0, record.Header.TsEvent); err != nil {
 		return err
 	}
 	if err := writeInt32Column(rgw, 1, int32(record.Header.RType)); err != nil {
@@ -809,7 +860,7 @@ func ParquetWriteRow_BboMsg(rgw pqfile.BufferedRowGroupWriter, record *dbn.BboMs
 	if err := writeByteArrayColumn(rgw, 4, parquet.ByteArray{record.Side}); err != nil {
 		return err
 	}
-	if err := writeFloat64Column(rgw, 5, dbn.Fixed9ToFloat64(record.Price)); err != nil {
+	if err := writePriceColumn(rgw, 5, record.Price); err != nil {
 		return err
 	}
 	if err := writeInt32Column(rgw, 6, int32(record.Size)); err != nil {
@@ -821,10 +872,10 @@ func ParquetWriteRow_BboMsg(rgw pqfile.BufferedRowGroupWriter, record *dbn.BboMs
 	if err := writeInt32Column(rgw, 8, int32(record.Sequence)); err != nil {
 		return err
 	}
-	if err := writeFloat64Column(rgw, 9, dbn.Fixed9ToFloat64(record.Level.BidPx)); err != nil {
+	if err := writePriceColumn(rgw, 9, record.Level.BidPx); err != nil {
 		return err
 	}
-	if err := writeFloat64Column(rgw, 10, dbn.Fixed9ToFloat64(record.Level.AskPx)); err != nil {
+	if err := writePriceColumn(rgw, 10, record.Level.AskPx); err != nil {
 		return err
 	}
 	if err := writeInt32Column(rgw, 11, int32(record.Level.BidSz)); err != nil {
@@ -839,11 +890,11 @@ func ParquetWriteRow_BboMsg(rgw pqfile.BufferedRowGroupWriter, record *dbn.BboMs
 	if err := writeInt32Column(rgw, 14, int32(record.Level.AskCt)); err != nil {
 		return err
 	}
-	dbnSymbol := dbnSymbolMap.GetForTs(record.Header.TsEvent, record.Header.InstrumentID)
+	dbnSymbol := dbnSymbolMap.GetForTs(record.TsRecv, record.Header.InstrumentID)
 	if err := writeByteArrayColumn(rgw, 15, parquet.ByteArray(dbnSymbol)); err != nil {
 		return err
 	}
-	if err := writeInt64Column(rgw, 16, int64(record.TsRecv)); err != nil {
+	if err := writeTimestampColumn(rgw, 16, record.TsRecv); err != nil {
 		return err
 	}
 	return nil
@@ -896,7 +947,7 @@ func ParquetGroupNode_Cmbp1Msg() *pqschema.GroupNode {
 }
 
 func ParquetWriteRow_Cmbp1Msg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Cmbp1Msg, dbnSymbolMap *dbn.TsSymbolMap) error {
-	if err := writeInt64Column(rgw, 0, int64(record.Header.TsEvent)); err != nil {
+	if err := writeTimestampColumn(rgw, 0, record.Header.TsEvent); err != nil {
 		return err
 	}
 	if err := writeInt32Column(rgw, 1, int32(record.Header.RType)); err != nil {
@@ -914,7 +965,7 @@ func ParquetWriteRow_Cmbp1Msg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Cmb
 	if err := writeByteArrayColumn(rgw, 5, parquet.ByteArray{record.Side}); err != nil {
 		return err
 	}
-	if err := writeFloat64Column(rgw, 6, dbn.Fixed9ToFloat64(record.Price)); err != nil {
+	if err := writePriceColumn(rgw, 6, record.Price); err != nil {
 		return err
 	}
 	if err := writeInt32Column(rgw, 7, int32(record.Size)); err != nil {
@@ -926,10 +977,10 @@ func ParquetWriteRow_Cmbp1Msg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Cmb
 	if err := writeInt32Column(rgw, 9, record.TsInDelta); err != nil {
 		return err
 	}
-	if err := writeFloat64Column(rgw, 10, dbn.Fixed9ToFloat64(record.Level.BidPx)); err != nil {
+	if err := writePriceColumn(rgw, 10, record.Level.BidPx); err != nil {
 		return err
 	}
-	if err := writeFloat64Column(rgw, 11, dbn.Fixed9ToFloat64(record.Level.AskPx)); err != nil {
+	if err := writePriceColumn(rgw, 11, record.Level.AskPx); err != nil {
 		return err
 	}
 	if err := writeInt32Column(rgw, 12, int32(record.Level.BidSz)); err != nil {
@@ -944,11 +995,11 @@ func ParquetWriteRow_Cmbp1Msg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Cmb
 	if err := writeInt32Column(rgw, 15, int32(record.Level.AskPb)); err != nil {
 		return err
 	}
-	dbnSymbol := dbnSymbolMap.GetForTs(record.Header.TsEvent, record.Header.InstrumentID)
+	dbnSymbol := dbnSymbolMap.GetForTs(record.TsRecv, record.Header.InstrumentID)
 	if err := writeByteArrayColumn(rgw, 16, parquet.ByteArray(dbnSymbol)); err != nil {
 		return err
 	}
-	if err := writeInt64Column(rgw, 17, int64(record.TsRecv)); err != nil {
+	if err := writeTimestampColumn(rgw, 17, record.TsRecv); err != nil {
 		return err
 	}
 	return nil
@@ -1014,7 +1065,7 @@ func ParquetGroupNode_Mbp10Msg() *pqschema.GroupNode {
 }
 
 func ParquetWriteRow_Mbp10Msg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Mbp10Msg, dbnSymbolMap *dbn.TsSymbolMap) error {
-	if err := writeInt64Column(rgw, 0, int64(record.Header.TsEvent)); err != nil {
+	if err := writeTimestampColumn(rgw, 0, record.Header.TsEvent); err != nil {
 		return err
 	}
 	if err := writeInt32Column(rgw, 1, int32(record.Header.RType)); err != nil {
@@ -1035,7 +1086,7 @@ func ParquetWriteRow_Mbp10Msg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Mbp
 	if err := writeInt32Column(rgw, 6, int32(record.Depth)); err != nil {
 		return err
 	}
-	if err := writeFloat64Column(rgw, 7, dbn.Fixed9ToFloat64(record.Price)); err != nil {
+	if err := writePriceColumn(rgw, 7, record.Price); err != nil {
 		return err
 	}
 	if err := writeInt32Column(rgw, 8, int32(record.Size)); err != nil {
@@ -1052,10 +1103,10 @@ func ParquetWriteRow_Mbp10Msg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Mbp
 	}
 	idx := 12
 	for _, level := range record.Levels {
-		if err := writeFloat64Column(rgw, idx, dbn.Fixed9ToFloat64(level.BidPx)); err != nil {
+		if err := writePriceColumn(rgw, idx, level.BidPx); err != nil {
 			return err
 		}
-		if err := writeFloat64Column(rgw, idx+1, dbn.Fixed9ToFloat64(level.AskPx)); err != nil {
+		if err := writePriceColumn(rgw, idx+1, level.AskPx); err != nil {
 			return err
 		}
 		if err := writeInt32Column(rgw, idx+2, int32(level.BidSz)); err != nil {
@@ -1072,11 +1123,11 @@ func ParquetWriteRow_Mbp10Msg(rgw pqfile.BufferedRowGroupWriter, record *dbn.Mbp
 		}
 		idx += 6
 	}
-	dbnSymbol := dbnSymbolMap.GetForTs(record.Header.TsEvent, record.Header.InstrumentID)
+	dbnSymbol := dbnSymbolMap.GetForTs(record.TsRecv, record.Header.InstrumentID)
 	if err := writeByteArrayColumn(rgw, idx, parquet.ByteArray(dbnSymbol)); err != nil {
 		return err
 	}
-	if err := writeInt64Column(rgw, idx+1, int64(record.TsRecv)); err != nil {
+	if err := writeTimestampColumn(rgw, idx+1, record.TsRecv); err != nil {
 		return err
 	}
 	return nil
@@ -1118,7 +1169,7 @@ func ParquetGroupNode_StatusMsg() *pqschema.GroupNode {
 }
 
 func ParquetWriteRow_StatusMsg(rgw pqfile.BufferedRowGroupWriter, record *dbn.StatusMsg, dbnSymbolMap *dbn.TsSymbolMap) error {
-	if err := writeInt64Column(rgw, 0, int64(record.Header.TsEvent)); err != nil {
+	if err := writeTimestampColumn(rgw, 0, record.Header.TsEvent); err != nil {
 		return err
 	}
 	if err := writeInt32Column(rgw, 1, int32(record.Header.RType)); err != nil {
@@ -1148,11 +1199,11 @@ func ParquetWriteRow_StatusMsg(rgw pqfile.BufferedRowGroupWriter, record *dbn.St
 	if err := writeByteArrayColumn(rgw, 9, parquet.ByteArray{record.IsShortSellRestricted}); err != nil {
 		return err
 	}
-	dbnSymbol := dbnSymbolMap.GetForTs(record.Header.TsEvent, record.Header.InstrumentID)
+	dbnSymbol := dbnSymbolMap.GetForTs(record.TsRecv, record.Header.InstrumentID)
 	if err := writeByteArrayColumn(rgw, 10, parquet.ByteArray(dbnSymbol)); err != nil {
 		return err
 	}
-	if err := writeInt64Column(rgw, 11, int64(record.TsRecv)); err != nil {
+	if err := writeTimestampColumn(rgw, 11, record.TsRecv); err != nil {
 		return err
 	}
 	return nil

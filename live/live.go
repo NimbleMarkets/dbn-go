@@ -9,11 +9,13 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/NimbleMarkets/dbn-go"
@@ -43,7 +45,12 @@ const (
 	MAX_STR_LENGTH = 24 * 1024
 
 	DIAL_TIMEOUT = 10 * time.Second
+	AUTH_TIMEOUT = 30 * time.Second // Default time allowed for the Authenticate handshake
 )
+
+// ErrControlMessageTooLong is returned when the gateway sends a control
+// message longer than MAX_STR_LENGTH bytes.
+var ErrControlMessageTooLong = errors.New("gateway control message too long")
 
 // ErrNotConnected is returned when using a LiveClient whose connection was closed by Stop.
 var ErrNotConnected = errors.New("live client is not connected")
@@ -79,6 +86,7 @@ type LiveConfig struct {
 	Encoding             dbn.Encoding // nil mean Encoding_Dbn
 	SendTsOut            bool
 	HeartbeatInterval    time.Duration // Heartbeat interval; 0 means use server default
+	AuthTimeout          time.Duration // Time allowed for the whole Authenticate handshake; 0 means AUTH_TIMEOUT
 	SlowReaderBehavior   dbn.SlowReaderBehavior
 	VersionUpgradePolicy dbn.VersionUpgradePolicy
 	Verbose              bool
@@ -147,6 +155,7 @@ type LiveClient struct {
 
 	conn      net.Conn
 	bufReader *bufio.Reader
+	writeMu   sync.Mutex // serializes control messages written to conn
 
 	dbnScanner  *dbn.DbnScanner
 	jsonScanner *dbn.JsonScanner
@@ -234,8 +243,10 @@ func (c *LiveClient) GetJsonScanner() *dbn.JsonScanner {
 // Subscribe adds a new subscription for a set of symbols with a given schema and stype.
 // Returns an error if any.
 // A single client instance supports multiple
-// subscriptions. Note there is no unsubscribe method. Subscriptions end
+// subscriptions. Use Unsubscribe to remove symbols. Subscriptions end
 // when the client disconnects with Stop or the LiveClient instance is garbage collected.
+//
+// More than MaxSymbolsPerControlMessage symbols are sent as several messages.
 func (c *LiveClient) Subscribe(sub SubscriptionRequestMsg) error {
 	if c.conn == nil {
 		return ErrNotConnected
@@ -251,11 +262,13 @@ func (c *LiveClient) Subscribe(sub SubscriptionRequestMsg) error {
 			return err
 		}
 	}
-	requestBytes := sub.Encode()
-	if n, err := c.conn.Write(requestBytes); err != nil {
-		return fmt.Errorf("failed to send subscribe request: %v", err)
-	} else if n != len(requestBytes) {
-		return fmt.Errorf("failed to send subscribe request: wanted %d sent %d", len(requestBytes), n)
+	err := c.sendChunkedSymbols("subscribe", sub.Symbols, func(symbols []string, partial bool) []byte {
+		chunk := sub // copy; the caller's request is left as is
+		chunk.Symbols, chunk.Partial = symbols, partial || sub.Partial
+		return chunk.Encode()
+	})
+	if err != nil {
+		return err
 	}
 	if c.config.Verbose {
 		symbols := strings.Join(sub.Symbols, ",")
@@ -270,6 +283,103 @@ func (c *LiveClient) Subscribe(sub SubscriptionRequestMsg) error {
 	return nil
 }
 
+// Unsubscribe removes a set of symbols with a given schema and stype from the session's subscriptions.
+// It can be called before or after Start. See UnsubscriptionRequestMsg for
+// which symbols and stypes can be removed.
+//
+// Returns an error if any. A nil error only means the request was sent.
+// The gateway acknowledges it with a SystemMsg with code SystemCode_UnsubscribeAck.
+// Symbols that are not subscribed, or cannot be removed with the given stype,
+// stay subscribed and are reported in an ErrorMsg; the session continues.
+//
+// More than MaxSymbolsPerControlMessage symbols are sent as several messages.
+func (c *LiveClient) Unsubscribe(unsub UnsubscriptionRequestMsg) error {
+	if c.conn == nil {
+		return ErrNotConnected
+	}
+	if len(unsub.Symbols) == 0 {
+		return errors.New("unsubscribe request must contain at least one symbol")
+	}
+	if err := validateControlValue("Schema", unsub.Schema); err != nil {
+		return err
+	}
+	for _, symbol := range unsub.Symbols {
+		if err := validateControlValue("symbol", symbol); err != nil {
+			return err
+		}
+	}
+	err := c.sendChunkedSymbols("unsubscribe", unsub.Symbols, func(symbols []string, partial bool) []byte {
+		chunk := unsub // copy; the caller's request is left as is
+		chunk.Symbols, chunk.Partial = symbols, partial || unsub.Partial
+		return chunk.Encode()
+	})
+	if err != nil {
+		return err
+	}
+	if c.config.Verbose {
+		c.logger.Info("[LiveClient.Unsubscribe]",
+			"schema", unsub.Schema, "stype_in", unsub.StypeIn.String(),
+			"symbols", strings.Join(unsub.Symbols, ","),
+		)
+	}
+
+	return nil
+}
+
+// sendChunkedSymbols sends a subscribe or unsubscribe request as one control
+// message per MaxSymbolsPerControlMessage symbols. encode builds the message
+// for one chunk; partial is true for every chunk but the last (is_last=0).
+func (c *LiveClient) sendChunkedSymbols(what string, symbols []string, encode func(symbols []string, partial bool) []byte) error {
+	// The gateway joins an is_last=0 message with the next control message it
+	// receives, so nothing else may be written until the request is complete.
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+	conn := c.conn
+	if conn == nil {
+		return ErrNotConnected
+	}
+
+	total := len(symbols)
+	for len(symbols) > 0 {
+		chunk := symbols[:min(len(symbols), MaxSymbolsPerControlMessage)]
+		sent := total - len(symbols)
+		symbols = symbols[len(chunk):]
+		msg := encode(chunk, len(symbols) > 0)
+		if n, err := writeFull(conn, msg); err != nil {
+			if n == len(msg) {
+				sent += len(chunk)
+			}
+			if sent > 0 && sent < total {
+				err = &PartialSendError{SymbolsSent: sent, SymbolsTotal: total, Err: err}
+			}
+			return fmt.Errorf("failed to send %s request: %w", what, err)
+		}
+	}
+	return nil
+}
+
+// writeFull writes all of b to w, continuing after a short write, and returns
+// the total number of bytes written. A write that makes no progress without an
+// error returns io.ErrShortWrite.
+func writeFull(w io.Writer, b []byte) (int, error) {
+	written := 0
+	for len(b) > 0 {
+		n, err := w.Write(b)
+		if n > 0 {
+			n = min(n, len(b))
+			written += n
+			b = b[n:]
+		}
+		if err != nil {
+			return written, err
+		}
+		if n <= 0 {
+			return written, io.ErrShortWrite
+		}
+	}
+	return written, nil
+}
+
 // Notifies the gateway to start sending messages for all subscriptions.
 // This method should only be called once per instance.
 func (c *LiveClient) Start() error {
@@ -279,11 +389,11 @@ func (c *LiveClient) Start() error {
 	}
 	// Send start_session
 	msg := SessionStartMsg{}
-	startBytes := msg.Encode()
-	if n, err := c.conn.Write(startBytes); err != nil {
-		return fmt.Errorf("failed to send start: %v", err)
-	} else if n != len(startBytes) {
-		return fmt.Errorf("failed to send start: wanted %d sent %d", len(startBytes), n)
+	c.writeMu.Lock() // never between the messages of a split request
+	_, err := writeFull(c.conn, msg.Encode())
+	c.writeMu.Unlock()
+	if err != nil {
+		return fmt.Errorf("failed to send start: %w", err)
 	}
 	if c.config.Verbose {
 		c.logger.Info("[LiveClient.Start] sent start_session")
@@ -350,6 +460,18 @@ func (c *LiveClient) Authenticate(apiKey string) (string, error) {
 		}
 	}
 
+	// Bound the whole handshake, so a gateway that stops responding cannot
+	// hang the caller. The deadline is lifted before the data stream starts.
+	authTimeout := c.config.AuthTimeout
+	if authTimeout <= 0 {
+		authTimeout = AUTH_TIMEOUT
+	}
+	conn := c.conn
+	if err := conn.SetDeadline(time.Now().Add(authTimeout)); err != nil {
+		return "", fmt.Errorf("failed to set handshake deadline: %w", err)
+	}
+	defer conn.SetDeadline(time.Time{})
+
 	// Read challege from socket and calcluate reply
 	challengeKey, err := c.decodeChallenge()
 	if err != nil {
@@ -370,7 +492,7 @@ func (c *LiveClient) Authenticate(apiKey string) (string, error) {
 	}
 	requestBytes := request.Encode()
 	if n, err := c.conn.Write(requestBytes); err != nil {
-		return "", fmt.Errorf("failed to send auth request: %v", err)
+		return "", fmt.Errorf("failed to send auth request: %w", err)
 	} else if n != len(requestBytes) {
 		return "", fmt.Errorf("failed to send auth request: wanted %d sent %d", len(requestBytes), n)
 	}
@@ -387,10 +509,22 @@ func (c *LiveClient) Authenticate(apiKey string) (string, error) {
 	return sessionID, nil
 }
 
+// readControlLine reads one newline-terminated control message from the
+// gateway. The line may be at most the reader's buffer size (MAX_STR_LENGTH);
+// a longer one returns ErrControlMessageTooLong rather than being buffered.
+// The returned slice is only valid until the next read.
+func (c *LiveClient) readControlLine() ([]byte, error) {
+	line, err := c.bufReader.ReadSlice('\n')
+	if errors.Is(err, bufio.ErrBufferFull) {
+		return nil, ErrControlMessageTooLong
+	}
+	return line, err
+}
+
 // https://databento.com/docs/api-reference-live/message-flows?historical=http&live=raw
 func (c *LiveClient) decodeChallenge() (string, error) {
 	// first line is version
-	line, err := c.bufReader.ReadBytes('\n')
+	line, err := c.readControlLine()
 	if err != nil {
 		return "", fmt.Errorf("failed to read Greeting: %w", err)
 	}
@@ -404,7 +538,7 @@ func (c *LiveClient) decodeChallenge() (string, error) {
 	}
 
 	// next is challenge request
-	line, err = c.bufReader.ReadBytes('\n')
+	line, err = c.readControlLine()
 	if err != nil {
 		return "", fmt.Errorf("failed to read Challenge: %w", err)
 	}
@@ -420,7 +554,7 @@ func (c *LiveClient) decodeChallenge() (string, error) {
 }
 
 func (c *LiveClient) decodeAuthResponse() (string, error) {
-	line, err := c.bufReader.ReadBytes('\n')
+	line, err := c.readControlLine()
 	if err != nil {
 		return "", fmt.Errorf("failed to read AuthResponse: %w", err)
 	}
@@ -434,7 +568,7 @@ func (c *LiveClient) decodeAuthResponse() (string, error) {
 	}
 
 	if resp.Success != "1" {
-		return "", fmt.Errorf("failed to authenticate: success: %q error: %s", resp.Success, resp.Error)
+		return "", fmt.Errorf("failed to authenticate: success: %q error: %q", resp.Success, resp.Error)
 	}
 
 	return resp.SessionID, nil
@@ -458,3 +592,20 @@ func generateCramReply(apiKey string, challengeKey string) string {
 	bucketID := apiKey[max(0, len(apiKey)-BUCKET_ID_LENGTH):]
 	return fmt.Sprintf("%x-%s", checksum, bucketID)
 }
+
+// PartialSendError is returned by Subscribe and Unsubscribe when a request
+// that was split across several control messages failed after some of them
+// were sent. The gateway has received SymbolsSent symbols in messages marked
+// is_last=0 and is waiting for the rest, so the connection should not be
+// reused for further requests.
+type PartialSendError struct {
+	SymbolsSent  int   // Symbols in the messages that were fully sent
+	SymbolsTotal int   // Symbols in the whole request
+	Err          error // The underlying write error
+}
+
+func (e *PartialSendError) Error() string {
+	return fmt.Sprintf("%d of %d symbols were already sent as partial messages: %v", e.SymbolsSent, e.SymbolsTotal, e.Err)
+}
+
+func (e *PartialSendError) Unwrap() error { return e.Err }

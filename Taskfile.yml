@@ -1,7 +1,7 @@
 version: '3'
 
 vars:
-  GORELEASER_CROSS_VERSION: v1.25.8
+  GORELEASER_CROSS_VERSION: v1.26.10
 
 tasks:
   default:
@@ -365,13 +365,27 @@ tasks:
       - go -C ./cmd/dbn-go-mcp-data test ./...
 
   fuzz:
-    desc: 'Run a fuzz session (TARGET=FuzzRecordDecode TIME=30s PARALLEL=2)'
+    desc: 'Run a fuzz session (PKG=. TARGET=FuzzRecordDecode TIME=30s PARALLEL=2)'
     vars:
+      PKG: '{{.PKG | default "."}}'
       TARGET: '{{.TARGET | default "FuzzRecordDecode"}}'
       TIME: '{{.TIME | default "30s"}}'
       PARALLEL: '{{.PARALLEL | default "2"}}'
     cmds:
-      - go test . -run '^$' -fuzz '^{{.TARGET}}$' -fuzztime='{{.TIME}}' -parallel='{{.PARALLEL}}'
+      - go test {{.PKG}} -run '^$' -fuzz '^{{.TARGET}}$' -fuzztime='{{.TIME}}' -parallel='{{.PARALLEL}}'
+
+  fuzz-all:
+    desc: 'Run a short fuzz session across all fuzz targets (TIME=10s PARALLEL=2)'
+    vars:
+      TIME: '{{.TIME | default "10s"}}'
+      PARALLEL: '{{.PARALLEL | default "2"}}'
+    cmds:
+      - go test . -run '^$' -fuzz '^FuzzRecordDecode$' -fuzztime='{{.TIME}}' -parallel='{{.PARALLEL}}'
+      - go test . -run '^$' -fuzz '^FuzzReadMetadata$' -fuzztime='{{.TIME}}' -parallel='{{.PARALLEL}}'
+      - go test . -run '^$' -fuzz '^FuzzSymbolMapIntervals$' -fuzztime='{{.TIME}}' -parallel='{{.PARALLEL}}'
+      - go test . -run '^$' -fuzz '^FuzzDbnScanner$' -fuzztime='{{.TIME}}' -parallel='{{.PARALLEL}}'
+      - go test . -run '^$' -fuzz '^FuzzJsonScanner$' -fuzztime='{{.TIME}}' -parallel='{{.PARALLEL}}'
+      - go test ./live -run '^$' -fuzz '^FuzzLiveGatewayControl$' -fuzztime='{{.TIME}}' -parallel='{{.PARALLEL}}'
 
   go-test-integration:
     desc: 'Test Go integration paths requiring Databento credentials'

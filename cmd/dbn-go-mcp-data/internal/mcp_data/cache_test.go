@@ -3,6 +3,7 @@
 package mcp_data
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,13 +17,17 @@ import (
 	"time"
 
 	"github.com/NimbleMarkets/dbn-go/internal/file"
+	"github.com/NimbleMarkets/dbn-go/internal/mcp_meta"
 	"github.com/duckdb/duckdb-go/v2"
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 func testServer(t *testing.T) *Server {
 	t.Helper()
 	cacheDir := t.TempDir()
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	return &Server{
+		Server:   mcp_meta.NewServer("", logger),
 		cacheDir: cacheDir,
 	}
 }
@@ -555,20 +560,6 @@ func TestFetchRangeOnce_DeduplicatesConcurrentCalls(t *testing.T) {
 	}
 }
 
-func TestValidateQueryCacheSQL_AllowsReadOnlySelects(t *testing.T) {
-	queries := []string{
-		`SELECT * FROM "XNAS.ITCH/trades" LIMIT 10`,
-		`WITH q AS (SELECT instrument_id FROM "XNAS.ITCH/trades") SELECT * FROM q`,
-		`-- comment
-SELECT * FROM "GLBX.MDP3/ohlcv-1d"`,
-	}
-	for _, q := range queries {
-		if err := validateQueryCacheSQL(q); err != nil {
-			t.Fatalf("validateQueryCacheSQL unexpectedly rejected %q: %v", q, err)
-		}
-	}
-}
-
 func testServerWithDB(t *testing.T) *Server {
 	t.Helper()
 	s := testServer(t)
@@ -604,7 +595,11 @@ func TestQueryDuckDB_CSV_Explicit(t *testing.T) {
 	}
 }
 
-func TestValidateQueryCacheSQL_BlocksExternalReadsAndDDL(t *testing.T) {
+// The engine (ntduckbox) enforces the statement type and file allowlist; the
+// host has no SQL regex of its own. Every one of these must still be rejected
+// on the query_cache path.
+func TestQueryDuckDB_BlocksExternalReadsAndDDL(t *testing.T) {
+	s := testServerWithDB(t)
 	blocked := []string{
 		`SELECT * FROM read_csv_auto('/etc/hosts')`,
 		`SELECT * FROM read_parquet('/tmp/data.parquet')`,
@@ -620,8 +615,8 @@ func TestValidateQueryCacheSQL_BlocksExternalReadsAndDDL(t *testing.T) {
 		`SELECT * FROM sniff_csv('/etc/hosts')`,
 	}
 	for _, q := range blocked {
-		if err := validateQueryCacheSQL(q); err == nil {
-			t.Fatalf("validateQueryCacheSQL should reject %q", q)
+		if _, err := s.queryDuckDBResult(context.Background(), q, queryDuckDBOptions{}); err == nil {
+			t.Fatalf("query_cache should reject %q", q)
 		}
 	}
 }
@@ -640,8 +635,8 @@ func TestInitCache_DuckDBBlocksFilesOutsideCacheDir(t *testing.T) {
 	s := testServerWithDB(t)
 	secretPath := writeSecretFile(t, "secret.csv")
 
-	// Run directly against DuckDB, skipping validateQueryCacheSQL, so this
-	// checks the engine-level lockdown on its own.
+	// Run directly against the ntduckbox DB so this checks the engine-level
+	// lockdown on its own, independent of the query_cache error mapping.
 	queries := []string{
 		fmt.Sprintf(`SELECT * FROM read_text(%s)`, sqlLiteral(secretPath)),
 		fmt.Sprintf(`SELECT * FROM query('SELECT content FROM read_text(%s)')`, strings.ReplaceAll(sqlLiteral(secretPath), "'", "''")),
@@ -653,10 +648,7 @@ func TestInitCache_DuckDBBlocksFilesOutsideCacheDir(t *testing.T) {
 	}
 	for _, q := range queries {
 		t.Run(q, func(t *testing.T) {
-			rows, err := s.db.Query(q)
-			if rows != nil {
-				rows.Close()
-			}
+			_, err := s.box.Query(context.Background(), q)
 			assertDuckDBPermissionError(t, err)
 		})
 	}
@@ -672,10 +664,9 @@ func assertDuckDBPermissionError(t *testing.T, err error) {
 
 func TestInitCache_ExternalAccessCannotBeReenabled(t *testing.T) {
 	s := testServerWithDB(t)
-	_, err := s.db.Exec("SET enable_external_access = true")
-	var dbErr *duckdb.Error
-	if !errors.As(err, &dbErr) || dbErr.Type != duckdb.ErrorTypeInvalidInput || !strings.Contains(dbErr.Msg, "configuration has been locked") {
-		t.Fatalf("expected locked configuration error, got %v", err)
+	_, err := s.box.Query(context.Background(), "SET enable_external_access = true")
+	if err == nil {
+		t.Fatal("expected SET enable_external_access = true to be rejected")
 	}
 }
 
@@ -709,12 +700,9 @@ func TestInitCache_DuckDBBlocksPathEscapes(t *testing.T) {
 					t.Skipf("symlink creation unavailable: %v", err)
 				}
 			}
-			// Quoting the function name bypasses the keyword filter. Assert
-			// that DuckDB still enforces the boundary through query_cache.
+			// A quoted function name would have bypassed a keyword filter.
+			// Assert that DuckDB enforces the boundary through query_cache.
 			query := fmt.Sprintf(`SELECT content FROM "read_text"(%s)`, sqlLiteral(tc.path))
-			if err := validateQueryCacheSQL(query); err != nil {
-				t.Fatalf("expected query to reach DuckDB: %v", err)
-			}
 			_, err := s.queryDuckDB(query, queryDuckDBOptions{})
 			assertDuckDBPermissionError(t, err)
 		})
@@ -929,8 +917,38 @@ func TestQueryDuckDB_InvalidFormat(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for unsupported format")
 	}
-	if !strings.Contains(err.Error(), "unsupported format") {
+	if !strings.Contains(err.Error(), "format must be") {
 		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestQueryDuckDB_TruncationAndClamping(t *testing.T) {
+	s := testServerWithDB(t)
+
+	// Truncates to MaxRows and sets Truncated=true, Rows=5
+	res, err := s.queryDuckDBResult(
+		context.Background(),
+		"SELECT unnest(range(100)) AS n",
+		queryDuckDBOptions{Format: "csv", MaxRows: 5},
+	)
+	if err != nil {
+		t.Fatalf("queryDuckDBResult failed: %v", err)
+	}
+	if !res.Truncated || res.Rows != 5 {
+		t.Errorf("expected Truncated=true and Rows=5, got Truncated=%v Rows=%d", res.Truncated, res.Rows)
+	}
+
+	// MaxRows larger than maxQueryRows (100,000) is clamped rather than failing
+	res, err = s.queryDuckDBResult(
+		context.Background(),
+		"SELECT 1 AS val",
+		queryDuckDBOptions{Format: "csv", MaxRows: maxQueryRows + 50000},
+	)
+	if err != nil {
+		t.Fatalf("expected clamped MaxRows to succeed, got error: %v", err)
+	}
+	if res.Truncated || res.Rows != 1 {
+		t.Errorf("expected Truncated=false and Rows=1, got Truncated=%v Rows=%d", res.Truncated, res.Rows)
 	}
 }
 
@@ -964,5 +982,152 @@ func TestQueryDuckDB_JSONRows_NumericTypes(t *testing.T) {
 		t.Errorf("float_val should be a number, got %T: %v", rows[0]["float_val"], rows[0]["float_val"])
 	} else if floatVal != 3.14 {
 		t.Errorf("float_val = %v, want 3.14", floatVal)
+	}
+}
+
+func TestQueryCacheHandler_RelaysTruncated(t *testing.T) {
+	s := testServerWithDB(t)
+
+	req := mcp.CallToolRequest{}
+	req.Params.Name = "query_cache"
+	req.Params.Arguments = map[string]any{
+		"sql":      "SELECT unnest(range(20)) AS n",
+		"format":   "json_rows",
+		"max_rows": 5,
+	}
+	res, err := s.queryCacheHandler(context.Background(), req)
+	if err != nil {
+		t.Fatalf("queryCacheHandler returned error: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("expected non-error result, got: %#v", res)
+	}
+	if len(res.Content) < 2 {
+		t.Fatalf("expected truncation notice in Content[1], got %d content blocks", len(res.Content))
+	}
+	notice, ok := res.Content[1].(mcp.TextContent)
+	if !ok || !strings.Contains(notice.Text, "Showing 5 rows, more exist") {
+		t.Errorf("unexpected truncation notice: %#v", res.Content[1])
+	}
+}
+
+// clearCacheFixture builds home/{important.json, .dbn-go/{state.json, logs/app.json, cache/...}}
+// and returns a server whose cache dir is home/.dbn-go/cache, plus the files
+// that clear_cache must never remove and the one cached parquet file.
+func clearCacheFixture(t *testing.T) (s *Server, protected []string, cached string) {
+	t.Helper()
+	home := t.TempDir()
+	s = testServer(t)
+	s.cacheDir = filepath.Join(home, ".dbn-go", "cache")
+
+	cached = filepath.Join(s.cacheDir, "XNAS.ITCH", "trades", "AAPL__raw_symbol__instrument_id__20240101__20240131.parquet")
+	protected = []string{
+		filepath.Join(home, "important.json"),
+		filepath.Join(home, "data.parquet"),
+		filepath.Join(home, ".dbn-go", "state.json"),
+		filepath.Join(home, ".dbn-go", "logs", "app.json"),
+		filepath.Join(s.cacheDir, "notes.json"),
+		filepath.Join(s.cacheDir, "XNAS.ITCH", "dataset-notes.json"),
+	}
+	for _, p := range append([]string{cached}, protected...) {
+		if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte("{}"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return s, protected, cached
+}
+
+func TestClearCache_NeverRemovesFilesOutsideDatasetSchemaDirs(t *testing.T) {
+	for _, tc := range []struct{ dataset, schema string }{
+		{"..", ".."},
+		{"..", ""},
+		{"", ".."},
+		{".", "."},
+		{".", ""},
+		{"", "."},
+		{".", ".."},
+		{"..", "."},
+		{"XNAS.ITCH", ".."},
+		{"XNAS.ITCH", "."},
+		{"../..", "x"},
+		{"XNAS.ITCH", "../.."},
+	} {
+		t.Run(fmt.Sprintf("%q_%q", tc.dataset, tc.schema), func(t *testing.T) {
+			s, protected, cached := clearCacheFixture(t)
+			if removed := s.clearCache(tc.dataset, tc.schema); removed != 0 {
+				t.Errorf("clearCache removed %d files, want 0", removed)
+			}
+			for _, p := range append(protected, cached) {
+				if _, err := os.Stat(p); err != nil {
+					t.Errorf("clearCache(%q, %q) removed %s", tc.dataset, tc.schema, p)
+				}
+			}
+		})
+	}
+}
+
+func TestClearCacheHandler_RejectsDotNames(t *testing.T) {
+	for _, args := range []map[string]any{
+		{"dataset": "..", "schema": ".."},
+		{"dataset": ".."},
+		{"schema": ".."},
+		{"dataset": "."},
+		{"schema": "."},
+	} {
+		s, protected, cached := clearCacheFixture(t)
+		req := mcp.CallToolRequest{}
+		req.Params.Name = "clear_cache"
+		req.Params.Arguments = args
+		res, err := s.clearCacheHandler(context.Background(), req)
+		if err != nil {
+			t.Fatalf("clearCacheHandler(%v) returned error: %v", args, err)
+		}
+		if !res.IsError {
+			t.Errorf("clearCacheHandler(%v) succeeded, want a tool error", args)
+		}
+		for _, p := range append(protected, cached) {
+			if _, err := os.Stat(p); err != nil {
+				t.Errorf("clearCacheHandler(%v) removed %s", args, p)
+			}
+		}
+	}
+}
+
+func TestCacheParquetPath_SymbolsCannotEscapeSchemaDir(t *testing.T) {
+	s := testServer(t)
+	wantDir := filepath.Join(s.cacheDir, "XNAS.ITCH", "trades")
+	seen := map[string]string{}
+	for _, symbols := range []string{
+		"../../../../x,AAPL",
+		"..",
+		"BRK/B",
+		`BRK\B`,
+		"BRK%2FB", // must not collide with the encoding of BRK/B
+		"/etc/x",
+		strings.Repeat("../", 80) + "x",
+	} {
+		path := s.cacheParquetPath("XNAS.ITCH", "trades", symbols, "raw_symbol", "instrument_id", "2024-01-02", "2024-01-03")
+		if got := filepath.Dir(path); got != wantDir {
+			t.Errorf("symbols %q: file placed in %q, want %q", symbols, got, wantDir)
+		}
+		if strings.ContainsAny(filepath.Base(path), `/\`) {
+			t.Errorf("symbols %q: filename %q contains a path separator", symbols, filepath.Base(path))
+		}
+		if prev, dup := seen[path]; dup {
+			t.Errorf("symbols %q and %q share cache path %q", symbols, prev, path)
+		}
+		seen[path] = symbols
+	}
+}
+
+func TestCacheParquetPath_DatesCannotEscapeSchemaDir(t *testing.T) {
+	s := testServer(t)
+	wantDir := filepath.Join(s.cacheDir, "XNAS.ITCH", "trades")
+	path := s.cacheParquetPath("XNAS.ITCH", "trades", "AAPL", "raw_symbol", "instrument_id", "2024/../../x", "../../y")
+	if got := filepath.Dir(path); got != wantDir {
+		t.Errorf("file placed in %q, want %q", got, wantDir)
 	}
 }

@@ -267,6 +267,7 @@ type SubscriptionRequestMsg struct {
 	Symbols  []string  // key: symbols (comma separated)
 	Start    time.Time // key: time (nanoseconds since epoch)
 	Snapshot bool      // key: snapshot (int)
+	Partial  bool      // inverse of key is_last; encoded as "is_last=0" only when true
 }
 
 // Encode converts SubscriptionRequestMsg to its line protocol representation.
@@ -278,6 +279,9 @@ func (m *SubscriptionRequestMsg) Encode() []byte {
 	}
 	if m.Snapshot {
 		b = append(b, "|snapshot=1"...)
+	}
+	if m.Partial {
+		b = append(b, "|is_last=0"...)
 	}
 
 	b = append(b, "|symbols="...)
@@ -297,7 +301,11 @@ func (m *SubscriptionRequestMsg) Encode() []byte {
 // as produced by SubscriptionRequestMsg.Encode. It is the gateway-side counterpart of Encode.
 // Returns an error if the schema field is missing or a field value is invalid.
 // An empty symbols field yields nil Symbols; an absent start yields a zero Start.
+// An unsubscribe message is rejected rather than read as a subscription.
 func NewSubscriptionRequestMsgFromBytes(b []byte) (*SubscriptionRequestMsg, error) {
+	if bytes.HasPrefix(b, []byte("unsubscribe|")) {
+		return nil, errors.New("not a subscription request: unsubscribe message")
+	}
 	m := parseControlMessage(b)
 	schema, ok := m["schema"]
 	if !ok {
@@ -320,10 +328,61 @@ func NewSubscriptionRequestMsgFromBytes(b []byte) (*SubscriptionRequestMsg, erro
 	if msg.Snapshot, err = parseControlBool(m, "snapshot"); err != nil {
 		return nil, err
 	}
+	if str, ok := m["is_last"]; ok {
+		isLast, err := strconv.ParseBool(str)
+		if err != nil {
+			return nil, fmt.Errorf("invalid is_last: %w", err)
+		}
+		msg.Partial = !isLast
+	}
 	if str := m["symbols"]; str != "" {
 		msg.Symbols = strings.Split(str, ",")
 	}
 	return msg, nil
+}
+
+// MaxSymbolsPerControlMessage is the most symbols LiveClient puts in one
+// control message; longer lists are split across messages. It matches the
+// chunk size used by Databento's Rust and C++ clients.
+const MaxSymbolsPerControlMessage = 500
+
+// An unsubscription request is sent to the gateway upon request from the client.
+// It removes Symbols from the session's subscriptions for Schema.
+//
+// The symbols don't need to match an earlier subscription: any subset of the
+// subscribed symbols can be removed, and the symbol ALL_SYMBOLS removes every
+// symbol subscribed with the schema. Other schemas are unaffected.
+//
+// StypeIn must be SType_RawSymbol, SType_Parent, or SType_InstrumentId, and
+// compatible with how the symbols were subscribed: symbols subscribed by raw
+// symbol, instrument ID, or continuous contract are removed by raw symbol or
+// instrument ID, and symbols subscribed by parent only by parent.
+// https://databento.com/docs/api-live/client/unsubscribe
+type UnsubscriptionRequestMsg struct {
+	Schema  string    // key: schema
+	StypeIn dbn.SType // key: stype_in
+	Symbols []string  // key: symbols (comma separated)
+	Partial bool      // inverse of key is_last; encoded as "is_last=0" only when true
+}
+
+// Encode converts UnsubscriptionRequestMsg to its line protocol representation.
+func (m *UnsubscriptionRequestMsg) Encode() []byte {
+	b := fmt.Appendf(nil, "unsubscribe|schema=%s|stype_in=%s", m.Schema, m.StypeIn.String())
+
+	b = append(b, "|symbols="...)
+	isFirst := true
+	for _, symbol := range m.Symbols {
+		if !isFirst {
+			b = append(b, ',')
+		}
+		b = append(b, symbol...)
+		isFirst = false
+	}
+	if m.Partial {
+		b = append(b, "|is_last=0"...)
+	}
+	b = append(b, '\n')
+	return b
 }
 
 // A session start message is sent to the gateway upon request from the client.

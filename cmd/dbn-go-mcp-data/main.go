@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/NimbleMarkets/dbn-go/cmd/dbn-go-mcp-data/internal/mcp_data"
+	"github.com/NimbleMarkets/dbn-go/internal/mcp_meta"
 	"github.com/NimbleMarkets/dbn-go/internal/version"
 	mcp_server "github.com/mark3labs/mcp-go/server"
 	"github.com/spf13/pflag"
@@ -27,10 +28,11 @@ import (
 const (
 	mcpServerVersion = "0.0.1"
 
-	defaultSSEHostPort = "127.0.0.1:8889"
-	defaultMaxCost     = 1.0 // $1.00
-	defaultCacheDir    = "~/.dbn-go/cache/"
-	defaultCacheDB     = "~/.dbn-go/cache.duckdb"
+	defaultSSEHostPort          = "127.0.0.1:8889"
+	defaultMaxCost              = 1.0     // $1.00
+	defaultMaxSessionCost       = 10.0    // $10.00
+	defaultMaxQueryBytes  int64 = 1 << 30 // 1 GiB
+	defaultCacheDir             = "~/.dbn-go/cache/"
 
 	// serverInstructions is sent to LLM clients during MCP initialization.
 	serverInstructions = `dbn-go-mcp-data provides full access to Databento's historical market data APIs with a local DuckDB cache.
@@ -50,7 +52,7 @@ Additional discovery tools: list_publishers (venue/source info), list_unit_price
 
 Cache tools: list_cache (see cached data and view names), query_cache (SQL queries against cached data), clear_cache (remove cached data).
 
-The server enforces a per-query budget limit on fetch_range. For large queries, prefer compact schemas like ohlcv-1d or ohlcv-1h.`
+The server enforces a per-query budget, a per-query size limit, and a total budget for the session on fetch_range; when a limit is hit, tell the user rather than retrying. For large queries, prefer compact schemas like ohlcv-1d or ohlcv-1h.`
 )
 
 type Config struct {
@@ -61,12 +63,14 @@ type Config struct {
 	Name    string // Service Name
 	Version string // Service Version
 
-	UseSSE      bool   // Use SSE Transport instead of STDIO
-	SSEHostPort string // HostPort to use for SSE
+	UseSSE            bool     // Use SSE Transport instead of STDIO
+	SSEHostPort       string   // HostPort to use for SSE
+	SSEAllowedOrigins []string // Browser origins allowed to use SSE
+	SSETokenFile      string   // File holding the bearer token SSE clients must present
 
 	Verbose bool // Verbose logging
 
-	mcp_data.ServerConfig // MCP data config (MaxCost, CacheDir, CacheDB, ReadOnly)
+	mcp_data.ServerConfig // MCP data config (MaxCost, MaxSessionCost, MaxQueryBytes, CacheDir, ReadOnly)
 
 	// TODO:
 	//   allow/deny lists for schema/dataset
@@ -90,9 +94,12 @@ func main() {
 	pflag.BoolVarP(&config.LogJSON, "log-json", "j", false, "Log in JSON (default is plaintext)")
 	pflag.StringVarP(&config.SSEHostPort, "hostport", "p", "", "host:port to listen to SSE connections")
 	pflag.Float64VarP(&config.MaxCost, "max-cost", "c", defaultMaxCost, "Max cost, in dollars, for a query (<=0 is unlimited)")
+	pflag.Float64Var(&config.MaxSessionCost, "max-session-cost", defaultMaxSessionCost, "Max total cost, in dollars, of all queries while this server runs (<=0 is unlimited)")
+	pflag.Int64Var(&config.MaxQueryBytes, "max-query-bytes", defaultMaxQueryBytes, "Max billable (uncompressed) size, in bytes, for a query (<=0 is unlimited)")
 	pflag.StringVar(&config.CacheDir, "cache-dir", defaultCacheDir, "Directory for cached data files")
-	pflag.StringVar(&config.CacheDB, "cache-db", defaultCacheDB, "Path to DuckDB database file")
 	pflag.BoolVar(&config.ReadOnly, "read-only", false, "Disable fetch_range tool (no billing possible)")
+	pflag.StringSliceVar(&config.SSEAllowedOrigins, "sse-allow-origin", nil, "Browser origin allowed to use the SSE transport, e.g. http://localhost:6274 (repeatable; default none)")
+	pflag.StringVar(&config.SSETokenFile, "sse-token-file", "", "File holding a bearer token SSE clients must present (or set 'DBN_GO_MCP_SSE_TOKEN' envvar)")
 	pflag.BoolVarP(&config.UseSSE, "sse", "", false, "Use SSE Transport (default is STDIO transport)")
 	pflag.BoolVarP(&config.Verbose, "verbose", "v", false, "Verbose logging")
 	pflag.BoolVarP(&showHelp, "help", "h", false, "Show help")
@@ -131,9 +138,8 @@ func main() {
 		config.SSEHostPort = defaultSSEHostPort
 	}
 
-	// Expand ~ in cache paths
+	// Expand ~ in cache path
 	config.CacheDir = expandHome(config.CacheDir)
-	config.CacheDB = expandHome(config.CacheDB)
 
 	config.Name = "dbn-go-mcp-data"
 	config.Version = mcpServerVersion
@@ -195,11 +201,12 @@ func run() error {
 	)
 
 	srv := mcp_data.NewServer(mcp_data.ServerConfig{
-		ApiKey:   config.ApiKey,
-		MaxCost:  config.MaxCost,
-		CacheDir: config.CacheDir,
-		CacheDB:  config.CacheDB,
-		ReadOnly: config.ReadOnly,
+		ApiKey:         config.ApiKey,
+		MaxCost:        config.MaxCost,
+		MaxSessionCost: config.MaxSessionCost,
+		MaxQueryBytes:  config.MaxQueryBytes,
+		CacheDir:       config.CacheDir,
+		ReadOnly:       config.ReadOnly,
 	}, logger)
 
 	if err := srv.InitCache(); err != nil {
@@ -211,9 +218,21 @@ func run() error {
 	srv.RegisterDataTools(mcpServer)
 
 	if config.UseSSE {
-		sseServer := mcp_server.NewSSEServer(mcpServer)
-		logger.Info("MCP SSE server started", "hostPort", config.SSEHostPort)
-		if err := sseServer.Start(config.SSEHostPort); err != nil {
+		token, err := mcp_meta.LoadSSEToken(config.SSETokenFile)
+		if err != nil {
+			return err
+		}
+		if token == "" && !mcp_meta.IsLoopbackHostPort(config.SSEHostPort) {
+			logger.Warn("SSE is listening beyond localhost without a bearer token; anyone who can reach it can call every tool. Set --sse-token-file or "+mcp_meta.SSETokenEnvVar,
+				"hostPort", config.SSEHostPort)
+		}
+		logger.Info("MCP SSE server started", "hostPort", config.SSEHostPort,
+			"allowedOrigins", config.SSEAllowedOrigins, "tokenRequired", token != "")
+		err = mcp_meta.ServeSSE(mcpServer, config.SSEHostPort, mcp_meta.SSEConfig{
+			AllowedOrigins: config.SSEAllowedOrigins,
+			Token:          token,
+		})
+		if err != nil {
 			return fmt.Errorf("MCP SSE server error: %w", err)
 		}
 	} else {

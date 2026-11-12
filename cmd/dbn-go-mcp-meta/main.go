@@ -51,8 +51,10 @@ type Config struct {
 	Name    string // Service Name
 	Version string // Service Version
 
-	UseSSE      bool   // Use SSE Transport instead of STDIO
-	SSEHostPort string // HostPort to use for SSE
+	UseSSE            bool     // Use SSE Transport instead of STDIO
+	SSEHostPort       string   // HostPort to use for SSE
+	SSEAllowedOrigins []string // Browser origins allowed to use SSE
+	SSETokenFile      string   // File holding the bearer token SSE clients must present
 
 	Verbose bool // Verbose logging
 
@@ -77,6 +79,8 @@ func main() {
 	pflag.StringVarP(&logFilename, "log-file", "l", "", "Log file destination (or MCP_LOG_FILE envvar). Default is stderr")
 	pflag.BoolVarP(&config.LogJSON, "log-json", "j", false, "Log in JSON (default is plaintext)")
 	pflag.StringVarP(&config.SSEHostPort, "port", "p", "", "host:port to listen to SSE connections")
+	pflag.StringSliceVar(&config.SSEAllowedOrigins, "sse-allow-origin", nil, "Browser origin allowed to use the SSE transport, e.g. http://localhost:6274 (repeatable; default none)")
+	pflag.StringVar(&config.SSETokenFile, "sse-token-file", "", "File holding a bearer token SSE clients must present (or set 'DBN_GO_MCP_SSE_TOKEN' envvar)")
 	pflag.BoolVarP(&config.UseSSE, "sse", "", false, "Use SSE Transport (default is STDIO transport)")
 	pflag.BoolVarP(&config.Verbose, "verbose", "v", false, "Verbose logging")
 	pflag.BoolVarP(&showHelp, "help", "h", false, "Show help")
@@ -171,9 +175,21 @@ func run() error {
 	srv.RegisterMetaTools(mcpServer)
 
 	if config.UseSSE {
-		sseServer := mcp_server.NewSSEServer(mcpServer)
-		logger.Info("MCP SSE server started", "hostPort", config.SSEHostPort)
-		if err := sseServer.Start(config.SSEHostPort); err != nil {
+		token, err := mcp_meta.LoadSSEToken(config.SSETokenFile)
+		if err != nil {
+			return err
+		}
+		if token == "" && !mcp_meta.IsLoopbackHostPort(config.SSEHostPort) {
+			logger.Warn("SSE is listening beyond localhost without a bearer token; anyone who can reach it can call every tool. Set --sse-token-file or "+mcp_meta.SSETokenEnvVar,
+				"hostPort", config.SSEHostPort)
+		}
+		logger.Info("MCP SSE server started", "hostPort", config.SSEHostPort,
+			"allowedOrigins", config.SSEAllowedOrigins, "tokenRequired", token != "")
+		err = mcp_meta.ServeSSE(mcpServer, config.SSEHostPort, mcp_meta.SSEConfig{
+			AllowedOrigins: config.SSEAllowedOrigins,
+			Token:          token,
+		})
+		if err != nil {
 			return fmt.Errorf("MCP SSE server error: %w", err)
 		}
 	} else {
