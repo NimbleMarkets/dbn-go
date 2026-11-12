@@ -9,11 +9,13 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/NimbleMarkets/dbn-go"
@@ -153,6 +155,7 @@ type LiveClient struct {
 
 	conn      net.Conn
 	bufReader *bufio.Reader
+	writeMu   sync.Mutex // serializes control messages written to conn
 
 	dbnScanner  *dbn.DbnScanner
 	jsonScanner *dbn.JsonScanner
@@ -327,17 +330,54 @@ func (c *LiveClient) Unsubscribe(unsub UnsubscriptionRequestMsg) error {
 // message per MaxSymbolsPerControlMessage symbols. encode builds the message
 // for one chunk; partial is true for every chunk but the last (is_last=0).
 func (c *LiveClient) sendChunkedSymbols(what string, symbols []string, encode func(symbols []string, partial bool) []byte) error {
+	// The gateway joins an is_last=0 message with the next control message it
+	// receives, so nothing else may be written until the request is complete.
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+	conn := c.conn
+	if conn == nil {
+		return ErrNotConnected
+	}
+
+	total := len(symbols)
 	for len(symbols) > 0 {
 		chunk := symbols[:min(len(symbols), MaxSymbolsPerControlMessage)]
+		sent := total - len(symbols)
 		symbols = symbols[len(chunk):]
-		requestBytes := encode(chunk, len(symbols) > 0)
-		if n, err := c.conn.Write(requestBytes); err != nil {
+		msg := encode(chunk, len(symbols) > 0)
+		if n, err := writeFull(conn, msg); err != nil {
+			if n == len(msg) {
+				sent += len(chunk)
+			}
+			if sent > 0 && sent < total {
+				err = &PartialSendError{SymbolsSent: sent, SymbolsTotal: total, Err: err}
+			}
 			return fmt.Errorf("failed to send %s request: %w", what, err)
-		} else if n != len(requestBytes) {
-			return fmt.Errorf("failed to send %s request: wanted %d sent %d", what, len(requestBytes), n)
 		}
 	}
 	return nil
+}
+
+// writeFull writes all of b to w, continuing after a short write, and returns
+// the total number of bytes written. A write that makes no progress without an
+// error returns io.ErrShortWrite.
+func writeFull(w io.Writer, b []byte) (int, error) {
+	written := 0
+	for len(b) > 0 {
+		n, err := w.Write(b)
+		if n > 0 {
+			n = min(n, len(b))
+			written += n
+			b = b[n:]
+		}
+		if err != nil {
+			return written, err
+		}
+		if n <= 0 {
+			return written, io.ErrShortWrite
+		}
+	}
+	return written, nil
 }
 
 // Notifies the gateway to start sending messages for all subscriptions.
@@ -349,11 +389,11 @@ func (c *LiveClient) Start() error {
 	}
 	// Send start_session
 	msg := SessionStartMsg{}
-	startBytes := msg.Encode()
-	if n, err := c.conn.Write(startBytes); err != nil {
-		return fmt.Errorf("failed to send start: %v", err)
-	} else if n != len(startBytes) {
-		return fmt.Errorf("failed to send start: wanted %d sent %d", len(startBytes), n)
+	c.writeMu.Lock() // never between the messages of a split request
+	_, err := writeFull(c.conn, msg.Encode())
+	c.writeMu.Unlock()
+	if err != nil {
+		return fmt.Errorf("failed to send start: %w", err)
 	}
 	if c.config.Verbose {
 		c.logger.Info("[LiveClient.Start] sent start_session")
@@ -545,3 +585,20 @@ func generateCramReply(apiKey string, challengeKey string) string {
 	bucketID := apiKey[firstKeyIndex:]
 	return fmt.Sprintf("%x-%s", checksum, bucketID)
 }
+
+// PartialSendError is returned by Subscribe and Unsubscribe when a request
+// that was split across several control messages failed after some of them
+// were sent. The gateway has received SymbolsSent symbols in messages marked
+// is_last=0 and is waiting for the rest, so the connection should not be
+// reused for further requests.
+type PartialSendError struct {
+	SymbolsSent  int   // Symbols in the messages that were fully sent
+	SymbolsTotal int   // Symbols in the whole request
+	Err          error // The underlying write error
+}
+
+func (e *PartialSendError) Error() string {
+	return fmt.Sprintf("%d of %d symbols were already sent as partial messages: %v", e.SymbolsSent, e.SymbolsTotal, e.Err)
+}
+
+func (e *PartialSendError) Unwrap() error { return e.Err }
