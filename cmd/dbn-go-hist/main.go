@@ -327,6 +327,10 @@ func main() {
 	docsMarkdownCmd.Flags().BoolVar(&docsHugo, "hugo", false, "Generate Hugo-compatible markdown with YAML front matter")
 	rootCmd.AddCommand(docsCmd)
 
+	versionCmd.Flags().BoolVarP(&emitJSON, "json", "j", false, "Emit JSON instead of simple summary")
+	rootCmd.AddCommand(versionCmd)
+	rootCmd.SetVersionTemplate(version.String(rootCmd.Name()) + "\n")
+
 	err := rootCmd.Execute()
 	requireNoError(err)
 }
@@ -338,6 +342,19 @@ var rootCmd = &cobra.Command{
 	Short:   "dbn-go-hist queries the Databento Historical API.",
 	Long:    "dbn-go-hist queries the Databento Historical API.",
 	Version: version.Get(),
+}
+
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Prints version, revision, and build information",
+	Args:  cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		if emitJSON {
+			printJSON(version.GetInfo(rootCmd.Name()))
+			return
+		}
+		fmt.Fprintln(os.Stdout, version.String(rootCmd.Name()))
+	},
 }
 
 var listDatasetsCmd = &cobra.Command{
