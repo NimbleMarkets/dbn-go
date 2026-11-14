@@ -730,7 +730,8 @@ func requireBudgetApproval(apiKey string, symbols []string, params *dbn_hist.Sub
 func printJSON[T any](val T) {
 	jstr, err := json.Marshal(val)
 	requireNoError(err)
-	fmt.Fprintf(os.Stdout, "%s\n", jstr)
+	_, err = fmt.Fprintf(os.Stdout, "%s\n", jstr)
+	requireNoError(err)
 }
 
 // getCostsChunked returns the estimated costs and sizes for the given symbol list.

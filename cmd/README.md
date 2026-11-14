@@ -57,6 +57,7 @@ Available Commands:
   metadata    Prints the specified file's metadata as JSON
   parquet     Writes the specified files' records as parquet
   split       Splits Databento download folders into "<feed>/<instrument_id>/Y/M/D/feed-YMD.type.dbn.zst"
+  version     Prints version, revision, and build information
 
 Flags:
   -h, --help      help for dbn-go-file
@@ -143,6 +144,7 @@ Available Commands:
   submit-job        Submit a data request job to the Hist API
   tui               dbn-go-hist TUI
   unit-prices       Queries Databento Hist for unit prices of a dataset
+  version           Prints version, revision, and build information
 
 Flags:
   -h, --help         help for dbn-go-hist

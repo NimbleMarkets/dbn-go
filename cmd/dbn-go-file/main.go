@@ -22,6 +22,8 @@ var (
 	destDir string // destination directory
 
 	forceZstdInput = false // force input to be zstd, irrespective of filename suffix
+
+	emitJSON = false // emit JSON instead of text summary
 )
 
 func requireNoErrorWithoutPrint(err error) {
@@ -57,6 +59,7 @@ func main() {
 	docsMarkdownCmd.Flags().BoolVar(&docsHugo, "hugo", false, "Generate Hugo-compatible markdown with YAML front matter")
 	rootCmd.AddCommand(docsCmd)
 
+	versionCmd.Flags().BoolVarP(&emitJSON, "json", "j", false, "Emit JSON instead of simple summary")
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.SetVersionTemplate(version.String(rootCmd.Name()) + "\n")
 
@@ -78,6 +81,13 @@ var versionCmd = &cobra.Command{
 	Short: "Prints version, revision, and build information",
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
+		if emitJSON {
+			if err := json.NewEncoder(os.Stdout).Encode(version.GetInfo(rootCmd.Name())); err != nil {
+				fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
+				os.Exit(1)
+			}
+			return
+		}
 		fmt.Fprintln(os.Stdout, version.String(rootCmd.Name()))
 	},
 }

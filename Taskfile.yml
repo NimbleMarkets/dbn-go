@@ -208,7 +208,7 @@ tasks:
     generates:
       - bin/dbn-go-file
     cmds:
-      - go build -o bin/dbn-go-file cmd/dbn-go-file/*.go
+      - go build -o bin/dbn-go-file ./cmd/dbn-go-file
 
   build-dbn-go-hist:
     desc: 'Build dbn-go-hist'
@@ -221,7 +221,7 @@ tasks:
     generates:
       - bin/dbn-go-hist
     cmds:
-      - go build -o bin/dbn-go-hist cmd/dbn-go-hist/*.go
+      - go build -o bin/dbn-go-hist ./cmd/dbn-go-hist
 
   test-mcp:
     desc: 'Smoke-test MCP servers (requires DATABENTO_API_KEY or DATABENTO_API_KEY_FILE)'
@@ -273,11 +273,12 @@ tasks:
     sources:
       - ./*.go
       - live/*.go
+      - internal/version/*.go
       - cmd/dbn-go-live/*.go
     generates:
       - bin/dbn-go-live
     cmds:
-      - go build -o bin/dbn-go-live cmd/dbn-go-live/*.go
+      - go build -o bin/dbn-go-live ./cmd/dbn-go-live
 
   build-dbn-go-mcp-meta:
     desc: 'Build dbn-go-mcp-meta'
@@ -290,7 +291,7 @@ tasks:
     generates:
       - bin/dbn-go-mcp-meta
     cmds:
-      - go build -o bin/dbn-go-mcp-meta cmd/dbn-go-mcp-meta/*.go
+      - go build -o bin/dbn-go-mcp-meta ./cmd/dbn-go-mcp-meta
 
   build-dbn-go-mcp-data:
     desc: 'Build dbn-go-mcp-data'
@@ -318,7 +319,7 @@ tasks:
     generates:
       - bin/dbn-go-tui
     cmds:
-      - go build -o bin/dbn-go-tui cmd/dbn-go-tui/*.go
+      - go build -o bin/dbn-go-tui ./cmd/dbn-go-tui
 
   build-dbn-go-slurp-docs:
     desc: 'Build dbn-go-slurp-docs'
