@@ -252,7 +252,12 @@ func (m *DownloadsPageModel) onDownloadProgress(msg DownloadProgressMsg) tea.Cmd
 	if msg.Error != nil {
 		progressStr = msg.Error.Error()
 		m.lastError = msg.Error
+		m.updateSizes()
 	} else {
+		if m.lastError != nil {
+			m.lastError = nil
+			m.updateSizes()
+		}
 		progress := clampFloat(float64(msg.CurrentSize)/float64(msg.Desc.Size), 0, 1)
 		progressStr = renderProgressBar(columnDownloadsProgressWidth, progress)
 	}

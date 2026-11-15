@@ -210,9 +210,16 @@ func (dm *DownloadManager) enqueueDownload(desc DownloadDesc) bool {
 			return false
 		}
 	}
-	for _, download := range dm.pastDownloads {
+	for i, download := range dm.pastDownloads {
 		if download.Desc == desc {
-			return false
+			if download.State == DownloadComplete {
+				return false
+			}
+			// A cancelled or failed download may be queued again; remove its old
+			// pastDownloads entry so it can be re-queued without double-counting
+			// it in Counts() ("Finished X of Y").
+			dm.pastDownloads = slices.Delete(dm.pastDownloads, i, i+1)
+			break
 		}
 	}
 

@@ -476,3 +476,41 @@ func TestCancelDownload_UnknownFile(t *testing.T) {
 		t.Errorf("queued downloads = %d, want 1", queued)
 	}
 }
+
+func TestCancelDownload_CancelledCanBeRequeued(t *testing.T) {
+	server := newRecordingServer(t, true, serveBody("x"))
+	chdirToSubdir(t)
+	dm := cancelTestManager(server)
+	file := batchFile(server, "data.dbn.zst", 1)
+
+	if !dm.QueueDownload("JOB", file) {
+		t.Fatal("initial QueueDownload returned false")
+	}
+	if !dm.CancelDownload("JOB", file) {
+		t.Fatal("CancelDownload returned false")
+	}
+	waitForProgress(t, dm, func(msg DownloadProgressMsg) bool {
+		return msg.State == DownloadCancelled
+	})
+
+	// Re-queueing a cancelled download should succeed and complete.
+	if !dm.QueueDownload("JOB", file) {
+		t.Fatal("re-queueing a cancelled download returned false")
+	}
+	if !dm.checkQueue() {
+		t.Fatal("re-queued download was not started")
+	}
+	msg := waitForProgress(t, dm, func(msg DownloadProgressMsg) bool {
+		return msg.State == DownloadComplete || msg.State == DownloadFailed
+	})
+	if msg.State != DownloadComplete || msg.Error != nil {
+		t.Fatalf("final state = %q, error = %v; want %q", msg.State, msg.Error, DownloadComplete)
+	}
+	if queued, active, past := dm.Counts(); queued != 0 || active != 0 || past != 1 {
+		t.Errorf("Counts() = %d, %d, %d; want 0, 0, 1", queued, active, past)
+	}
+	// Completed downloads still cannot be queued again.
+	if dm.QueueDownload("JOB", file) {
+		t.Error("QueueDownload of a completed download returned true")
+	}
+}
