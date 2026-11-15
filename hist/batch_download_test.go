@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -285,11 +286,10 @@ func TestDownloadJobFile_SizeMismatch(t *testing.T) {
 	for name, body := range map[string]string{"short": "abc", "long": "abcdefgh-and-more"} {
 		t.Run(name, func(t *testing.T) {
 			desc := fileDesc("a.dbn.zst", "abcdefgh")
-			desc.Hash = "" // only the size can catch it
 			newFakeBatchServer(t, nil, map[string]string{"/v0/job.download/JOB-1/a.dbn.zst": body})
 			dir := t.TempDir()
-			if _, err := DownloadJobFile(testDownloadKey, desc, dir); err == nil {
-				t.Fatal("expected size error")
+			if _, err := DownloadJobFile(testDownloadKey, desc, dir); err == nil || !strings.Contains(err.Error(), "bytes") {
+				t.Fatalf("err = %v, want size mismatch error", err)
 			}
 			if got := filesUnder(t, dir); len(got) != 0 {
 				t.Errorf("files = %q, want none", got)
@@ -298,23 +298,9 @@ func TestDownloadJobFile_SizeMismatch(t *testing.T) {
 	}
 }
 
-func TestDownloadJobFile_WithoutHashChecksSizeOnly(t *testing.T) {
-	desc := fileDesc("a.dbn.zst", "content")
-	desc.Hash = ""
-	newFakeBatchServer(t, nil, map[string]string{"/v0/job.download/JOB-1/a.dbn.zst": "content"})
-	dir := t.TempDir()
-	path, err := DownloadJobFile(testDownloadKey, desc, dir)
-	if err != nil {
-		t.Fatalf("DownloadJobFile: %v", err)
-	}
-	if got := readFile(t, path); got != "content" {
-		t.Errorf("content = %q", got)
-	}
-}
-
-func TestDownloadJobFile_RejectsMalformedHash(t *testing.T) {
+func TestDownloadJobFile_RejectsMissingAndMalformedHash(t *testing.T) {
 	srv := newFakeBatchServer(t, nil, map[string]string{"/v0/job.download/JOB-1/a.dbn.zst": "content"})
-	for _, hash := range []string{"md5:abcd", "sha256:zz", "sha256:abcd", "deadbeef"} {
+	for _, hash := range []string{"", "md5:abcd", "sha256:zz", "sha256:abcd", "deadbeef"} {
 		desc := fileDesc("a.dbn.zst", "content")
 		desc.Hash = hash
 		if _, err := DownloadJobFile(testDownloadKey, desc, t.TempDir()); err == nil {
@@ -333,7 +319,7 @@ func TestDownloadJobFile_RejectsPathTraversal(t *testing.T) {
 	if err := os.Mkdir(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"", ".", "..", "...", ".. ", "../escape", "a/b", `..\escape`, `a\b`, "C:escape", "/etc/passwd", "bad\x00name", "bad\nname"} {
+	for _, name := range []string{"", ".", "..", "...", ".. ", "../escape", "a/b", `..\escape`, `a\b`, "C:escape", "/etc/passwd", "bad\x00name", "bad\nname", "a*b", "a?b", `a"b`, "a<b", "a>b", "a|b", "NUL", "con", "Aux.dbn.zst", "COM1.txt", "lpt9", "NUL .txt"} {
 		desc := fileDesc("x", "content")
 		desc.Filename = name
 		if _, err := DownloadJobFile(testDownloadKey, desc, dir); err == nil {
@@ -439,6 +425,40 @@ func TestDownloadJobFile_NeverSendsKeyToUntrustedURL(t *testing.T) {
 }
 
 func TestDownloadJobFile_RedirectDoesNotLeakKey(t *testing.T) {
+	for _, target := range []string{
+		"https://cdn.example.com/elsewhere",
+		"https://sub.api.databento.com:8443/elsewhere",
+	} {
+		t.Run(target, func(t *testing.T) {
+			desc := fileDesc("a.dbn.zst", "content")
+			srv := newFakeBatchServer(t, nil, map[string]string{"/elsewhere": "content"})
+			srv.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				srv.mu.Lock()
+				srv.requests = append(srv.requests, r)
+				srv.mu.Unlock()
+				if r.Host == "api.databento.com" {
+					http.Redirect(w, r, target, http.StatusFound)
+					return
+				}
+				_, _ = w.Write([]byte("content"))
+			})
+
+			if _, err := DownloadJobFile(testDownloadKey, desc, t.TempDir()); err != nil {
+				t.Fatalf("DownloadJobFile: %v", err)
+			}
+			reqs := srv.received()
+			if len(reqs) != 2 {
+				t.Fatalf("requests = %d, want 2", len(reqs))
+			}
+			wantBasicAuth(t, reqs[0])
+			if got := reqs[1].Header.Get("Authorization"); got != "" {
+				t.Errorf("redirected request to %s carried Authorization %q", reqs[1].Host, got)
+			}
+		})
+	}
+}
+
+func TestDownloadJobFile_RedirectPreservesKeyOnSiblingDatabentoHost(t *testing.T) {
 	desc := fileDesc("a.dbn.zst", "content")
 	srv := newFakeBatchServer(t, nil, map[string]string{"/elsewhere": "content"})
 	srv.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -446,7 +466,7 @@ func TestDownloadJobFile_RedirectDoesNotLeakKey(t *testing.T) {
 		srv.requests = append(srv.requests, r)
 		srv.mu.Unlock()
 		if r.Host == "api.databento.com" {
-			http.Redirect(w, r, "https://cdn.example.com/elsewhere", http.StatusFound)
+			http.Redirect(w, r, "https://files.databento.com/elsewhere", http.StatusFound)
 			return
 		}
 		_, _ = w.Write([]byte("content"))
@@ -460,9 +480,7 @@ func TestDownloadJobFile_RedirectDoesNotLeakKey(t *testing.T) {
 		t.Fatalf("requests = %d, want 2", len(reqs))
 	}
 	wantBasicAuth(t, reqs[0])
-	if got := reqs[1].Header.Get("Authorization"); got != "" {
-		t.Errorf("redirected request to %s carried Authorization %q", reqs[1].Host, got)
-	}
+	wantBasicAuth(t, reqs[1])
 }
 
 func TestDownloadJobFile_AcceptsListedEmptyFile(t *testing.T) {
@@ -552,5 +570,65 @@ func TestDownloadJobFile_RefusesNonHTTPSRedirect(t *testing.T) {
 	}
 	if got := filesUnder(t, dir); len(got) != 0 {
 		t.Errorf("files = %q, want none", got)
+	}
+}
+
+func TestDownloadJobFile_RetriesTruncatedBody(t *testing.T) {
+	desc := fileDesc("a.dbn.zst", "complete content")
+	srv := newFakeBatchServer(t, nil, nil)
+	srv.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv.mu.Lock()
+		srv.requests = append(srv.requests, r)
+		n := len(srv.requests)
+		srv.mu.Unlock()
+		if n == 1 {
+			_, _ = w.Write([]byte("complete")) // short 200 body
+			return
+		}
+		_, _ = w.Write([]byte("complete content"))
+	})
+	downloadRetryMax = 1
+
+	dir := t.TempDir()
+	path, err := DownloadJobFile(testDownloadKey, desc, dir)
+	if err != nil {
+		t.Fatalf("DownloadJobFile: %v", err)
+	}
+	if got := readFile(t, path); got != "complete content" {
+		t.Errorf("content = %q, want %q", got, "complete content")
+	}
+	if n := len(srv.received()); n != 2 {
+		t.Errorf("requests = %d, want 2", n)
+	}
+}
+
+func TestDownloadAttempt_DoesNotRetryLocalWriteError(t *testing.T) {
+	desc := fileDesc("a.dbn.zst", "content")
+	srv := newFakeBatchServer(t, nil, nil)
+	u, err := url.Parse(desc.Urls["https"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantHash, err := parseSHA256Hash(desc.Hash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpFile, err := createTempFile(t.TempDir(), "a.dbn.zst")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tmpFile.Close()
+
+	srv.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = tmpFile.Close() // cause tmpFile.Write during io.Copy to fail locally
+		_, _ = w.Write([]byte("content"))
+	})
+
+	retryable, err := downloadAttempt(testDownloadKey, u, tmpFile, desc.Size, wantHash)
+	if err == nil {
+		t.Fatal("expected error writing to closed file")
+	}
+	if retryable {
+		t.Errorf("retryable = true for local file write error %v, want false", err)
 	}
 }

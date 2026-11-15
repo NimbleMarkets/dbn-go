@@ -398,7 +398,9 @@ func (dm *DownloadManager) performDownload(ctx context.Context, item DownloadIte
 		if req.URL.Scheme != "https" {
 			return fmt.Errorf("refusing redirect to non-https URL %q", req.URL.Redacted())
 		}
-		if urlAllowed(req.URL) != nil {
+		if urlAllowed(req.URL) == nil {
+			req.Header.Set("Authorization", "Basic "+auth)
+		} else {
 			req.Header.Del("Authorization") // the key stays with Databento
 		}
 		return nil
@@ -480,11 +482,15 @@ func databentoDownloadURLAllowed(u *url.URL) error {
 }
 
 // checkDownloadFilename returns an error unless name is a plain file name:
-// no directory part, drive or stream separator, or control characters, and
-// no trailing dot or space. Windows drops trailing dots and spaces, so "..."
-// or ".. " would name a parent directory there; "." and ".." end in a dot too.
+// no directory part, drive or stream separator, Windows-reserved characters
+// or device names, or control characters, and no trailing dot or space.
+// Windows drops trailing dots and spaces, so "..." or ".. " would name a
+// parent directory there; "." and ".." end in a dot too.
 func checkDownloadFilename(name string) error {
-	invalid := name == "" || strings.ContainsAny(name, `/\:`) || strings.TrimRight(name, ". ") != name
+	invalid := name == "" ||
+		strings.ContainsAny(name, `/\:*?"<>|`) ||
+		strings.TrimRight(name, ". ") != name ||
+		isWindowsDeviceName(name)
 	for _, r := range name {
 		if r < 0x20 || r == 0x7f {
 			invalid = true
@@ -494,6 +500,18 @@ func checkDownloadFilename(name string) error {
 		return fmt.Errorf("refusing unsafe file name %q", name)
 	}
 	return nil
+}
+
+func isWindowsDeviceName(name string) bool {
+	stem, _, _ := strings.Cut(name, ".")
+	stem = strings.TrimRight(stem, " ")
+	switch strings.ToUpper(stem) {
+	case "CON", "PRN", "AUX", "NUL",
+		"COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+		"LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9":
+		return true
+	}
+	return false
 }
 
 // parseSHA256Hash decodes a listing hash of the form "sha256:<hex>".

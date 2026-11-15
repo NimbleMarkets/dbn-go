@@ -4,6 +4,7 @@ package dbn_hist
 
 import (
 	"bytes"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -104,10 +105,10 @@ func DownloadJob(apiKey string, params DownloadJobParams) ([]string, error) {
 //
 // The listing comes from the network, so none of it is trusted: the file name
 // must be a plain name (no directory part), the API key is only sent to a
-// Databento HTTPS URL, and the file is only kept if its size, and its SHA-256
-// hash when one is listed, match the listing. The download is written to a
-// temporary file in destDir that is renamed into place once verified, so a
-// failed download never leaves a partial or unverified file at the path.
+// Databento HTTPS URL, and the file is only kept if its size and SHA-256
+// hash match the listing. The download is written to a temporary file in
+// destDir that is renamed into place once verified, so a failed download
+// never leaves a partial or unverified file at the path.
 //
 // If a file with the listed size and hash is already at the path, it is kept
 // and nothing is downloaded. Any other existing file is replaced.
@@ -159,11 +160,11 @@ func DownloadJobFile(apiKey string, file BatchFileDesc, destDir string) (string,
 }
 
 // downloadVerified downloads u to a temporary file next to destPath, checks
-// its size and its hash (if wantHash is non-nil), then renames it to destPath.
+// its size and SHA-256 hash, then renames it to destPath.
 // Network errors and HTTP 429 and 5xx responses are retried, with backoff, up
 // to downloadRetryMax times.
 func downloadVerified(apiKey string, u *url.URL, destPath string, wantSize uint64, wantHash []byte) (err error) {
-	tmpFile, err := os.CreateTemp(filepath.Dir(destPath), "."+filepath.Base(destPath)+".*.tmp")
+	tmpFile, err := createTempFile(filepath.Dir(destPath), filepath.Base(destPath))
 	if err != nil {
 		return err
 	}
@@ -192,13 +193,27 @@ func downloadVerified(apiKey string, u *url.URL, destPath string, wantSize uint6
 		wait = min(2*wait, 30*time.Second)
 	}
 
-	if err := tmpFile.Chmod(0o644); err != nil {
-		return err
-	}
 	if err := tmpFile.Close(); err != nil {
 		return err
 	}
 	return os.Rename(tmpPath, destPath)
+}
+
+// createTempFile opens a new temporary file in dir for base with mode 0666
+// (before umask), unlike os.CreateTemp which hardcodes mode 0600.
+func createTempFile(dir, base string) (*os.File, error) {
+	for range 16 {
+		var suffix [8]byte
+		if _, err := rand.Read(suffix[:]); err != nil {
+			return nil, err
+		}
+		name := fmt.Sprintf(".%s.%x.tmp", base, suffix)
+		f, err := os.OpenFile(filepath.Join(dir, name), os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o666)
+		if !errors.Is(err, os.ErrExist) {
+			return f, err
+		}
+	}
+	return nil, errors.New("could not create temporary download file")
 }
 
 // downloadAttempt makes one request for u and writes the body to tmpFile,
@@ -227,7 +242,9 @@ func downloadAttempt(apiKey string, u *url.URL, tmpFile *os.File, wantSize uint6
 		if req.URL.Scheme != "https" {
 			return fmt.Errorf("%w to non-https URL %q", errRefusedRedirect, req.URL.Redacted())
 		}
-		if databentoDownloadURLAllowed(req.URL) != nil {
+		if databentoDownloadURLAllowed(req.URL) == nil {
+			req.Header.Set("Authorization", "Basic "+auth)
+		} else {
 			req.Header.Del("Authorization") // the key stays with Databento
 		}
 		return nil
@@ -247,23 +264,38 @@ func downloadAttempt(apiKey string, u *url.URL, tmpFile *os.File, wantSize uint6
 	// overrun). This holds for every listed size, including zero.
 	body := io.LimitReader(resp.Body, int64(wantSize)+1)
 	hasher := sha256.New()
-	written, err := io.Copy(io.MultiWriter(tmpFile, hasher), body)
+	var writeErr error
+	dst := writerFunc(func(p []byte) (int, error) {
+		n, err := tmpFile.Write(p)
+		if err != nil {
+			writeErr = err
+		}
+		return n, err
+	})
+	written, err := io.Copy(io.MultiWriter(dst, hasher), body)
+	if writeErr != nil {
+		return false, writeErr
+	}
 	if err != nil {
 		return true, err
 	}
 	if uint64(written) > wantSize {
 		return false, fmt.Errorf("download is larger than the %d bytes listed", wantSize)
 	} else if uint64(written) < wantSize {
-		return false, fmt.Errorf("download is %d bytes, but %d were listed", written, wantSize)
+		return true, fmt.Errorf("download is %d bytes, but %d were listed", written, wantSize)
 	}
-	if wantHash != nil && !bytes.Equal(hasher.Sum(nil), wantHash) {
+	if !bytes.Equal(hasher.Sum(nil), wantHash) {
 		return false, errors.New("download does not match the listed SHA-256 hash")
 	}
 	return false, nil
 }
 
-// fileMatches reports whether path is a regular file with the given size and,
-// if wantHash is non-nil, SHA-256 hash. A missing file does not match.
+type writerFunc func([]byte) (int, error)
+
+func (f writerFunc) Write(p []byte) (int, error) { return f(p) }
+
+// fileMatches reports whether path is a regular file with the given size and
+// SHA-256 hash. A missing file does not match.
 func fileMatches(path string, size uint64, wantHash []byte) (bool, error) {
 	info, err := os.Lstat(path)
 	if errors.Is(err, os.ErrNotExist) {
@@ -273,9 +305,6 @@ func fileMatches(path string, size uint64, wantHash []byte) (bool, error) {
 	}
 	if !info.Mode().IsRegular() || uint64(info.Size()) != size {
 		return false, nil
-	}
-	if wantHash == nil {
-		return true, nil
 	}
 	f, err := os.Open(path)
 	if err != nil {
@@ -309,11 +338,15 @@ func databentoDownloadURLAllowed(u *url.URL) error {
 }
 
 // checkDownloadFilename returns an error unless name is a plain file name:
-// no directory part, drive or stream separator, or control characters, and
-// no trailing dot or space. Windows drops trailing dots and spaces, so "..."
-// or ".. " would name a parent directory there; "." and ".." end in a dot too.
+// no directory part, drive or stream separator, Windows-reserved characters
+// or device names, or control characters, and no trailing dot or space.
+// Windows drops trailing dots and spaces, so "..." or ".. " would name a
+// parent directory there; "." and ".." end in a dot too.
 func checkDownloadFilename(name string) error {
-	invalid := name == "" || strings.ContainsAny(name, `/\:`) || strings.TrimRight(name, ". ") != name
+	invalid := name == "" ||
+		strings.ContainsAny(name, `/\:*?"<>|`) ||
+		strings.TrimRight(name, ". ") != name ||
+		isWindowsDeviceName(name)
 	for _, r := range name {
 		if r < 0x20 || r == 0x7f {
 			invalid = true
@@ -325,12 +358,24 @@ func checkDownloadFilename(name string) error {
 	return nil
 }
 
+func isWindowsDeviceName(name string) bool {
+	stem, _, _ := strings.Cut(name, ".")
+	stem = strings.TrimRight(stem, " ")
+	switch strings.ToUpper(stem) {
+	case "CON", "PRN", "AUX", "NUL",
+		"COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+		"LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9":
+		return true
+	}
+	return false
+}
+
 // parseSHA256Hash decodes a listing hash of the form "sha256:<hex>".
-// An empty hash returns nil, meaning there is nothing to verify; any other
-// form is an error.
+// A hash is required: without one the content cannot be verified, and it may
+// have been served by a host other than the one the listing named.
 func parseSHA256Hash(hash string) ([]byte, error) {
 	if hash == "" {
-		return nil, nil
+		return nil, errors.New("refusing download with no listed hash")
 	}
 	hexDigest, ok := strings.CutPrefix(hash, "sha256:")
 	if !ok {

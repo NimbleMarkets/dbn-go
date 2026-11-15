@@ -277,6 +277,7 @@ func main() {
 	rootCmd.AddCommand(downloadJobCmd)
 	downloadJobCmd.Flags().StringVarP(&downloadOutputDir, "output-dir", "o", ".", "Directory to download into; files are written to <output-dir>/<job_id>/")
 	downloadJobCmd.Flags().StringVarP(&downloadFilename, "filename", "f", "", "Download only this file of the job")
+	downloadJobCmd.Flags().BoolVarP(&emitJSON, "json", "j", false, "Emit JSON instead of simple summary")
 
 	rootCmd.AddCommand(submitJobCmd)
 	submitJobCmd.Flags().StringVarP(&dataset, "dataset", "d", "", "Dataset to request")
@@ -603,7 +604,7 @@ All of the job's files are downloaded, or only the one named by --filename.
 Each file's size and SHA-256 hash are checked against the job's file listing,
 and a file is only written to its final path once it has been verified.
 Files already present with the listed size and hash are not downloaded again.
-The path of each file is printed on its own line.`,
+The path of each file is printed on its own line, or as a JSON array with --json.`,
 	Example: `  dbn-go-hist download-job GLBX-20240101-ABCDEF1234
   dbn-go-hist download-job GLBX-20240101-ABCDEF1234 -o ./data -f metadata.json`,
 	Args: cobra.ExactArgs(1),
@@ -615,6 +616,13 @@ The path of each file is printed on its own line.`,
 			OutputDir:          downloadOutputDir,
 			FilenameToDownload: downloadFilename,
 		})
+		if emitJSON {
+			if err == nil || len(paths) > 0 {
+				printJSON(paths)
+			}
+			requireNoError(err)
+			return
+		}
 		for _, path := range paths {
 			fmt.Fprintf(os.Stdout, "%s\n", path)
 		}

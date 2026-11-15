@@ -235,7 +235,7 @@ func TestPerformDownload_RejectsFilenameOutsideDownloadDir(t *testing.T) {
 	abs := filepath.Join(root, "abs.dbn.zst")
 
 	for _, name := range []string{"../escape.dbn.zst", abs, "sub/file.dbn.zst", `sub\file.dbn.zst`, "..", ".", "", "C:file.dbn.zst", "a\x00b", "a\nb",
-		"...", ".. ", "file.dbn.zst.", "file.dbn.zst ", " "} {
+		"...", ".. ", "file.dbn.zst.", "file.dbn.zst ", " ", "NUL", "con", "Aux.dbn.zst", "COM1.txt", "lpt9", "NUL .txt"} {
 		err := download(testDownloadManager(server), DownloadDesc{
 			Url: server.URL + "/file", Filename: name, FileHash: sha256Hash(body), Size: 1,
 		})
